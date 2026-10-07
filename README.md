@@ -10,6 +10,8 @@ UBL 2.1 / CIUS-RO și le trimite în sistemul RO e-Factura al ANAF.
 
 ## License
 
+Copyright (C) 2026 S.C. CROCKY S.R.L. (CrockyHost)
+
 WHMCS-eFactura is free software, licensed under the GNU General Public License
 version 3 ([`LICENSE`](LICENSE)), with an additional permission for WHMCS and
 additional terms under section 7 ([`ADDITIONAL-TERMS.md`](ADDITIONAL-TERMS.md)).

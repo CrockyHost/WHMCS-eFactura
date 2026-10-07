@@ -1,7 +1,10 @@
 # Additional Permission and Additional Terms
 
 WHMCS-eFactura
-Copyright (C) 2026 CrockyHost
+Copyright (C) 2026 S.C. CROCKY S.R.L.
+
+In this document, "CrockyHost" means S.C. CROCKY S.R.L., including the
+CrockyHost brand under which it operates.
 
 WHMCS-eFactura is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License version 3, as published by
