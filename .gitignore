@@ -1,0 +1,24 @@
+# This repository lives in the root of a local WHMCS installation.
+# Everything is ignored by default; only the addon and the project files are tracked.
+/*
+!/.gitignore
+!/.gitattributes
+!/.github/
+!/LICENSE
+!/ADDITIONAL-TERMS.md
+!/README.md
+
+!/modules/
+/modules/*
+!/modules/addons/
+/modules/addons/*
+!/modules/addons/efactura/
+
+# Composer dependencies are bundled only in release archives
+/modules/addons/efactura/vendor/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
