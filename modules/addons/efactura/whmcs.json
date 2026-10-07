@@ -1,0 +1,36 @@
+{
+  "schema": "1.0",
+  "type": "whmcs-addons",
+  "name": "efactura",
+  "license": "GPL-3.0",
+  "category": "utilities",
+  "description": {
+    "name": "WHMCS-eFactura",
+    "tagline": "RO e-Factura (ANAF) for WHMCS: UBL 2.1 / CIUS-RO invoices sent to the Romanian SPV.",
+    "long": "Sends the fiscal invoices and stornos issued by WHMCS to the Romanian RO e-Factura system (ANAF SPV), tracks their status, archives the signed responses and shows the SPV inbox.",
+    "features": [
+      "UBL 2.1 / CIUS-RO invoices and stornos generated from WHMCS invoices",
+      "Upload to ANAF SPV with status tracking and signed archive",
+      "Fiscal numbering at payment, with early issue when needed",
+      "SPV inbox for received invoices and messages"
+    ]
+  },
+  "support": {
+    "homepage": "https://github.com/CrockyHost/WHMCS-eFactura",
+    "docs_url": "https://github.com/CrockyHost/WHMCS-eFactura#readme"
+  },
+  "authors": [
+    {
+      "name": "CrockyHost (S.C. CROCKY S.R.L.)",
+      "homepage": "https://github.com/CrockyHost"
+    }
+  ],
+  "keywords": [
+    "e-factura",
+    "anaf",
+    "ubl",
+    "cius-ro",
+    "romania",
+    "invoicing"
+  ]
+}

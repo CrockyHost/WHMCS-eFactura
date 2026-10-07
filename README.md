@@ -8,6 +8,20 @@ UBL 2.1 / CIUS-RO invoices and sends them to ANAF.
 **Română:** addon open-source pentru WHMCS care generează facturile în format
 UBL 2.1 / CIUS-RO și le trimite în sistemul RO e-Factura al ANAF.
 
+## Development
+
+The repository root is the root of a local WHMCS 9 installation; only the
+addon (`modules/addons/efactura/`) and the project files are tracked.
+
+Tests run from the command line, without extra dependencies:
+
+```
+php tests/run.php        # unit tests, no WHMCS needed
+php tests/run.php all    # unit + integration tests against the local WHMCS
+```
+
+Integration tests run inside a database transaction that is rolled back.
+
 ## License
 
 Copyright (C) 2026 S.C. CROCKY S.R.L. (CrockyHost)

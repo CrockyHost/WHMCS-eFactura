@@ -1,0 +1,98 @@
+/*
+ * WHMCS-eFactura - RO e-Factura (ANAF) addon for WHMCS
+ *
+ * Copyright (C) 2026 S.C. CROCKY S.R.L.
+ * SPDX-License-Identifier: GPL-3.0
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 3, with the
+ * additional permission and additional terms in ADDITIONAL-TERMS.md.
+ * See the LICENSE and ADDITIONAL-TERMS.md files for details.
+ */
+
+/* Admin pages of the addon. Builds on the Bootstrap 3 styles of the WHMCS
+   admin theme and only adds what it lacks. */
+
+.efactura-header {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.efactura-badges {
+    position: absolute;
+    right: 0;
+    top: 8px;
+}
+
+.efactura-badges .label {
+    margin-left: 4px;
+    font-size: 11px;
+    letter-spacing: .02em;
+}
+
+.efactura .panel-title {
+    font-weight: 600;
+}
+
+.efactura-checks {
+    margin-bottom: 0;
+}
+
+.efactura-checks > tbody > tr:first-child > td {
+    border-top: 0;
+}
+
+.efactura-check-icon {
+    width: 36px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.efactura-check-ok .efactura-check-icon { color: #3c763d; }
+.efactura-check-info .efactura-check-icon { color: #31708f; }
+.efactura-check-warning .efactura-check-icon { color: #e68a00; }
+.efactura-check-danger .efactura-check-icon { color: #c9302c; }
+
+.efactura-check-label {
+    font-weight: 600;
+}
+
+.efactura-check-detail {
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.efactura-intro {
+    margin-bottom: 15px;
+}
+
+.efactura-settings .form-control-static {
+    font-family: Menlo, Consolas, monospace;
+}
+
+.efactura-error {
+    font-weight: 600;
+}
+
+.efactura-actions {
+    margin: 0 0 20px;
+}
+
+.efactura-legal {
+    margin-top: 30px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.efactura-legal p {
+    margin: 0 0 4px;
+}
+
+@media (max-width: 767px) {
+    .efactura-badges {
+        position: static;
+        margin-bottom: 8px;
+    }
+}
