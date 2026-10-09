@@ -252,6 +252,21 @@ $_ADDONLANG['callback_invalid_state'] = 'This authorization link is invalid, exp
 $_ADDONLANG['callback_denied'] = 'ANAF did not authorize the access (%s). Check that the qualified certificate is connected and enrolled in SPV for the company, then try again.';
 $_ADDONLANG['callback_failed'] = 'The authorization could not be completed: %s';
 
+// Fiscal numbering
+$_ADDONLANG['review_lock_timeout'] = 'paid while the fiscal numbering was busy';
+$_ADDONLANG['review_counter_gap'] = 'possible gap in the fiscal series';
+$_ADDONLANG['review_duplicate_number'] = 'number already used';
+$_ADDONLANG['excluded_eu_reverse_charge'] = 'EU company, reverse charge';
+$_ADDONLANG['excluded_non_eu'] = 'client outside the EU';
+$_ADDONLANG['alert_review_subject'] = 'Fiscal invoice %s needs a manual check';
+$_ADDONLANG['alert_review_body'] = "Invoice #%d received the fiscal number %s, but it needs a manual check: %s. Its e-Factura document is on hold until you check that the number is unique and that the series has no gap, then release it.\n\n%s";
+$_ADDONLANG['alert_gap_subject'] = 'Possible gap in the fiscal series at %s';
+$_ADDONLANG['alert_gap_body'] = "WHMCS gave the fiscal number %s to invoice #%d, which must not keep it, and the number could not be returned to the counter because other numbers were taken in the meantime. Check the fiscal series and the Next Paid Invoice Number counter.\n\n%s";
+$_ADDONLANG['alert_duplicate_subject'] = 'Duplicate fiscal number %s corrected';
+$_ADDONLANG['alert_duplicate_body'] = "WHMCS gave invoice #%d the fiscal number %s, which was already in use. The addon replaced it with %s.\n\n%s";
+$_ADDONLANG['alert_hook_failed_subject'] = 'Error while processing invoice #%d';
+$_ADDONLANG['alert_hook_failed_body'] = "The e-Factura step \"%s\" failed for invoice #%d: %s\nThe payment itself was not affected. Check the invoice and its fiscal number.";
+
 // Validation
 $_ADDONLANG['error_csrf'] = 'The form has expired. Reload the page and try again.';
 $_ADDONLANG['error_too_long'] = 'At most %d characters.';

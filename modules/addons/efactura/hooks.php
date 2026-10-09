@@ -20,9 +20,31 @@ if (!defined('WHMCS')) {
 require_once __DIR__ . '/bootstrap.php';
 
 use WHMCS\Module\Addon\Efactura\Hooks\CronHooks;
+use WHMCS\Module\Addon\Efactura\Hooks\InvoiceHooks;
 
 // Hook registration only. WHMCS loads this file on every page, so each hook
 // is a one-line delegation to a class in lib/Hooks.
+
+// Fiscal numbering at payment. The early priority makes the addon restore a
+// fiscal number before other hooks read it; InvoicePaid releases the lock
+// last.
+add_hook('AddInvoicePayment', -100, static function (array $vars): void {
+    InvoiceHooks::addInvoicePayment($vars);
+});
+add_hook('InvoicePaidPreEmail', -100, static function (array $vars): void {
+    InvoiceHooks::invoicePaidPreEmail($vars);
+});
+add_hook('InvoicePaid', 1000, static function (array $vars): void {
+    InvoiceHooks::invoicePaid($vars);
+});
+
+// Fiscal invoice before payment for the clients chosen in the settings.
+add_hook('InvoiceCreationPreEmail', 10, static function (array $vars): void {
+    InvoiceHooks::invoiceCreated($vars);
+});
+add_hook('InvoiceCreated', 10, static function (array $vars): void {
+    InvoiceHooks::invoiceCreated($vars);
+});
 
 // Refreshes the ANAF token and warns about the yearly re-authorization.
 add_hook('DailyCronJob', 10, static function (): void {

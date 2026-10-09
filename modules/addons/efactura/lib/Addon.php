@@ -21,8 +21,14 @@ use WHMCS\Module\Addon\Efactura\Anaf\ApiClient;
 use WHMCS\Module\Addon\Efactura\Anaf\OAuth\Connection;
 use WHMCS\Module\Addon\Efactura\Anaf\OAuth\OAuthClient;
 use WHMCS\Module\Addon\Efactura\Database\Migrator;
+use WHMCS\Module\Addon\Efactura\Fiscal\DocumentRepository;
 use WHMCS\Module\Addon\Efactura\Http\CurlTransport;
+use WHMCS\Module\Addon\Efactura\Numbering\EarlyIssue;
+use WHMCS\Module\Addon\Efactura\Numbering\FiscalNumbering;
+use WHMCS\Module\Addon\Efactura\Numbering\PaymentNumbering;
+use WHMCS\Module\Addon\Efactura\Numbering\SeriesCounter;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
 
 /**
  * Module identity and the WHMCS lifecycle (config, activate, deactivate,
@@ -32,7 +38,7 @@ final class Addon
 {
     public const MODULE = 'efactura';
     public const NAME = 'WHMCS-eFactura';
-    public const VERSION = '0.2.0';
+    public const VERSION = '0.3.0';
     public const SOURCE_URL = 'https://github.com/CrockyHost/WHMCS-eFactura';
 
     /**
@@ -127,6 +133,26 @@ final class Addon
     public static function connection(): Connection
     {
         return new Connection(new OAuthClient(new CurlTransport()));
+    }
+
+    public static function documents(): DocumentRepository
+    {
+        return new DocumentRepository();
+    }
+
+    public static function fiscalNumbering(): FiscalNumbering
+    {
+        return new FiscalNumbering(new SeriesCounter(new InvoicingConfig()));
+    }
+
+    public static function paymentNumbering(): PaymentNumbering
+    {
+        return new PaymentNumbering(self::fiscalNumbering(), self::documents());
+    }
+
+    public static function earlyIssue(): EarlyIssue
+    {
+        return new EarlyIssue(self::fiscalNumbering(), self::documents());
     }
 
     /**

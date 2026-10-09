@@ -252,6 +252,21 @@ $_ADDONLANG['callback_invalid_state'] = 'Acest link de autorizare este invalid, 
 $_ADDONLANG['callback_denied'] = 'ANAF nu a autorizat accesul (%s). Verificați că certificatul calificat este conectat și înrolat în SPV pentru firmă, apoi încercați din nou.';
 $_ADDONLANG['callback_failed'] = 'Autorizarea nu a putut fi finalizată: %s';
 
+// Numerotare fiscală
+$_ADDONLANG['review_lock_timeout'] = 'plătită cât timp numerotarea fiscală era ocupată';
+$_ADDONLANG['review_counter_gap'] = 'posibil gol în seria fiscală';
+$_ADDONLANG['review_duplicate_number'] = 'număr deja folosit';
+$_ADDONLANG['excluded_eu_reverse_charge'] = 'firmă din UE, taxare inversă';
+$_ADDONLANG['excluded_non_eu'] = 'client din afara UE';
+$_ADDONLANG['alert_review_subject'] = 'Factura fiscală %s trebuie verificată manual';
+$_ADDONLANG['alert_review_body'] = "Factura #%d a primit numărul fiscal %s, dar trebuie verificată manual: %s. Documentul e-Factura este ținut pe loc până verificați că numărul este unic și că seria nu are goluri, apoi îl eliberați.\n\n%s";
+$_ADDONLANG['alert_gap_subject'] = 'Posibil gol în seria fiscală la %s';
+$_ADDONLANG['alert_gap_body'] = "WHMCS a dat numărul fiscal %s facturii #%d, care nu trebuie să-l păstreze, iar numărul nu a putut fi returnat contorului pentru că între timp s-au mai luat numere. Verificați seria fiscală și contorul Next Paid Invoice Number.\n\n%s";
+$_ADDONLANG['alert_duplicate_subject'] = 'Număr fiscal duplicat %s corectat';
+$_ADDONLANG['alert_duplicate_body'] = "WHMCS a dat facturii #%d numărul fiscal %s, care era deja folosit. Addonul l-a înlocuit cu %s.\n\n%s";
+$_ADDONLANG['alert_hook_failed_subject'] = 'Eroare la procesarea facturii #%d';
+$_ADDONLANG['alert_hook_failed_body'] = "Pasul e-Factura \"%s\" a eșuat pentru factura #%d: %s\nPlata în sine nu a fost afectată. Verificați factura și numărul ei fiscal.";
+
 // Validare
 $_ADDONLANG['error_csrf'] = 'Formularul a expirat. Reîncărcați pagina și încercați din nou.';
 $_ADDONLANG['error_too_long'] = 'Cel mult %d caractere.';
