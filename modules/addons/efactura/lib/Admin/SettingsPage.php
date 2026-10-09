@@ -18,6 +18,8 @@ namespace WHMCS\Module\Addon\Efactura\Admin;
 use WHMCS\Module\Addon\Efactura\Romania\Counties;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
+use WHMCS\Module\Addon\Efactura\Ubl\PaymentMeans;
+use WHMCS\Module\Addon\Efactura\Ubl\PaymentMeansMapper;
 use WHMCS\Module\Addon\Efactura\Whmcs\ClientDirectory;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
 
@@ -109,7 +111,37 @@ final class SettingsPage
                 $this->checkbox('exclude_add_funds'),
                 $this->info('exclude_mass_pay', Lang::get('exclude_mass_pay_always')),
             ]),
+            $this->section('section_payment_means', $this->paymentMeans()),
         ];
+    }
+
+    /**
+     * One dropdown per active WHMCS gateway: its payment means code (BT-81).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function paymentMeans(): array
+    {
+        $codes = [];
+        foreach ([...PaymentMeans::CODES, PaymentMeansMapper::NONE] as $code) {
+            $codes[$code] = $code === PaymentMeansMapper::NONE ? Lang::get('pm_none') : $code . ': ' . Lang::get('pm_' . $code);
+        }
+        $saved = (array) $this->values['payment_means'];
+        $fields = [];
+        foreach (PaymentMeansMapper::gateways() as $gateway => $label) {
+            $selected = (string) ($saved[$gateway] ?? PaymentMeansMapper::defaultCode($gateway));
+            $fields[] = [
+                'type' => 'select',
+                'name' => 'payment_means[' . $gateway . ']',
+                'id' => 'efactura-pm-' . preg_replace('/[^a-z0-9]+/i', '-', $gateway),
+                'label' => $label,
+                'help' => '',
+                'error' => $fields === [] ? ($this->errors['payment_means'] ?? '') : '',
+                'options' => $this->options($codes, [$selected]),
+            ];
+        }
+
+        return $fields === [] ? [$this->info('payment_means', Lang::get('no_gateways'))] : $fields;
     }
 
     /**

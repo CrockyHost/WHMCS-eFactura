@@ -20,6 +20,8 @@ use WHMCS\Module\Addon\Efactura\Romania\Cui;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Iban;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
+use WHMCS\Module\Addon\Efactura\Ubl\PaymentMeans;
+use WHMCS\Module\Addon\Efactura\Ubl\PaymentMeansMapper;
 use WHMCS\Module\Addon\Efactura\Whmcs\ClientDirectory;
 
 /**
@@ -85,6 +87,8 @@ final class SettingsForm
                 $values[$name] = self::parseIds((string) ($post[$name] ?? ''));
             } elseif ($name === 'send_delay_days') {
                 $values[$name] = (int) ($post[$name] ?? 0);
+            } elseif ($name === 'payment_means') {
+                $values[$name] = array_map(static fn ($code): string => trim((string) $code), array_filter((array) ($post[$name] ?? []), 'is_scalar'));
             } else {
                 $values[$name] = trim((string) ($post[$name] ?? ''));
             }
@@ -149,6 +153,13 @@ final class SettingsForm
         $unknownClients = array_diff($values['early_issue_clients'], $this->directory->existingClientIds($values['early_issue_clients']));
         if ($unknownClients !== []) {
             $this->errors['early_issue_clients'] = Lang::get('error_unknown_clients', implode(', ', $unknownClients));
+        }
+
+        $gateways = PaymentMeansMapper::gateways();
+        foreach ($values['payment_means'] as $gateway => $code) {
+            if (!isset($gateways[$gateway]) || !in_array($code, [...PaymentMeans::CODES, PaymentMeansMapper::NONE], true)) {
+                $this->errors['payment_means'] = Lang::get('error_invalid_choice');
+            }
         }
 
         $this->expectChoice($values, 'client_field_cui', array_keys($this->fieldChoices('tax_id', false)));

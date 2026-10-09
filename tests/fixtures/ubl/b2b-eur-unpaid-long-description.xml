@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:efactura.mfinante.ro:CIUS-RO:1.0.1</cbc:CustomizationID>
+  <cbc:ID>FX-0003</cbc:ID>
+  <cbc:IssueDate>2026-10-05</cbc:IssueDate>
+  <cbc:DueDate>2026-10-19</cbc:DueDate>
+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:Note>Curs BNR 1 EUR = 5,0812 RON din 02.10.2026; TVA: 116,21 RON</cbc:Note>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cbc:TaxCurrencyCode>RON</cbc:TaxCurrencyCode>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyName>
+        <cbc:Name>Exemplu Hosting</cbc:Name>
+      </cac:PartyName>
+      <cac:PostalAddress>
+        <cbc:StreetName>Strada Exemplului nr. 10, et. 2</cbc:StreetName>
+        <cbc:CityName>SECTOR3</cbc:CityName>
+        <cbc:PostalZone>030000</cbc:PostalZone>
+        <cbc:CountrySubentity>RO-B</cbc:CountrySubentity>
+        <cac:Country>
+          <cbc:IdentificationCode>RO</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>RO12345674</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>EXEMPLU HOSTING S.R.L.</cbc:RegistrationName>
+        <cbc:CompanyID>J40/1234/2020</cbc:CompanyID>
+        <cbc:CompanyLegalForm>Capital social: 200 RON</cbc:CompanyLegalForm>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Name>Departament facturare</cbc:Name>
+        <cbc:Telephone>+40 700 000 000</cbc:Telephone>
+        <cbc:ElectronicMail>facturare@exemplu-hosting.invalid</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cac:PostalAddress>
+        <cbc:StreetName>Bulevardul Eroilor nr. 1</cbc:StreetName>
+        <cbc:CityName>Cluj-Napoca</cbc:CityName>
+        <cbc:PostalZone>400129</cbc:PostalZone>
+        <cbc:CountrySubentity>RO-CJ</cbc:CountrySubentity>
+        <cac:Country>
+          <cbc:IdentificationCode>RO</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>RO87654329</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>CLIENT TEST &amp; ASOCIAȚII S.R.L.</cbc:RegistrationName>
+        <cbc:CompanyID>87654329</cbc:CompanyID>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Name>Ion Popescu</cbc:Name>
+        <cbc:ElectronicMail>contabilitate@client-test.invalid</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:PaymentMeans>
+    <cbc:PaymentMeansCode>30</cbc:PaymentMeansCode>
+    <cac:PayeeFinancialAccount>
+      <cbc:ID>RO66BACX0000001234567890</cbc:ID>
+      <cbc:Name>EXEMPLU HOSTING S.R.L.</cbc:Name>
+    </cac:PayeeFinancialAccount>
+  </cac:PaymentMeans>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="EUR">22.87</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="EUR">108.90</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="EUR">22.87</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>21</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="RON">116.21</cbc:TaxAmount>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="EUR">108.90</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="EUR">108.90</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="EUR">131.77</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="EUR">131.77</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:Note>Configurație: 2 x Intel Xeon, 128 GB RAM, 4 x 1.92 TB NVMe în RAID 10, 1 Gbps nelimitat, IPv4 dedicat, backup zilnic. Configurație: 2 x Intel Xeon, 128 GB RAM, 4 x 1.92 TB NVMe în RAID 10, 1 Gbps nelimitat, IPv4 dedicat, backup zilnic.</cbc:Note>
+    <cbc:InvoicedQuantity unitCode="C62">1</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">108.90</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Description>Server dedicat Pro - srv1.client-test.ro (05/10/2026 - 04/11/2026); Configurație: 2 x Intel Xeon, 128 GB RAM, 4 x 1.92 TB NVMe în RAID 10, 1 Gbps nelimitat, IPv4 dedicat, backup zilnic...</cbc:Description>
+      <cbc:Name>Server dedicat Pro - srv1.client-test.ro (05/10/2026 - 04/11/2026)</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>21</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">108.90</cbc:PriceAmount>
+    </cac:Price>
+  </cac:InvoiceLine>
+</Invoice>

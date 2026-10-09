@@ -21,6 +21,7 @@ use WHMCS\Module\Addon\Efactura\Anaf\ApiClient;
 use WHMCS\Module\Addon\Efactura\Anaf\OAuth\Connection;
 use WHMCS\Module\Addon\Efactura\Anaf\OAuth\OAuthClient;
 use WHMCS\Module\Addon\Efactura\Database\Migrator;
+use WHMCS\Module\Addon\Efactura\Exchange\BnrRates;
 use WHMCS\Module\Addon\Efactura\Fiscal\DocumentRepository;
 use WHMCS\Module\Addon\Efactura\Http\CurlTransport;
 use WHMCS\Module\Addon\Efactura\Numbering\EarlyIssue;
@@ -28,6 +29,7 @@ use WHMCS\Module\Addon\Efactura\Numbering\FiscalNumbering;
 use WHMCS\Module\Addon\Efactura\Numbering\PaymentNumbering;
 use WHMCS\Module\Addon\Efactura\Numbering\SeriesCounter;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Ubl\DocumentBuilder;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
 
 /**
@@ -38,7 +40,7 @@ final class Addon
 {
     public const MODULE = 'efactura';
     public const NAME = 'WHMCS-eFactura';
-    public const VERSION = '0.3.0';
+    public const VERSION = '0.4.0';
     public const SOURCE_URL = 'https://github.com/CrockyHost/WHMCS-eFactura';
 
     /**
@@ -153,6 +155,11 @@ final class Addon
     public static function earlyIssue(): EarlyIssue
     {
         return new EarlyIssue(self::fiscalNumbering(), self::documents());
+    }
+
+    public static function documentBuilder(): DocumentBuilder
+    {
+        return new DocumentBuilder(new BnrRates(new CurlTransport()));
     }
 
     /**

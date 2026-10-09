@@ -48,6 +48,22 @@ php tests/run.php all    # unit + integration tests against the local WHMCS
 
 Integration tests run inside a database transaction that is rolled back.
 
+The e-Factura XML is checked in the tests with the official validators,
+which are development tools and not part of the addon: the OASIS UBL 2.1
+XSD (through libxml) and the CEN EN 16931 + CIUS-RO 1.0.9 Schematron,
+compiled to XSLT 2.0 and run with Saxon-HE 10.9 (Java 8 or newer). Put them
+in `../crocky-efactura-env/tools` or point `EFACTURA_TOOLS` to them; the
+tests that need them are skipped otherwise.
+
+```
+php tests/concurrency.php --yes   # two simultaneous payments (creates and deletes test data)
+php tests/anaf-validate.php       # sends the fictive fixtures to the public ANAF validator
+```
+
+`tests/fixtures/ubl/` holds the reviewed XML of each scenario, with fictive
+data only (`tests/UblScenarios.php`); regenerate them with
+`EFACTURA_UPDATE_FIXTURES=1 php tests/run.php` and review the diff.
+
 ## License
 
 Copyright (C) 2026 S.C. CROCKY S.R.L. (CrockyHost)

@@ -101,7 +101,8 @@ final class Lang
     private static function read(string $language): array
     {
         $file = Addon::path('lang/' . $language . '.php');
-        if (!is_file($file)) {
+        // The language files refuse to run outside WHMCS; unit tests then get the keys.
+        if (!defined('WHMCS') || !is_file($file)) {
             return [];
         }
         $_ADDONLANG = [];

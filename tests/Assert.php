@@ -14,10 +14,22 @@
 declare(strict_types=1);
 
 /**
+ * Thrown to skip a test whose requirements are missing.
+ */
+final class SkipTest extends RuntimeException
+{
+}
+
+/**
  * Assertions for the test runner.
  */
 final class Assert
 {
+    public static function skip(string $reason): never
+    {
+        throw new SkipTest($reason);
+    }
+
     public static function true(bool $condition, string $message = 'Expected true'): void
     {
         if (!$condition) {

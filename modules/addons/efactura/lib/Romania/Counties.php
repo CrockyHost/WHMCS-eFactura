@@ -90,6 +90,62 @@ final class Counties
         return $names;
     }
 
+    /**
+     * The county code for a free text value from WHMCS: a code ("RO-DJ",
+     * "DJ"), a name with or without diacritics, with "Jud."/"Județul" or
+     * "County" around it, or a Bucharest name or sector. Null when the text
+     * is not recognized; nothing is guessed.
+     */
+    public static function fromText(string $text): ?string
+    {
+        $raw = strtoupper(trim($text));
+        if (preg_match('/^(?:RO-)?([A-Z]{1,2})$/', $raw, $match) === 1 && isset(self::NAMES['RO-' . $match[1]])) {
+            return 'RO-' . $match[1];
+        }
+
+        $folded = Text::fold($text);
+        if (self::sectorFromText($text) !== null && preg_match('/^(?:municipiul\s+|mun\.?\s*)?(?:bucuresti|bucharest)?[\s,\-]*(?:sectorul|sector|sect\.?|sec\.?)\s*[1-6]$/', $folded) === 1) {
+            return self::BUCHAREST;
+        }
+        $key = self::key($folded);
+        if (in_array($key, ['bucuresti', 'bucharest', 'municipiulbucuresti', 'munbucuresti'], true)) {
+            return self::BUCHAREST;
+        }
+        foreach (self::NAMES as $code => $name) {
+            if (self::key(Text::fold($name)) === $key) {
+                return $code;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The Bucharest sector named in any of the texts ("Sector 3",
+     * "sectorul 3", "Sect. 3", "SECTOR3"), as SECTOR1..SECTOR6.
+     */
+    public static function sectorFromText(string ...$texts): ?string
+    {
+        foreach ($texts as $text) {
+            if (preg_match('/(?:^|[^a-z])(?:sectorul|sector|sect\.?|sec\.?)\s*([1-6])(?![0-9])/', Text::fold($text), $match) === 1) {
+                return 'SECTOR' . $match[1];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Folded text without the words around a county name and without
+     * punctuation: "Județul Bistrița-Năsăud" -> "bistritanasaud".
+     */
+    private static function key(string $folded): string
+    {
+        $folded = preg_replace('/\b(judetul|judet|jud|county|romania)\b\.?/', ' ', $folded) ?? $folded;
+
+        return preg_replace('/[^a-z]/', '', $folded) ?? '';
+    }
+
     public static function isValid(string $code): bool
     {
         return isset(self::NAMES[$code]);

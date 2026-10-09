@@ -33,7 +33,8 @@ final class Settings
     public const MAX_SEND_DELAY_DAYS = 3;
 
     /**
-     * name => [type, default]. Types: bool, int, string, list (of ints).
+     * name => [type, default]. Types: bool, int, string, list (of ints),
+     * map (string => string).
      */
     private const DEFINITIONS = [
         // General
@@ -79,6 +80,9 @@ final class Settings
         'exclude_non_eu' => ['bool', true],
         'exclude_zero_total' => ['bool', true],
         'exclude_add_funds' => ['bool', true],
+
+        // Payment means code (UNCL 4461) by WHMCS gateway; unmapped gateways use a default
+        'payment_means' => ['map', []],
     ];
 
     /** @var array<string, string>|null raw values loaded from the database */
@@ -119,6 +123,16 @@ final class Settings
      * @return list<int>
      */
     public static function intList(string $name): array
+    {
+        $value = self::get($name);
+
+        return is_array($value) ? $value : [];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function map(string $name): array
     {
         $value = self::get($name);
 
@@ -206,6 +220,7 @@ final class Settings
             'bool' => $value === '1',
             'int' => (int) $value,
             'list' => array_values(array_map('intval', (array) (json_decode($value, true) ?: []))),
+            'map' => array_map('strval', (array) (json_decode($value, true) ?: [])),
             default => $value,
         };
     }
@@ -216,6 +231,7 @@ final class Settings
             'bool' => $value ? '1' : '0',
             'int' => (string) (int) $value,
             'list' => (string) json_encode(array_values(array_map('intval', (array) $value))),
+            'map' => (string) json_encode((object) array_map('strval', (array) $value)),
             default => trim((string) $value),
         };
     }

@@ -33,12 +33,14 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/modules/addons/efactura/bootstrap.php';
 require __DIR__ . '/Assert.php';
 require __DIR__ . '/FakeTransport.php';
+require __DIR__ . '/DevValidators.php';
 
 $suite = $argv[1] ?? 'unit';
 $suites = $suite === 'all' ? ['Unit', 'Integration'] : [ucfirst($suite)];
 
 $passed = 0;
 $failed = [];
+$skipped = [];
 
 foreach ($suites as $name) {
     $files = glob(__DIR__ . '/' . $name . '/*Test.php') ?: [];
@@ -58,6 +60,9 @@ foreach ($suites as $name) {
                 $test();
                 $passed++;
                 echo '.';
+            } catch (SkipTest $e) {
+                $skipped[] = $label . ': ' . $e->getMessage();
+                echo 'S';
             } catch (Throwable $e) {
                 $failed[] = $label . "\n    " . get_class($e) . ': ' . $e->getMessage() . "\n    at " . $e->getFile() . ':' . $e->getLine();
                 echo 'F';
@@ -75,5 +80,8 @@ echo "\n\n";
 foreach ($failed as $failure) {
     echo 'FAIL ' . $failure . "\n\n";
 }
-printf("%d passed, %d failed\n", $passed, count($failed));
+foreach ($skipped as $skip) {
+    echo 'SKIP ' . $skip . "\n";
+}
+printf("%d passed, %d failed, %d skipped\n", $passed, count($failed), count($skipped));
 exit($failed === [] ? 0 : 1);
