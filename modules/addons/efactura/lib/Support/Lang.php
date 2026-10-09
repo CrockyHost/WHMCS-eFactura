@@ -107,6 +107,11 @@ final class Lang
         }
         $_ADDONLANG = [];
         include $file;
+        // The client forms (lib/ClientData) keep their strings in lang/clientdata.
+        $clientData = Addon::path('lang/clientdata/' . $language . '.php');
+        if (is_file($clientData)) {
+            include $clientData;
+        }
 
         return array_map('strval', $_ADDONLANG);
     }

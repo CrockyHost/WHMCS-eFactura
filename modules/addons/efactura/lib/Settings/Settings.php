@@ -75,6 +75,11 @@ final class Settings
         'client_field_cnp' => ['string', ''],
         'client_field_county' => ['string', 'state'],
 
+        // Client forms (lib/ClientData): validation is "strict" or "warn"
+        'client_forms' => ['bool', true],
+        'client_validation_new' => ['string', 'strict'],
+        'client_validation_profile' => ['string', 'strict'],
+
         // Invoices that are not reported to SPV
         'exclude_eu_reverse_charge' => ['bool', true],
         'exclude_non_eu' => ['bool', true],

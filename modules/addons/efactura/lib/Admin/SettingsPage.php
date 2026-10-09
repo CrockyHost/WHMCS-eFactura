@@ -53,6 +53,7 @@ final class SettingsPage
             $delays[(string) $days] = Lang::get($days === 1 ? 'send_delay_one' : 'send_delay_many', $days);
         }
         $groups = $this->directory->groups();
+        $validation = ['strict' => Lang::get('client_validation_strict'), 'warn' => Lang::get('client_validation_warn')];
 
         return [
             $this->section('section_general', [
@@ -103,6 +104,11 @@ final class SettingsPage
                 $this->select('client_field_regcom', $this->form->fieldChoices(null, true)),
                 $this->select('client_field_cnp', $this->form->fieldChoices(null, true)),
                 $this->select('client_field_county', $this->form->fieldChoices('state', false)),
+            ]),
+            $this->section('section_client_forms', [
+                $this->checkbox('client_forms'),
+                $this->select('client_validation_new', $validation),
+                $this->select('client_validation_profile', $validation),
             ]),
             $this->section('section_exclusions', [
                 $this->checkbox('exclude_eu_reverse_charge'),

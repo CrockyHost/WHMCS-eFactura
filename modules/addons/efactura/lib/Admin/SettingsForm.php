@@ -38,6 +38,7 @@ final class SettingsForm
         'exclude_non_eu',
         'exclude_zero_total',
         'exclude_add_funds',
+        'client_forms',
     ];
 
     /** Maximum lengths from CIUS-RO (BR-RO-xxx) and EN 16931. */
@@ -87,6 +88,8 @@ final class SettingsForm
                 $values[$name] = self::parseIds((string) ($post[$name] ?? ''));
             } elseif ($name === 'send_delay_days') {
                 $values[$name] = (int) ($post[$name] ?? 0);
+            } elseif ($name === 'client_validation_new' || $name === 'client_validation_profile') {
+                $values[$name] = ($post[$name] ?? '') === 'warn' ? 'warn' : 'strict';
             } elseif ($name === 'payment_means') {
                 $values[$name] = array_map(static fn ($code): string => trim((string) $code), array_filter((array) ($post[$name] ?? []), 'is_scalar'));
             } else {

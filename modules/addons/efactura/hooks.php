@@ -19,6 +19,7 @@ if (!defined('WHMCS')) {
 
 require_once __DIR__ . '/bootstrap.php';
 
+use WHMCS\Module\Addon\Efactura\ClientData\ClientDataHooks;
 use WHMCS\Module\Addon\Efactura\Hooks\CronHooks;
 use WHMCS\Module\Addon\Efactura\Hooks\InvoiceHooks;
 
@@ -55,3 +56,7 @@ add_hook('DailyCronJob', 10, static function (): void {
 add_hook('AfterCronJob', 10, static function (): void {
     CronHooks::afterCron();
 });
+
+// Client forms for Romanian clients (county, sector): registration, checkout,
+// profile, contacts and the client pages of the admin area.
+ClientDataHooks::register();
