@@ -39,6 +39,7 @@ final class SettingsForm
         'exclude_zero_total',
         'exclude_add_funds',
         'client_forms',
+        'client_profile_lock',
     ];
 
     /** Maximum lengths from CIUS-RO (BR-RO-xxx) and EN 16931. */

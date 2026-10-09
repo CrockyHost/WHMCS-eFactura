@@ -49,7 +49,38 @@ final class PageAssets
         'cd_hint_sector_missing',
         'cd_sector',
         'cd_sector_choose',
+        'cd_billing_title',
+        'cd_type_label',
+        'cd_type_person',
+        'cd_type_person_hint',
+        'cd_type_company',
+        'cd_type_company_hint',
+        'cd_cui',
+        'cd_cui_placeholder',
+        'cd_company_name',
+        'cd_regcom',
+        'cd_regcom_placeholder',
+        'cd_optional',
+        'cd_vat_payer',
+        'cd_vat_payer_hint',
+        'cd_vat_code',
+        'cd_vat_number',
+        'cd_cnp',
+        'cd_cnp_help',
+        'cd_missing',
+        'cd_yes',
+        'cd_no',
+        'cd_lock_note',
+        'cd_lock_link',
+        'cd_error_cui_required',
+        'cd_error_cui_invalid',
+        'cd_error_company_name',
+        'cd_error_regcom',
+        'cd_error_cnp',
     ];
+
+    /** Forms that get the billing details section (client type, CUI, CNP). */
+    private const IDENTITY_CONTEXTS = [FormContext::REGISTER, FormContext::CHECKOUT, FormContext::PROFILE];
 
     /**
      * @param array<string, mixed> $vars ClientAreaHeadOutput parameters
@@ -73,7 +104,10 @@ final class PageAssets
             return '';
         }
 
-        return self::script(self::clientBase($vars), self::config($context, Texts::client()));
+        $config = self::config($context, Texts::client());
+        $config['ticketUrl'] = rtrim((string) ($vars['WEB_ROOT'] ?? ''), '/') . '/submitticket.php';
+
+        return self::script(self::clientBase($vars), $config);
     }
 
     /**
@@ -104,6 +138,9 @@ final class PageAssets
     public static function config(string $context, Texts $texts): array
     {
         $mode = FormContext::mode($context);
+        $fields = FieldMap::fromSettings();
+        $identity = in_array($context, self::IDENTITY_CONTEXTS, true) && $fields->id('cui') !== null;
+        $postedType = (string) ($_POST[ClientValidation::TYPE_FIELD] ?? '');
 
         return [
             'context' => $context,
@@ -112,6 +149,12 @@ final class PageAssets
             'codes' => CountyField::codes(),
             'bucharest' => CountyField::bucharest(),
             'sectors' => CountyField::sectors(),
+            'identity' => $identity,
+            'fields' => $fields->all(),
+            'type' => in_array($postedType, [IdentityRules::PERSON, IdentityRules::COMPANY], true) ? $postedType : '',
+            'lock' => $identity && $context === FormContext::PROFILE && Settings::bool('client_profile_lock'),
+            'locked' => $context === FormContext::PROFILE ? FormContext::lockedProfileFields() : [],
+            'year' => (int) date('Y'),
             'text' => $texts->pick(self::SCRIPT_TEXTS),
         ];
     }

@@ -109,6 +109,7 @@ final class SettingsPage
                 $this->checkbox('client_forms'),
                 $this->select('client_validation_new', $validation),
                 $this->select('client_validation_profile', $validation),
+                $this->checkbox('client_profile_lock'),
             ]),
             $this->section('section_exclusions', [
                 $this->checkbox('exclude_eu_reverse_charge'),

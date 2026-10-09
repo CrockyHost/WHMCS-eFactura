@@ -16,11 +16,14 @@ declare(strict_types=1);
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Admin\SettingsForm;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientValidation;
+use WHMCS\Module\Addon\Efactura\ClientData\FieldMap;
+use WHMCS\Module\Addon\Efactura\ClientData\FieldProvisioner;
 use WHMCS\Module\Addon\Efactura\ClientData\FormContext;
 use WHMCS\Module\Addon\Efactura\ClientData\PageAssets;
 use WHMCS\Module\Addon\Efactura\ClientData\Texts;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
+use WHMCS\Module\Addon\Efactura\Ubl\BuyerMapper;
 use WHMCS\Module\Addon\Efactura\Whmcs\ClientDirectory;
 
 /**
@@ -53,9 +56,198 @@ $fakeClient = static function (array $address): int {
     ]);
 };
 
+/**
+ * Three fictitious client custom fields mapped as CUI, Reg. Com. and CNP
+ * (rolled back with the test transaction).
+ *
+ * @return array{cui: int, regcom: int, cnp: int}
+ */
+$mapFields = static function (): array {
+    $now = date('Y-m-d H:i:s');
+    $ids = [];
+    foreach (['cui', 'regcom', 'cnp'] as $role) {
+        $ids[$role] = (int) Capsule::table('tblcustomfields')->insertGetId([
+            'type' => 'client', 'relid' => 0, 'fieldname' => 'Test ' . $role, 'fieldtype' => 'text', 'description' => '',
+            'fieldoptions' => '', 'regexpr' => '', 'adminonly' => '', 'required' => '', 'showorder' => 'on', 'showinvoice' => '',
+            'sortorder' => 0, 'created_at' => $now, 'updated_at' => $now,
+        ]);
+    }
+    Settings::save([
+        'client_field_cui' => 'cf:' . $ids['cui'],
+        'client_field_regcom' => 'cf:' . $ids['regcom'],
+        'client_field_cnp' => 'cf:' . $ids['cnp'],
+        'client_field_county' => 'state',
+    ]);
+
+    return $ids;
+};
+
+/**
+ * @param array<string, int> $ids
+ * @param array<string, string> $values role => value
+ */
+$setFields = static function (int $clientId, array $ids, array $values): void {
+    foreach ($values as $role => $value) {
+        Capsule::table('tblcustomfieldsvalues')->updateOrInsert(['fieldid' => $ids[$role], 'relid' => $clientId], ['value' => $value]);
+    }
+};
+
+/**
+ * Runs a callback as the logged-in client, with the WHMCS locked profile fields given.
+ */
+$asClient = static function (int $clientId, string $lockedFields, callable $callback): void {
+    $previousUid = $_SESSION['uid'] ?? null;
+    $previousLocked = (string) \WHMCS\Config\Setting::getValue('ClientsProfileUneditableFields');
+    $_SESSION['uid'] = $clientId;
+    \WHMCS\Config\Setting::setValue('ClientsProfileUneditableFields', $lockedFields);
+    try {
+        $callback();
+    } finally {
+        \WHMCS\Config\Setting::setValue('ClientsProfileUneditableFields', $previousLocked);
+        if ($previousUid === null) {
+            unset($_SESSION['uid']);
+        } else {
+            $_SESSION['uid'] = $previousUid;
+        }
+    }
+};
+
 $english = Texts::for('english');
 
 return [
+    'registration: a company without CUI is refused even in warning mode' => static function () use ($mapFields, $english): void {
+        $ids = $mapFields();
+        $vars = ['country' => 'RO', 'state' => 'Cluj', 'city' => 'Cluj-Napoca', 'companyname' => 'X SRL', 'tax_id' => '', 'customfield' => [$ids['cui'] => '']];
+        Settings::save(['client_validation_new' => 'strict']);
+        Assert::same([$english->get('cd_error_cui_required')], ClientValidation::client($vars, FormContext::REGISTER));
+        Settings::save(['client_validation_new' => 'warn']);
+        Assert::same([$english->get('cd_error_cui_required')], ClientValidation::client($vars, FormContext::REGISTER));
+        // A wrong check digit only warns in that mode.
+        $vars['customfield'][$ids['cui']] = '50515951';
+        Assert::same([], ClientValidation::client($vars, FormContext::REGISTER));
+    },
+    'registration: the chosen client type decides the rules' => static function () use ($mapFields, $english): void {
+        $ids = $mapFields();
+        $base = ['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'tax_id' => ''];
+        $company = $base + ['companyname' => 'TEST SRL', 'customfield' => [$ids['cui'] => '50515950', $ids['regcom'] => 'J2024020698007', $ids['cnp'] => '']];
+        Assert::same([], ClientValidation::client($company + [ClientValidation::TYPE_FIELD => 'company'], FormContext::REGISTER));
+        Assert::same([], ClientValidation::client(['tax_id' => 'RO50515950'] + $company, FormContext::REGISTER));
+        Assert::same(
+            [$english->get('cd_error_vat_mismatch')],
+            ClientValidation::client(['tax_id' => 'RO14399840'] + $company, FormContext::REGISTER)
+        );
+        $person = $base + ['companyname' => '', 'customfield' => [$ids['cui'] => '', $ids['cnp'] => '1960131410045']];
+        Assert::same([$english->get('cd_error_cnp')], ClientValidation::client($person + [ClientValidation::TYPE_FIELD => 'person'], FormContext::CHECKOUT));
+        $person['customfield'][$ids['cnp']] = '1960131410041';
+        Assert::same([], ClientValidation::client($person + [ClientValidation::TYPE_FIELD => 'person'], FormContext::CHECKOUT));
+        Assert::same(
+            [$english->get('cd_error_person_company')],
+            ClientValidation::client(['companyname' => 'X SRL', ClientValidation::TYPE_FIELD => 'person'] + $person, FormContext::CHECKOUT)
+        );
+    },
+    'without a CUI custom field only the address is checked' => static function (): void {
+        Settings::save(['client_field_cui' => 'tax_id']);
+        Assert::same(null, FieldMap::fromSettings()->id('cui'));
+        Assert::same([], ClientValidation::client(['country' => 'RO', 'state' => 'Cluj', 'city' => 'Cluj-Napoca', 'companyname' => 'X SRL'], FormContext::REGISTER));
+    },
+    'profile: the billing identity cannot be changed, an untouched form saves' => static function () use ($fakeClient, $mapFields, $setFields, $asClient, $english): void {
+        $ids = $mapFields();
+        Settings::save(['client_profile_lock' => true, 'client_validation_profile' => 'strict']);
+        $clientId = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'TEST SRL', 'tax_id' => '']);
+        // Stored data a client cannot fix (no CUI) must not block the save.
+        $setFields($clientId, $ids, ['cui' => '', 'regcom' => 'bad', 'cnp' => '']);
+        $asClient($clientId, 'companyname,country,tax_id', static function () use ($ids, $english): void {
+            $form = ['state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'TEST SRL', 'customfield' => [$ids['cui'] => '', $ids['regcom'] => 'bad', $ids['cnp'] => '']];
+            Assert::same([], ClientValidation::client($form, FormContext::PROFILE));
+            $changed = $form;
+            $changed['customfield'][$ids['cui']] = '50515950';
+            Assert::same([$english->get('cd_error_locked')], ClientValidation::client($changed, FormContext::PROFILE));
+        });
+        // Company name not locked by WHMCS: changing it is refused by the addon lock.
+        $asClient($clientId, 'country', static function () use ($ids, $english): void {
+            $form = ['state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'OTHER SRL', 'tax_id' => '', 'customfield' => [$ids['cui'] => '', $ids['regcom'] => 'bad', $ids['cnp'] => '']];
+            Assert::same([$english->get('cd_error_locked')], ClientValidation::client($form, FormContext::PROFILE));
+        });
+        // Without the addon lock, the client fixes the data and the rules apply.
+        Settings::save(['client_profile_lock' => false]);
+        $asClient($clientId, 'country', static function () use ($ids, $english): void {
+            $form = ['state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'TEST SRL', 'tax_id' => '', 'customfield' => [$ids['cui'] => '', $ids['regcom'] => '', $ids['cnp'] => '']];
+            Assert::same([$english->get('cd_error_cui_required')], ClientValidation::client($form, FormContext::PROFILE));
+            $form['customfield'][$ids['cui']] = '50515950';
+            Assert::same([], ClientValidation::client($form, FormContext::PROFILE));
+        });
+    },
+    'field provisioning keeps mapped fields, detects existing ones and creates the rest' => static function () use ($fakeClient, $setFields): void {
+        $now = date('Y-m-d H:i:s');
+        $existing = (int) Capsule::table('tblcustomfields')->insertGetId([
+            'type' => 'client', 'relid' => 0, 'fieldname' => 'Company number', 'fieldtype' => 'text', 'description' => '',
+            'fieldoptions' => '', 'regexpr' => '', 'adminonly' => '', 'required' => '', 'showorder' => '', 'showinvoice' => '',
+            'sortorder' => 0, 'created_at' => $now, 'updated_at' => $now,
+        ]);
+        // Valid CUIs (check digit computed), more than any real field of the dev data has, and one CNP.
+        $values = ['1960131410041'];
+        for ($body = 1234500; count($values) < 41; $body++) {
+            $padded = str_pad((string) $body, 9, '0', STR_PAD_LEFT);
+            $sum = 0;
+            foreach (str_split('753217532') as $i => $weight) {
+                $sum += (int) $padded[$i] * (int) $weight;
+            }
+            $values[] = $body . (($sum * 10) % 11 % 10);
+        }
+        foreach ($values as $value) {
+            $clientId = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova']);
+            $setFields($clientId, ['cui' => $existing], ['cui' => $value]);
+        }
+        Settings::save(['client_field_cui' => 'tax_id', 'client_field_regcom' => '', 'client_field_cnp' => '']);
+
+        Assert::same($existing, FieldProvisioner::detect('cui'));
+        $result = FieldProvisioner::provision();
+        Assert::same(['id' => $existing, 'action' => 'detected'], $result['cui']);
+        Assert::same('created', $result['cnp']['action']);
+        Assert::same('cf:' . $existing, Settings::string('client_field_cui'));
+        Assert::same('cf:' . $result['cnp']['id'], Settings::string('client_field_cnp'));
+        $cnpField = Capsule::table('tblcustomfields')->where('id', $result['cnp']['id'])->first();
+        Assert::same('CNP', $cnpField->fieldname);
+        Assert::same('on', $cnpField->showorder);
+        Assert::same('', $cnpField->showinvoice);
+
+        // A second run keeps everything.
+        $again = FieldProvisioner::provision();
+        Assert::same(['kept', 'kept', 'kept'], array_column($again, 'action'));
+    },
+    'buyer mapping reads the VAT number from tax_id and old CNPs from the CUI field' => static function () use ($fakeClient, $mapFields, $setFields): void {
+        $ids = $mapFields();
+        $payer = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'PAYER SRL', 'tax_id' => 'RO50515950']);
+        $setFields($payer, $ids, ['cui' => '50515950']);
+        $result = (new BuyerMapper())->map($payer);
+        Assert::same('b2b', $result['type']);
+        Assert::same('RO50515950', $result['party']->vatId);
+        Assert::same('50515950', $result['party']->legalId);
+
+        $nonPayer = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'NONPAYER SRL', 'tax_id' => '']);
+        $setFields($nonPayer, $ids, ['cui' => '14399840']);
+        Assert::same(null, (new BuyerMapper())->map($nonPayer)['party']->vatId);
+
+        $oldPerson = $fakeClient(['country' => 'RO', 'state' => 'Vaslui', 'city' => 'Vaslui']);
+        $setFields($oldPerson, $ids, ['cui' => '1960131410041']);
+        $result = (new BuyerMapper())->map($oldPerson);
+        Assert::same('b2c', $result['type']);
+        Assert::same('1960131410041', $result['party']->legalId);
+
+        $eu = $fakeClient(['country' => 'DE', 'state' => 'Bayern', 'city' => 'München', 'companyname' => 'X GmbH', 'tax_id' => 'DE123456789']);
+        Assert::same('DE123456789', (new BuyerMapper())->map($eu)['party']->vatId);
+    },
+    'the script gets the field mapping and the profile lock' => static function () use ($mapFields): void {
+        $ids = $mapFields();
+        Settings::save(['client_forms' => true, 'client_profile_lock' => true]);
+        $register = PageAssets::config(FormContext::REGISTER, Texts::for('english'));
+        Assert::true($register['identity']);
+        Assert::false($register['lock']);
+        Assert::same($ids['cui'], $register['fields']['cui']);
+        $profile = PageAssets::config(FormContext::PROFILE, Texts::for('english'));
+        Assert::true($profile['lock']);
+        Assert::false(PageAssets::config(FormContext::CONTACT, Texts::for('english'))['identity']);
+    },
     'client forms are on and strict by default' => static function (): void {
         Capsule::table(Settings::TABLE)->whereIn('name', ['client_forms', 'client_validation_new', 'client_validation_profile'])->delete();
         Settings::reset();

@@ -11,18 +11,172 @@
  */
 
 /*
- * Client forms. Colors come from the Lagom 2 CSS variables when the theme
- * defines them, with fallbacks for the other themes and the admin area.
+ * Client forms. Colors, borders and radii come from the Lagom 2 CSS
+ * variables when the theme defines them, with fallbacks for the other
+ * themes and the admin area.
  */
 
 .efactura-hidden {
     display: none !important;
 }
 
-.efactura-hint {
+.efactura-hint,
+.efactura-error {
     display: block;
     margin-top: 6px;
     font-size: 0.875em;
     line-height: 1.4;
+}
+
+.efactura-hint {
     color: var(--brand-warning, #a14a00);
+}
+
+.efactura-error {
+    color: var(--brand-danger, #c0262d);
+}
+
+/* Billing details section */
+
+.efactura-billing {
+    margin: 0 0 4px;
+}
+
+.efactura-type {
+    min-width: 0;
+    margin: 0 0 16px;
+    padding: 0;
+    border: 0;
+}
+
+.efactura-type-legend {
+    width: auto;
+    margin: 0 0 8px;
+    padding: 0;
+    border: 0;
+    font-size: inherit;
+    font-weight: 500;
+    line-height: inherit;
+    color: var(--input-label-color, inherit);
+}
+
+.efactura-type-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    gap: 12px;
+}
+
+.efactura-type-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--input-border-color, var(--ui-block-border-color, #ced4da));
+    border-radius: var(--input-border-radius, var(--border-radius-base, 6px));
+    background: var(--input-bg, var(--ui-block-bg, #fff));
+    font-weight: 400;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.efactura-type-option.is-active {
+    border-color: var(--brand-primary, #336699);
+    box-shadow: inset 0 0 0 1px var(--brand-primary, #336699);
+}
+
+.efactura-type-option:focus-within {
+    outline: 2px solid var(--brand-primary, #336699);
+    outline-offset: 2px;
+}
+
+.efactura-type-radio {
+    flex: none;
+    margin: 3px 0 0;
+    accent-color: var(--brand-primary, #336699);
+}
+
+.efactura-type-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.efactura-type-title {
+    font-weight: 500;
+    color: var(--text-heading-color, inherit);
+}
+
+.efactura-type-hint {
+    font-size: 0.875em;
+    color: var(--text-lighter-color, #6c757d);
+}
+
+.efactura-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    column-gap: 24px;
+}
+
+.efactura-vat {
+    grid-column: 1 / -1;
+    margin: 0 0 16px;
+}
+
+.efactura-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-weight: 400;
+    cursor: pointer;
+}
+
+.efactura-check-input {
+    margin: 0;
+    accent-color: var(--brand-primary, #336699);
+}
+
+.efactura-vat-code {
+    margin-left: 12px;
+    font-weight: 500;
+    color: var(--text-heading-color, inherit);
+}
+
+.efactura-vat-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.875em;
+    color: var(--text-lighter-color, #6c757d);
+}
+
+/* Read-only summary in the profile */
+
+.efactura-summary {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 6px 16px;
+    margin: 0 0 12px;
+}
+
+.efactura-summary-row {
+    display: contents;
+}
+
+.efactura-summary dt {
+    font-weight: 400;
+    color: var(--text-lighter-color, #6c757d);
+}
+
+.efactura-summary dd {
+    margin: 0;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+    color: var(--text-heading-color, inherit);
+}
+
+.efactura-lock-note {
+    margin: 0 0 16px;
+    font-size: 0.875em;
+    color: var(--text-lighter-color, #6c757d);
 }

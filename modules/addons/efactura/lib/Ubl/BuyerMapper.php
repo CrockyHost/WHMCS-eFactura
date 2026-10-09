@@ -26,9 +26,13 @@ use WHMCS\Module\Addon\Efactura\Support\Lang;
 /**
  * The buyer (BG-7) from the current WHMCS client profile and the fields
  * mapped in the settings (CIUS-RO identifiers, research report 03, 3.3):
- * - Romanian company: CUI without RO as BT-47; RO + CUI as BT-48 only when
- *   the client wrote the RO prefix (VAT payer);
- * - Romanian individual: CNP as BT-47, or 13 zeros when there is none;
+ * - Romanian company: CUI without RO as BT-47; RO + CUI as BT-48 only for a
+ *   VAT payer: the client wrote the RO prefix, or the native WHMCS VAT number
+ *   (tax_id) is RO + the same CUI while the CUI field is a custom field;
+ * - Romanian individual: CNP as BT-47, or 13 zeros when there is none; a
+ *   valid CNP typed into the CUI field without a company name (older data)
+ *   is read as the CNP of an individual;
+ * - when the CUI field is empty, the native tax_id is used (EU VAT numbers);
  * - county as ISO 3166-2:RO, Bucharest sector as the city.
  * Missing or unrecognized data is reported, never filled in by guessing.
  */
@@ -56,8 +60,13 @@ final class BuyerMapper
         $country = strtoupper(trim((string) $client->country));
         $company = Text::clean((string) $client->companyname);
         $person = Text::clean($client->firstname . ' ' . $client->lastname);
+        $nativeTaxId = Text::clean((string) $client->tax_id);
         $taxId = Text::clean($this->field($clientId, $client, Settings::string('client_field_cui'), 'tax_id'));
-        $isCompany = $company !== '' || $taxId !== '';
+        if ($taxId === '') {
+            $taxId = $nativeTaxId;
+        }
+        $legacyCnp = $country === 'RO' && $company === '' && Cnp::isValid($taxId) ? Cnp::normalize($taxId) : null;
+        $isCompany = ($company !== '' || $taxId !== '') && $legacyCnp === null;
         $countyText = Text::clean($this->field($clientId, $client, Settings::string('client_field_county'), 'state'));
 
         $vatId = null;
@@ -75,10 +84,15 @@ final class BuyerMapper
                         $this->issue('MAP-CUI', Lang::get('map_cui_invalid', $taxId));
                     }
                     $legalId = $cui;
-                    $vatId = preg_match('/^\s*RO/i', $taxId) === 1 ? 'RO' . $cui : null;
+                    $vatPayer = preg_match('/^\s*RO/i', $taxId) === 1
+                        || (preg_match('/^\s*RO/i', $nativeTaxId) === 1 && Cui::normalize($nativeTaxId) === $cui);
+                    $vatId = $vatPayer ? 'RO' . $cui : null;
                 }
             } else {
                 $cnp = Cnp::normalize($this->field($clientId, $client, Settings::string('client_field_cnp'), null));
+                if ($cnp === '' && $legacyCnp !== null) {
+                    $cnp = $legacyCnp;
+                }
                 if ($cnp === '') {
                     $legalId = Cnp::UNKNOWN;
                 } elseif (Cnp::isValid($cnp) || $cnp === Cnp::UNKNOWN) {

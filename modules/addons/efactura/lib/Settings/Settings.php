@@ -79,6 +79,7 @@ final class Settings
         'client_forms' => ['bool', true],
         'client_validation_new' => ['string', 'strict'],
         'client_validation_profile' => ['string', 'strict'],
+        'client_profile_lock' => ['bool', true],
 
         // Invoices that are not reported to SPV
         'exclude_eu_reverse_charge' => ['bool', true],

@@ -21,14 +21,24 @@ namespace WHMCS\Module\Addon\Efactura\ClientData;
  */
 final class Issue
 {
+    /** Blocks the form in strict mode, only warns otherwise. */
+    public const ERROR = 'error';
+
+    /** Always blocks, whatever the mode (a company without CUI). */
+    public const REQUIRED = 'required';
+
     /**
-     * @param string $field form field name ("state", "city", ...)
-     * @param bool $blocking false when the rule always only warns
+     * @param string $field form field ("state", "city", "cui", ...)
      */
     public function __construct(
         public readonly string $field,
         public readonly string $key,
-        public readonly bool $blocking = true,
+        public readonly string $level = self::ERROR,
     ) {
+    }
+
+    public function blocks(string $mode): bool
+    {
+        return $this->level === self::REQUIRED || $mode === FormContext::STRICT;
     }
 }
