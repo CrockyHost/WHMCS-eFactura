@@ -82,6 +82,7 @@ tests that need them are skipped otherwise.
 ```
 php tests/concurrency.php --yes   # two simultaneous payments (creates and deletes test data)
 php tests/anaf-validate.php       # sends the fictive fixtures to the public ANAF validator
+php tests/anaf-live-queue.php --yes   # the queue against the ANAF test environment, fictive clients
 ```
 
 `tests/fixtures/ubl/` holds the reviewed XML of each scenario, with fictive
