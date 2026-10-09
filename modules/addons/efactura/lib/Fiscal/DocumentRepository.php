@@ -25,9 +25,100 @@ use WHMCS\Module\Addon\Efactura\Support\Audit;
  */
 final class DocumentRepository
 {
+    /** A claim older than this is considered abandoned (crashed worker). */
+    private const CLAIM_MINUTES = 15;
+
     public function forInvoice(int $invoiceId): ?object
     {
         return Capsule::table(Document::TABLE)->where('dedupe_key', Document::invoiceKey($invoiceId))->first();
+    }
+
+    public function find(int $documentId): ?object
+    {
+        return Capsule::table(Document::TABLE)->where('id', $documentId)->first();
+    }
+
+    /**
+     * Moves a document from its current state to $to, only if nobody changed
+     * the state meanwhile, and records the transition in the audit trail.
+     *
+     * @param array<string, mixed> $fields other columns to update
+     * @param array<string, mixed> $context
+     * @return bool false when the document was no longer in the expected state
+     */
+    public function transition(object $document, string $to, array $fields, string $event, string $message = '', array $context = [], ?int $adminId = null): bool
+    {
+        $now = Clock::now()->format('Y-m-d H:i:s');
+        $changes = $fields + ['updated_at' => $now];
+        if ($to !== $document->state) {
+            $changes += ['state' => $to, 'state_changed_at' => $now];
+        }
+        $updated = Capsule::table(Document::TABLE)
+            ->where('id', $document->id)
+            ->where('state', $document->state)
+            ->update($changes);
+        if ($updated !== 1) {
+            return false;
+        }
+        Audit::log($event, $message, $context, (int) $document->id, (int) $document->invoice_id, (string) $document->state, $to, $adminId);
+
+        return true;
+    }
+
+    /**
+     * @param array<string, mixed> $fields
+     */
+    public function update(int $documentId, array $fields): void
+    {
+        Capsule::table(Document::TABLE)->where('id', $documentId)->update($fields + ['updated_at' => Clock::now()->format('Y-m-d H:i:s')]);
+    }
+
+    /**
+     * Claims a document for one worker: returns the fresh row, or null when
+     * it is not in one of $states or another worker holds it.
+     *
+     * @param list<string> $states
+     */
+    public function claim(int $documentId, array $states): ?object
+    {
+        $token = bin2hex(random_bytes(10));
+        $now = Clock::now();
+        $claimed = Capsule::table(Document::TABLE)
+            ->where('id', $documentId)
+            ->whereIn('state', $states)
+            ->where(static function ($query) use ($now): void {
+                $query->whereNull('lock_token')->orWhere('locked_at', '<', $now->modify('-' . self::CLAIM_MINUTES . ' minutes')->format('Y-m-d H:i:s'));
+            })
+            ->update(['lock_token' => $token, 'locked_at' => $now->format('Y-m-d H:i:s')]);
+
+        return $claimed === 1 ? $this->find($documentId) : null;
+    }
+
+    public function releaseClaim(int $documentId): void
+    {
+        Capsule::table(Document::TABLE)->where('id', $documentId)->update(['lock_token' => null, 'locked_at' => null]);
+    }
+
+    /**
+     * Stores a file in the archive (mod_efactura_archive).
+     *
+     * @return int the archive ID
+     */
+    public function archive(object $document, string $kind, string $filename, string $mime, string $content, ?string $uploadIndex = null, ?string $downloadId = null): int
+    {
+        return (int) Capsule::table('mod_efactura_archive')->insertGetId([
+            'document_id' => $document->id,
+            'kind' => $kind,
+            'environment' => (string) ($document->environment ?: Settings::environment()),
+            'upload_index' => $uploadIndex,
+            'download_id' => $downloadId,
+            'filename' => $filename,
+            'mime' => $mime,
+            'size' => strlen($content),
+            'sha256' => hash('sha256', $content),
+            'content' => $content,
+            'created_at' => Clock::now()->format('Y-m-d H:i:s'),
+        ]);
     }
 
     /**

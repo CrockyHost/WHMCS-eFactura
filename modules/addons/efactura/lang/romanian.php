@@ -347,6 +347,16 @@ $_ADDONLANG['map_total'] = 'Subtotalul %s plus TVA-ul %s nu dă totalul din WHMC
 $_ADDONLANG['map_untaxed_line'] = 'Linia "%s" nu are TVA, iar clientul este din România: categoria de TVA nu poate fi stabilită. Verificați setarea de taxă a produsului.';
 $_ADDONLANG['map_exchange_rate'] = 'Nu există curs BNR pentru %s: %s';
 
+// Alertele cozii
+$_ADDONLANG['alert_invalid_subject'] = 'Documentul e-Factura %s nu poate fi generat';
+$_ADDONLANG['alert_invalid_body'] = "XML-ul documentului %s (factura #%d) nu poate fi generat din datele actuale:\n%s\n\nCorectați datele; documentul se reîncearcă automat la fiecare 15 minute.\n%s";
+$_ADDONLANG['alert_rejected_subject'] = 'Documentul e-Factura %s a fost respins';
+$_ADDONLANG['alert_rejected_body'] = "ANAF nu a acceptat documentul %s (factura #%d):\n%s\n\nCorectați datele și retrimiteți-l (același număr).\n%s";
+$_ADDONLANG['alert_archive_lost_subject'] = 'Răspunsul ANAF pentru %s nu mai poate fi descărcat';
+$_ADDONLANG['alert_archive_lost_body'] = "Răspunsul semnat al ANAF pentru documentul %s (factura #%d) nu a putut fi arhivat: %s\n%s";
+$_ADDONLANG['alert_auth_subject'] = 'ANAF refuză apelurile e-Factura';
+$_ADDONLANG['alert_auth_body'] = "ANAF a răspuns: %s\nTrimiterea în SPV este oprită o oră, apoi se reîncearcă. Verificați conexiunea ANAF și drepturile SPV ale certificatului: %s";
+
 // Validare
 $_ADDONLANG['error_csrf'] = 'Formularul a expirat. Reîncărcați pagina și încercați din nou.';
 $_ADDONLANG['error_too_long'] = 'Cel mult %d caractere.';

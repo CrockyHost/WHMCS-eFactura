@@ -347,6 +347,16 @@ $_ADDONLANG['map_total'] = 'Subtotal %s plus VAT %s is not the WHMCS total %s.';
 $_ADDONLANG['map_untaxed_line'] = 'The line "%s" has no VAT, and the client is in Romania: its VAT category cannot be determined. Check the product tax setting.';
 $_ADDONLANG['map_exchange_rate'] = 'No BNR exchange rate for %s: %s';
 
+// Queue alerts
+$_ADDONLANG['alert_invalid_subject'] = 'e-Factura document %s cannot be generated';
+$_ADDONLANG['alert_invalid_body'] = "The XML of document %s (invoice #%d) cannot be generated from the current data:\n%s\n\nCorrect the data; the document is retried automatically every 15 minutes.\n%s";
+$_ADDONLANG['alert_rejected_subject'] = 'e-Factura document %s rejected';
+$_ADDONLANG['alert_rejected_body'] = "ANAF did not accept document %s (invoice #%d):\n%s\n\nCorrect the data and send it again (same number).\n%s";
+$_ADDONLANG['alert_archive_lost_subject'] = 'The ANAF answer for %s can no longer be downloaded';
+$_ADDONLANG['alert_archive_lost_body'] = "The signed answer of ANAF for document %s (invoice #%d) could not be archived: %s\n%s";
+$_ADDONLANG['alert_auth_subject'] = 'ANAF refuses the e-Factura calls';
+$_ADDONLANG['alert_auth_body'] = "ANAF answered: %s\nSending to SPV is paused for an hour and retried. Check the ANAF connection and the SPV rights of the certificate: %s";
+
 // Validation
 $_ADDONLANG['error_csrf'] = 'The form has expired. Reload the page and try again.';
 $_ADDONLANG['error_too_long'] = 'At most %d characters.';

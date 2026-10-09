@@ -33,6 +33,7 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/modules/addons/efactura/bootstrap.php';
 require __DIR__ . '/Assert.php';
 require __DIR__ . '/FakeTransport.php';
+require __DIR__ . '/AnafSimulator.php';
 require __DIR__ . '/DevValidators.php';
 
 $suite = $argv[1] ?? 'unit';
