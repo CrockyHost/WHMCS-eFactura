@@ -31,6 +31,7 @@ use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
 use WHMCS\Module\Addon\Efactura\Fiscal\DocumentRepository;
 use WHMCS\Module\Addon\Efactura\Romania\Cui;
+use WHMCS\Module\Addon\Efactura\Romania\Text;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\AdminContext;
 use WHMCS\Module\Addon\Efactura\Support\AdminNotifier;
@@ -240,6 +241,12 @@ final class Worker
                 ], 'upload_unknown', $outcome->message);
                 $this->breaker(false);
                 $this->report['unknown']++;
+                // The same bytes got a technical error again: tell the admin.
+                $technical = static fn (?string $message): bool => str_contains(Text::fold((string) $message), 'eroare tehnica');
+                if ($technical($outcome->message) && $technical($document->last_error) && $document->alerted_state !== Document::STATE_UNKNOWN) {
+                    $this->alert('alert_technical', $document, $outcome->message);
+                    $this->documents->update((int) $document->id, ['alerted_state' => Document::STATE_UNKNOWN]);
+                }
                 break;
 
             case Outcome::AUTH:

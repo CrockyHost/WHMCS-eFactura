@@ -336,6 +336,47 @@ return [
         Assert::same($xml, $anaf->uploads[(string) $doc->upload_index]['xml'], 'the same bytes');
         Assert::same(2, (int) $doc->attempts);
     }),
+    'an invoice of other software with the same number is not taken as ours' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload, $travel): void {
+        $setup();
+        $anaf = new AnafSimulator();
+        $anaf->uploadModes = ['dropped'];
+        $doc = $document();
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        // Same number, date and seller, another total.
+        $other = preg_replace('#<cbc:TaxInclusiveAmount currencyID="RON">[^<]*<#', '<cbc:TaxInclusiveAmount currencyID="RON">999.99<', (string) $reload($doc)->xml);
+        $anaf->send(new Request('POST', ApiClient::baseUrl('test') . 'upload?standard=UBL&cif=12345674', [], (string) $other));
+        $travel('+21 minutes');
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        Assert::same(Document::STATE_UNKNOWN, $reload($doc)->state);
+        Assert::same(['upload', 'upload', 'listaMesajePaginatieFactura', 'descarcare'], $anaf->calls());
+    }),
+    'a technical error at upload is resent after an hour and reported when it repeats' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload, $travel): void {
+        $setup();
+        $anaf = new AnafSimulator();
+        $anaf->uploadModes = ['technical', 'technical'];
+        $doc = $document();
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        Assert::same(Document::STATE_UNKNOWN, $reload($doc)->state);
+        Assert::true(str_contains((string) $reload($doc)->last_error, 'Cod: 1814'));
+        Assert::same(null, $reload($doc)->alerted_state, 'one technical error is not reported');
+        $travel('+21 minutes');
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        Assert::same(['upload', 'listaMesajePaginatieFactura'], $anaf->calls(), 'reconciled first');
+        $travel('+40 minutes');
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        $doc = $reload($doc);
+        Assert::same(['upload', 'listaMesajePaginatieFactura', 'listaMesajePaginatieFactura', 'upload'], $anaf->calls(), 'sent again after an hour');
+        Assert::same(Document::STATE_UNKNOWN, $doc->state);
+        Assert::same(Document::STATE_UNKNOWN, $doc->alerted_state);
+        Assert::same(1, Capsule::table('tblactivitylog')->where('description', 'like', Addon::NAME . ': ' . Lang::get('alert_technical_subject', (string) $doc->number) . '%')->count());
+
+        $travel('+21 minutes');
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        $travel('+40 minutes');
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        Assert::same(Document::STATE_PROCESSING, $reload($doc)->state, 'accepted at the third upload');
+        Assert::same(3, (int) $reload($doc)->attempts);
+    }),
     'a document left in sending by a stopped worker is reconciled, not resent' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload): void {
         $setup();
         $anaf = new AnafSimulator();

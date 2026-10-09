@@ -132,7 +132,7 @@ return [
         $read = ResponseZip::read($zip(['4027474196.xml' => $invoice, 'semnatura_4027474196.xml' => '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"/>']));
         Assert::true($read->isInvoice());
         Assert::same('4027474196', $read->index);
-        Assert::same(['number' => 'FX-0001', 'date' => '2026-10-05', 'seller' => 'RO12345674'], $read->invoiceKey());
+        Assert::same(['number' => 'FX-0001', 'date' => '2026-10-05', 'seller' => 'RO12345674', 'total' => '119.67', 'sha256' => hash('sha256', $invoice)], $read->invoiceKey());
         Assert::true(str_contains((string) $read->signatureXml, 'xmldsig'));
     },
     'ZIP with errors, including a duplicate' => static function () use ($zip): void {

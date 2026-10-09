@@ -27,7 +27,9 @@ use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
 use WHMCS\Module\Addon\Efactura\Fiscal\DocumentRepository;
 use WHMCS\Module\Addon\Efactura\Romania\Cui;
+use WHMCS\Module\Addon\Efactura\Romania\Text;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Support\Money;
 use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
 
 /**
@@ -35,8 +37,10 @@ use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
  *
  * The sent invoices of the seller (listaMesajePaginatieFactura, filter T)
  * around the upload are compared by content: the ZIP of every message not
- * known locally is downloaded once and its number, issue date and seller are
- * matched with the document. When nothing matches for some hours, the same
+ * known locally is downloaded once and matched with the document by the
+ * SHA-256 of the invoice XML (ANAF returns the bytes sent, verified on the
+ * test environment) or by number, issue date, seller and total. When nothing
+ * matches for some hours, the same
  * bytes are uploaded again; if the first upload did arrive, ANAF answers with
  * a duplicate that names the original index, which the worker follows.
  *
@@ -48,7 +52,14 @@ final class Reconciler
     /** A "sending" document older than this was left by a crashed worker. */
     private const STUCK_MINUTES = 15;
     private const CHECK_EVERY_MINUTES = 30;
+    /** Without a match, the same bytes go again after a timeout... */
     private const RESEND_AFTER_HOURS = 6;
+    /**
+     * ...or after an explicit "eroare tehnica" answer: on the test environment
+     * (2026-10-09) such uploads never appeared in the message lists, and the
+     * same bytes were accepted when sent again.
+     */
+    private const RESEND_AFTER_TECHNICAL_HOURS = 1;
     /** Margins against the ANAF clock: before the upload, and before now. */
     private const WINDOW_BEFORE_MINUTES = 5;
     private const WINDOW_END_SECONDS = 60;
@@ -98,11 +109,10 @@ final class Reconciler
         }
 
         $done = 0;
-        $seller = Cui::normalize(Settings::string('company_cui'));
         foreach ($due as $document) {
             $match = null;
             foreach ($sent as $index => $message) {
-                if ($message['number'] === (string) $document->number && $message['date'] === (string) $document->issue_date && Cui::normalize($message['seller']) === $seller) {
+                if (self::matches($message, $document)) {
                     $match = $index;
                     break;
                 }
@@ -111,7 +121,7 @@ final class Reconciler
                 $this->adopt($document, (string) $match, $sent[$match]);
                 unset($sent[$match]);
                 $done++;
-            } elseif (Clock::parse((string) $document->upload_started_at) <= $now->modify('-' . self::RESEND_AFTER_HOURS . ' hours')) {
+            } elseif (Clock::parse((string) $document->upload_started_at) <= $now->modify('-' . self::resendAfterHours($document) . ' hours')) {
                 if (!$worker->canUpload()) {
                     break;
                 }
@@ -126,6 +136,30 @@ final class Reconciler
         }
 
         return $done;
+    }
+
+    private static function resendAfterHours(object $document): int
+    {
+        return str_contains(Text::fold((string) $document->last_error), 'eroare tehnica') ? self::RESEND_AFTER_TECHNICAL_HOURS : self::RESEND_AFTER_HOURS;
+    }
+
+    /**
+     * The same bytes, or the same number, issue date, seller and total: an
+     * invoice of other software that reused the number is not taken.
+     *
+     * @param array{number: string, date: string, seller: string, total?: string, sha256?: string} $message
+     */
+    private static function matches(array $message, object $document): bool
+    {
+        if (($message['sha256'] ?? '') !== '' && $message['sha256'] === $document->xml_sha256) {
+            return true;
+        }
+
+        return $message['number'] === (string) $document->number
+            && $message['date'] === (string) $document->issue_date
+            && Cui::normalize($message['seller']) === Cui::normalize(Settings::string('company_cui'))
+            && ($message['total'] ?? '') !== ''
+            && Money::cents($message['total']) === Money::cents((string) $document->total);
     }
 
     /**
@@ -159,7 +193,7 @@ final class Reconciler
      * The invoices sent for the seller CUI since $start that are not linked to
      * a document yet, with the key read from their ZIP.
      *
-     * @return array<string, array{number: string, date: string, seller: string, download_id: string, zip: string|null}>
+     * @return array<string, array{number: string, date: string, seller: string, total: string, sha256: string, download_id: string, zip: string|null}>
      */
     private function sentInvoices(DateTimeImmutable $start, DateTimeImmutable $now): array
     {
@@ -223,7 +257,7 @@ final class Reconciler
     }
 
     /**
-     * @param array{number: string, date: string, seller: string, download_id: string, zip: string|null} $message
+     * @param array{number: string, date: string, seller: string, total: string, sha256: string, download_id: string, zip: string|null} $message
      */
     private function adopt(object $document, string $index, array $message): void
     {
@@ -249,7 +283,7 @@ final class Reconciler
     }
 
     /**
-     * @return array<string, array{number: string, date: string, seller: string, at: string}>
+     * @return array<string, array{number: string, date: string, seller: string, total: string, sha256: string, at: string}>
      */
     private function seen(DateTimeImmutable $now): array
     {

@@ -101,10 +101,11 @@ final class ResponseZip
     }
 
     /**
-     * BT-1, BT-2 and the seller identifier of the validated invoice, used to
-     * match an upload whose answer was lost.
+     * BT-1, BT-2, the seller identifier, the total with VAT (BT-112) and the
+     * SHA-256 of the invoice XML, used to match an upload whose answer was
+     * lost.
      *
-     * @return array{number: string, date: string, seller: string}|null
+     * @return array{number: string, date: string, seller: string, total: string, sha256: string}|null
      */
     public function invoiceKey(): ?array
     {
@@ -121,6 +122,8 @@ final class ResponseZip
             'date' => $value("/*/*[local-name()='IssueDate']"),
             'seller' => $value("//*[local-name()='AccountingSupplierParty']//*[local-name()='PartyTaxScheme']/*[local-name()='CompanyID']")
                 ?: $value("//*[local-name()='AccountingSupplierParty']//*[local-name()='PartyLegalEntity']/*[local-name()='CompanyID']"),
+            'total' => $value("/*/*[local-name()='LegalMonetaryTotal']/*[local-name()='TaxInclusiveAmount']"),
+            'sha256' => hash('sha256', $this->invoiceXml),
         ];
     }
 }

@@ -103,7 +103,8 @@ final class AnafSimulator implements Transport
             case 'auth':
                 return $error('Nu aveti drept in SPV pentru CIF=' . ($query['cif'] ?? ''));
             case 'technical':
-                return $error('A aparut o eroare tehnica. Cod: 4003');
+                // As seen on the test environment on 2026-10-09: not registered.
+                return $error('A aparut o eroare tehnica. Cod: 1814');
             case 'dropped':
                 return new Response(0, [], '', 28, 'Operation timed out after 120000 milliseconds', true);
         }
