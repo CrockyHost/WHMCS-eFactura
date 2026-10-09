@@ -171,6 +171,87 @@ $_ADDONLANG['help_exclude_add_funds'] = 'Alimentări de credit în cont. Servici
 $_ADDONLANG['setting_exclude_mass_pay'] = 'Facturi Mass Pay';
 $_ADDONLANG['exclude_mass_pay_always'] = 'Excluse întotdeauna: doar grupează alte facturi, care se raportează fiecare în parte.';
 
+// Conectare ANAF
+$_ADDONLANG['nav_anaf'] = 'Conectare ANAF';
+$_ADDONLANG['check_anaf'] = 'Conexiunea ANAF';
+$_ADDONLANG['check_anaf_not_configured'] = 'Neconfigurată: introduceți aplicația OAuth pe pagina Conectare ANAF.';
+$_ADDONLANG['check_anaf_not_connected'] = 'Neautorizată încă: folosiți "Conectează la ANAF" cu certificatul calificat.';
+$_ADDONLANG['check_anaf_reauthorize'] = 'Trebuie autorizată din nou cu certificatul calificat. %s';
+$_ADDONLANG['check_anaf_expiring'] = 'Conectată. Reautorizați cu certificatul până la %s (mai sunt %d zile).';
+$_ADDONLANG['check_anaf_ok'] = 'Conectată. Reautorizarea anuală este pe %s (mai sunt %d zile).';
+
+$_ADDONLANG['anaf_status_title'] = 'Starea conexiunii';
+$_ADDONLANG['anaf_state_not_configured'] = 'Neconfigurată';
+$_ADDONLANG['anaf_state_not_connected'] = 'Neconectată';
+$_ADDONLANG['anaf_state_connected'] = 'Conectată';
+$_ADDONLANG['anaf_state_expiring'] = 'Reautorizare în curând';
+$_ADDONLANG['anaf_state_reauthorize'] = 'Reautorizare necesară';
+$_ADDONLANG['anaf_field_authorized'] = 'Autorizată';
+$_ADDONLANG['anaf_authorized_value'] = '%s de %s';
+$_ADDONLANG['anaf_field_certificate'] = 'Seria certificatului';
+$_ADDONLANG['anaf_field_roles'] = 'Drepturile token-ului';
+$_ADDONLANG['anaf_field_access'] = 'Token de acces valabil până la';
+$_ADDONLANG['anaf_field_reauth'] = 'Reautorizare cu certificatul până la';
+$_ADDONLANG['anaf_days_left'] = '%s (mai sunt %d zile)';
+$_ADDONLANG['anaf_field_refreshed'] = 'Ultima reîmprospătare a token-ului';
+$_ADDONLANG['anaf_never'] = 'încă nu';
+$_ADDONLANG['anaf_field_environment'] = 'Mediul API';
+$_ADDONLANG['anaf_field_error'] = 'Ultima eroare';
+$_ADDONLANG['anaf_connect_help'] = 'Autorizarea se face într-un browser care are certificatul calificat (token USB) al unei persoane cu drepturi SPV pentru firmă: reprezentant legal, reprezentant desemnat sau împuternicit. Dacă persoana nu folosește acest WHMCS, generați un link și trimiteți-i-l: este valabil %d de minute și funcționează o singură dată.';
+$_ADDONLANG['anaf_button_connect'] = 'Conectează la ANAF';
+$_ADDONLANG['anaf_button_reconnect'] = 'Reautorizează';
+$_ADDONLANG['anaf_button_link'] = 'Link pentru altă persoană';
+$_ADDONLANG['anaf_button_check'] = 'Testează conexiunea';
+$_ADDONLANG['anaf_button_refresh'] = 'Reîmprospătează token-ul';
+$_ADDONLANG['anaf_button_disconnect'] = 'Deconectează';
+$_ADDONLANG['anaf_disconnect_confirm'] = 'Ștergeți token-urile ANAF din WHMCS? Nu se mai poate trimite nimic în SPV până la o nouă autorizare.';
+$_ADDONLANG['anaf_connected'] = 'Conectat la ANAF. Folosiți "Testează conexiunea" ca să verificați drepturile SPV pentru CUI-ul firmei.';
+$_ADDONLANG['anaf_refreshed'] = 'Token-urile au fost reîmprospătate.';
+$_ADDONLANG['anaf_disconnected'] = 'Token-urile ANAF au fost șterse din WHMCS.';
+$_ADDONLANG['anaf_action_failed'] = 'Operațiunea a eșuat: %s';
+
+$_ADDONLANG['anaf_app_title'] = 'Aplicația OAuth ANAF';
+$_ADDONLANG['anaf_app_intro'] = 'Fiecare instalare WHMCS folosește propria aplicație OAuth, înregistrată în contul de dezvoltator ANAF al firmei. Client ID-ul și secretul rămân în acest WHMCS; secretul și token-urile se păstrează criptat.';
+$_ADDONLANG['anaf_app_step1'] = 'Pe anaf.ro deschideți Servicii Online > Înregistrare utilizatori > Dezvoltatori aplicații > Înregistrare pentru API-uri și autentificați-vă cu contul de dezvoltator (utilizator și parolă, fără certificat).';
+$_ADDONLANG['anaf_app_step2'] = 'În Editare profil Oauth > Gestionare aplicații adăugați o aplicație: un nume fără spații (de exemplu WHMCSeFactura), serviciul E-Factura și callback URL-ul de mai jos.';
+$_ADDONLANG['anaf_app_step3'] = 'Aplicația nu mai poate fi modificată ulterior. Adăugați de la început, cu butonul +, callback URL-ul fiecărui WHMCS care o va folosi (de exemplu producția și o copie de test).';
+$_ADDONLANG['anaf_app_step4'] = 'Apăsați Generare Client ID și copiați Client ID-ul și Client Secret-ul în formularul de mai jos.';
+$_ADDONLANG['anaf_callback_url'] = 'Callback URL de înregistrat la ANAF';
+$_ADDONLANG['anaf_callback_not_https'] = 'ANAF acceptă doar callback URL-uri https://. Setați System URL din WHMCS la o adresă https.';
+$_ADDONLANG['anaf_client_id'] = 'Client ID';
+$_ADDONLANG['anaf_client_secret'] = 'Client Secret';
+$_ADDONLANG['anaf_secret_saved'] = 'Salvat. Lăsați gol ca să îl păstrați.';
+$_ADDONLANG['anaf_button_save'] = 'Salvează aplicația';
+$_ADDONLANG['anaf_credentials_saved'] = 'Aplicația OAuth a fost salvată.';
+$_ADDONLANG['anaf_error_client_id'] = 'Introduceți client ID-ul, fără spații.';
+$_ADDONLANG['anaf_error_client_secret'] = 'Introduceți client secret-ul.';
+
+$_ADDONLANG['anaf_authorize_title'] = 'Autorizare la ANAF';
+$_ADDONLANG['anaf_authorize_redirect'] = 'Se deschide ANAF. Alegeți certificatul calificat când vi-l cere browserul.';
+$_ADDONLANG['anaf_authorize_continue'] = 'Continuă la ANAF';
+$_ADDONLANG['anaf_authorize_link_intro'] = 'Trimiteți acest link persoanei care are certificatul calificat. Este valabil %d de minute și funcționează o singură dată; după autorizare, conexiunea apare pe pagina Conectare ANAF.';
+$_ADDONLANG['anaf_authorize_back'] = 'Înapoi la Conectare ANAF';
+
+$_ADDONLANG['anaf_check_no_cui'] = 'Completați întâi CUI-ul firmei în Setări.';
+$_ADDONLANG['anaf_check_token'] = 'Nu există un token utilizabil: %s';
+$_ADDONLANG['anaf_check_unreachable'] = 'ANAF nu a putut fi contactat: %s';
+$_ADDONLANG['anaf_check_rejected'] = 'ANAF a respins token-ul (HTTP %d). Reautorizați.';
+$_ADDONLANG['anaf_check_unexpected'] = 'Răspuns neașteptat de la ANAF (HTTP %d): %s';
+$_ADDONLANG['anaf_check_ok'] = 'Conexiunea funcționează: certificatul are drepturi SPV pentru CUI %s (%s, %d mesaje în ultima zi).';
+$_ADDONLANG['anaf_check_no_rights'] = 'Token-ul este valid, dar certificatul nu are drepturi SPV pentru CUI %s: %s';
+$_ADDONLANG['anaf_check_error'] = 'ANAF a răspuns: %s';
+
+$_ADDONLANG['alert_reauth_soon_subject'] = 'Reautorizare ANAF necesară în %d zile';
+$_ADDONLANG['alert_reauth_soon_body'] = "Conexiunea WHMCS la ANAF e-Factura trebuie autorizată din nou cu certificatul calificat până la %s (mai sunt %d zile). După această dată nu se mai poate trimite nimic în SPV până la reautorizare.\n\n%s";
+$_ADDONLANG['alert_reauth_now_subject'] = 'Reautorizare ANAF necesară acum';
+$_ADDONLANG['alert_reauth_now_body'] = "Conexiunea WHMCS la ANAF e-Factura nu mai funcționează și trebuie autorizată din nou cu certificatul calificat. Până atunci nu se trimite nimic în SPV.\nUltima eroare: %s\n\n%s";
+
+$_ADDONLANG['callback_title'] = 'e-Factura: autorizare ANAF';
+$_ADDONLANG['callback_success'] = 'Conexiunea la ANAF a fost salvată. Puteți închide această fereastră.';
+$_ADDONLANG['callback_invalid_state'] = 'Acest link de autorizare este invalid, expirat sau deja folosit. Generați unul nou din WHMCS (Addons > WHMCS-eFactura > Conectare ANAF).';
+$_ADDONLANG['callback_denied'] = 'ANAF nu a autorizat accesul (%s). Verificați că certificatul calificat este conectat și înrolat în SPV pentru firmă, apoi încercați din nou.';
+$_ADDONLANG['callback_failed'] = 'Autorizarea nu a putut fi finalizată: %s';
+
 // Validare
 $_ADDONLANG['error_csrf'] = 'Formularul a expirat. Reîncărcați pagina și încercați din nou.';
 $_ADDONLANG['error_too_long'] = 'Cel mult %d caractere.';

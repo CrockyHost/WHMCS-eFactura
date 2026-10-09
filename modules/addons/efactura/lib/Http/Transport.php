@@ -13,18 +13,12 @@
 
 declare(strict_types=1);
 
-if (!defined('WHMCS')) {
-    die('This file cannot be accessed directly');
+namespace WHMCS\Module\Addon\Efactura\Http;
+
+/**
+ * Sends HTTP requests. Implemented over ext-curl; tests use a fake.
+ */
+interface Transport
+{
+    public function send(Request $request): Response;
 }
-
-require_once __DIR__ . '/bootstrap.php';
-
-use WHMCS\Module\Addon\Efactura\Hooks\CronHooks;
-
-// Hook registration only. WHMCS loads this file on every page, so each hook
-// is a one-line delegation to a class in lib/Hooks.
-
-// Refreshes the ANAF token and warns about the yearly re-authorization.
-add_hook('DailyCronJob', 10, static function (): void {
-    CronHooks::daily();
-});

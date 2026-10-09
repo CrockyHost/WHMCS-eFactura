@@ -19,6 +19,7 @@ use Throwable;
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Support\AdminContext;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Whmcs\ClientDirectory;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
@@ -28,7 +29,7 @@ use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
  */
 final class AdminController
 {
-    private const VIEWS = ['dashboard', 'settings'];
+    private const VIEWS = ['dashboard', 'anaf', 'settings'];
 
     /**
      * @param array<string, mixed> $vars parameters WHMCS passes to efactura_output()
@@ -49,7 +50,7 @@ final class AdminController
             return;
         }
 
-        Lang::boot(Settings::string('ui_language'), $this->adminId());
+        Lang::boot(Settings::string('ui_language'), AdminContext::id());
 
         $view = (string) ($_GET['view'] ?? 'dashboard');
         if (!in_array($view, self::VIEWS, true)) {
@@ -57,6 +58,7 @@ final class AdminController
         }
 
         echo match ($view) {
+            'anaf' => $this->anaf(),
             'settings' => $this->settings(),
             default => $this->dashboard(),
         };
@@ -64,7 +66,7 @@ final class AdminController
 
     private function dashboard(): string
     {
-        $checks = new HealthChecks(new InvoicingConfig());
+        $checks = new HealthChecks(new InvoicingConfig(), Addon::connection());
 
         $counts = Capsule::table('mod_efactura_documents')
             ->select('state', Capsule::raw('COUNT(*) AS total'))
@@ -82,11 +84,23 @@ final class AdminController
         ]);
     }
 
+    private function anaf(): string
+    {
+        $result = (new AnafPage(Addon::connection()))->handle(
+            $_POST,
+            ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST',
+            $this->validToken(),
+            isset($_GET['connected'])
+        );
+
+        return $this->page($result['view'], $result['vars'], 'anaf');
+    }
+
     private function settings(): string
     {
         $directory = new ClientDirectory();
         $form = new SettingsForm($directory);
-        $healthChecks = new HealthChecks(new InvoicingConfig());
+        $healthChecks = new HealthChecks(new InvoicingConfig(), Addon::connection());
 
         $values = Settings::all();
         $errors = [];
@@ -101,7 +115,7 @@ final class AdminController
                 if ($errors === []) {
                     Settings::save($values);
                     $values = Settings::all();
-                    Lang::boot(Settings::string('ui_language'), $this->adminId());
+                    Lang::boot(Settings::string('ui_language'), AdminContext::id());
                     $alert = ['type' => 'success', 'text' => Lang::get('settings_saved')];
                     logActivity('WHMCS-eFactura: settings updated');
                 } else {
@@ -121,17 +135,18 @@ final class AdminController
     /**
      * @param array<string, mixed> $vars
      */
-    private function page(string $view, array $vars): string
+    private function page(string $template, array $vars, ?string $tab = null): string
     {
+        $tab ??= $template;
         $nav = [];
         foreach (self::VIEWS as $item) {
-            $nav[] = ['view' => $item, 'label' => Lang::get('nav_' . $item), 'active' => $item === $view];
+            $nav[] = ['view' => $item, 'label' => Lang::get('nav_' . $item), 'active' => $item === $tab];
         }
 
-        return View::render($view, $vars + [
+        return View::render($template, $vars + [
             'lang' => Lang::all(),
             'modulelink' => (string) ($this->vars['modulelink'] ?? 'addonmodules.php?module=' . Addon::MODULE),
-            'view' => $view,
+            'view' => $tab,
             'nav' => $nav,
             'csrfToken' => generate_token('plain'),
             'version' => Addon::VERSION,
@@ -147,12 +162,5 @@ final class AdminController
         $submitted = (string) ($_POST['token'] ?? '');
 
         return $submitted !== '' && hash_equals((string) generate_token('plain'), $submitted);
-    }
-
-    private function adminId(): ?int
-    {
-        $id = (int) ($_SESSION['adminid'] ?? 0);
-
-        return $id > 0 ? $id : null;
     }
 }

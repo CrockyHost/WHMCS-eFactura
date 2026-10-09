@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 namespace WHMCS\Module\Addon\Efactura\Admin;
 
+use WHMCS\Module\Addon\Efactura\Anaf\OAuth\Connection;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
@@ -32,8 +33,10 @@ final class HealthChecks
 
     private const REQUIRED_EXTENSIONS = ['curl', 'dom', 'libxml', 'openssl', 'zip', 'mbstring'];
 
-    public function __construct(private readonly InvoicingConfig $invoicing)
-    {
+    public function __construct(
+        private readonly InvoicingConfig $invoicing,
+        private readonly ?Connection $connection = null,
+    ) {
     }
 
     /**
@@ -46,6 +49,7 @@ final class HealthChecks
         return [
             $this->processing($settings),
             $this->environment(),
+            ...($this->connection === null ? [] : [$this->anafConnection()]),
             $this->company($settings),
             ...$this->whmcsNumbering(),
             $this->timezone(),
@@ -89,6 +93,32 @@ final class HealthChecks
         return Settings::environment() === Settings::ENV_PROD
             ? self::check('check_environment', self::OK, Lang::get('env_prod'))
             : self::check('check_environment', self::INFO, Lang::get('check_environment_test'));
+    }
+
+    /**
+     * The ANAF connection does not block processing: documents wait in the
+     * queue until the connection works.
+     *
+     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
+     */
+    private function anafConnection(): array
+    {
+        $status = $this->connection->status();
+        if (!$status['configured']) {
+            return self::check('check_anaf', self::WARNING, Lang::get('check_anaf_not_configured'));
+        }
+        if ($status['needs_reauthorization']) {
+            return self::check('check_anaf', self::DANGER, Lang::get('check_anaf_reauthorize', $status['last_error']));
+        }
+        if (!$status['connected']) {
+            return self::check('check_anaf', self::WARNING, Lang::get('check_anaf_not_connected'));
+        }
+        $until = $status['refresh_expires_at']?->format('Y-m-d') ?? '-';
+        $days = max(0, (int) $status['days_left']);
+
+        return $days <= 30
+            ? self::check('check_anaf', self::WARNING, Lang::get('check_anaf_expiring', $until, $days))
+            : self::check('check_anaf', self::OK, Lang::get('check_anaf_ok', $until, $days));
     }
 
     /**

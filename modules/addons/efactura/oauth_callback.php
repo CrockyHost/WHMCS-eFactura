@@ -13,18 +13,13 @@
 
 declare(strict_types=1);
 
-if (!defined('WHMCS')) {
-    die('This file cannot be accessed directly');
-}
+// Redirect target of the ANAF OAuth authorization, registered at ANAF as the
+// "Callback URL" of the application. It does not require a WHMCS admin
+// session, because the person with the qualified certificate may authorize
+// from another computer; the single-use state value created in the admin
+// area authenticates the request.
 
+require_once dirname(__DIR__, 3) . '/init.php';
 require_once __DIR__ . '/bootstrap.php';
 
-use WHMCS\Module\Addon\Efactura\Hooks\CronHooks;
-
-// Hook registration only. WHMCS loads this file on every page, so each hook
-// is a one-line delegation to a class in lib/Hooks.
-
-// Refreshes the ANAF token and warns about the yearly re-authorization.
-add_hook('DailyCronJob', 10, static function (): void {
-    CronHooks::daily();
-});
+WHMCS\Module\Addon\Efactura\Anaf\OAuth\CallbackHandler::handle($_GET);

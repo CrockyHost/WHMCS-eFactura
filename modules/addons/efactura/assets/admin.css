@@ -80,6 +80,51 @@
     white-space: pre-wrap;
 }
 
+.efactura-state {
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.efactura-details {
+    margin-bottom: 0;
+}
+
+.efactura-details > tbody > tr:first-child > th,
+.efactura-details > tbody > tr:first-child > td {
+    border-top: 0;
+}
+
+.efactura-details th {
+    width: 40%;
+    font-weight: 600;
+}
+
+.efactura-inline {
+    display: inline-block;
+    margin: 0 6px 6px 0;
+}
+
+.efactura-right {
+    float: right;
+}
+
+.efactura-steps {
+    padding-left: 18px;
+}
+
+.efactura-steps li {
+    margin-bottom: 6px;
+}
+
+.efactura-mono {
+    font-family: Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+
+.efactura-back {
+    margin: 15px 0 0;
+}
+
 .efactura-intro {
     margin-bottom: 15px;
 }

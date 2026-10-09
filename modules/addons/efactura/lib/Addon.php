@@ -17,7 +17,12 @@ namespace WHMCS\Module\Addon\Efactura;
 
 use Throwable;
 use WHMCS\Module\Addon\Efactura\Admin\AdminController;
+use WHMCS\Module\Addon\Efactura\Anaf\ApiClient;
+use WHMCS\Module\Addon\Efactura\Anaf\OAuth\Connection;
+use WHMCS\Module\Addon\Efactura\Anaf\OAuth\OAuthClient;
 use WHMCS\Module\Addon\Efactura\Database\Migrator;
+use WHMCS\Module\Addon\Efactura\Http\CurlTransport;
+use WHMCS\Module\Addon\Efactura\Settings\Settings;
 
 /**
  * Module identity and the WHMCS lifecycle (config, activate, deactivate,
@@ -27,7 +32,7 @@ final class Addon
 {
     public const MODULE = 'efactura';
     public const NAME = 'WHMCS-eFactura';
-    public const VERSION = '0.1.0';
+    public const VERSION = '0.2.0';
     public const SOURCE_URL = 'https://github.com/CrockyHost/WHMCS-eFactura';
 
     /**
@@ -117,5 +122,18 @@ final class Addon
     public static function migrator(): Migrator
     {
         return new Migrator(self::path('migrations'));
+    }
+
+    public static function connection(): Connection
+    {
+        return new Connection(new OAuthClient(new CurlTransport()));
+    }
+
+    /**
+     * Client of the e-Factura API in the environment chosen in the settings.
+     */
+    public static function api(): ApiClient
+    {
+        return new ApiClient(new CurlTransport(), self::connection(), Settings::environment());
     }
 }
