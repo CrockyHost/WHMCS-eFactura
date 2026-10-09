@@ -129,7 +129,12 @@
     gap: 8px;
     margin: 0;
     font-weight: 400;
+    color: var(--text-body-color, inherit);
     cursor: pointer;
+}
+
+.efactura-grid > .efactura-wide {
+    grid-column: 1 / -1;
 }
 
 .efactura-check-input {
@@ -214,7 +219,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 6px 10px;
-    margin: 8px 0 0;
+    margin: 0 0 16px;
     font-size: 0.875em;
     line-height: 1.4;
     color: var(--text-lighter-color, #6c757d);
@@ -333,4 +338,20 @@
     flex-wrap: wrap;
     gap: 8px;
     margin-top: 10px;
+}
+
+/* Phones: the ANAF button goes under the CUI, at full width. */
+@media (max-width: 479.98px) {
+    .efactura-lookup-row {
+        flex-direction: column;
+    }
+
+    .efactura-lookup-button {
+        width: 100%;
+    }
+
+    .efactura-vat-code {
+        display: block;
+        margin: 4px 0 0 24px;
+    }
 }

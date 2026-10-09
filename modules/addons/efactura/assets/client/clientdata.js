@@ -629,6 +629,9 @@
         state.radios.forEach(function (radio) {
             radio.checked = radio.value === type;
             radio.closest('.efactura-type-option').classList.toggle('is-active', radio.checked);
+            if ($(radio).data('iCheck')) {
+                $(radio).iCheck('update');
+            }
         });
         toggle(state.companyPart, type === COMPANY);
         toggle(state.personPart, type === PERSON);
@@ -753,7 +756,7 @@
         var options = element('div', 'efactura-type-options');
         [[PERSON, text.cd_type_person, text.cd_type_person_hint], [COMPANY, text.cd_type_company, text.cd_type_company_hint]].forEach(function (option) {
             var label = element('label', 'efactura-type-option');
-            var radio = element('input', 'efactura-type-radio');
+            var radio = element('input', 'efactura-type-radio no-icheck');
             radio.type = 'radio';
             radio.name = 'efactura_client_type';
             radio.value = option[0];
@@ -769,6 +772,10 @@
                     setType(state, radio.value);
                 }
             });
+            // Themes that style radios with iCheck anyway report the choice this way.
+            $(radio).on('ifChecked', function () {
+                setType(state, radio.value);
+            });
         });
         fieldset.appendChild(options);
         section.appendChild(fieldset);
@@ -782,6 +789,8 @@
         var iconStyle = groupOf(state.company).classList.contains('prepend-icon');
         relabel(changes, state.cui, text.cd_cui, {required: true, example: text.cd_cui_placeholder, iconStyle: iconStyle, icon: 'fas fa-hashtag'});
         adopt(changes, groupOf(state.cui), state.companyPart);
+        // The CUI and the ANAF button take a whole row; the company details follow.
+        changes.addClass(groupOf(state.cui), 'efactura-wide');
         changes.attr(state.cui, 'autocomplete', 'off');
         changes.attr(state.cui, 'spellcheck', 'false');
         relabel(changes, state.company, text.cd_company_name, {required: true, iconStyle: iconStyle});
@@ -797,7 +806,7 @@
 
             var vat = element('div', 'efactura-vat');
             var check = element('label', 'efactura-check');
-            state.vatBox = element('input', 'efactura-check-input');
+            state.vatBox = element('input', 'efactura-check-input no-icheck');
             state.vatBox.type = 'checkbox';
             state.vatBox.id = 'efacturaVatPayer';
             state.vatBox.checked = state.tax.value.trim() !== '';
@@ -1058,7 +1067,7 @@
             var item = element('li', 'efactura-lookup-item' + (conflict.locked ? ' is-locked' : ''));
             var head = element('label', 'efactura-lookup-item-head');
             if (!conflict.locked) {
-                var box = element('input', 'efactura-check-input');
+                var box = element('input', 'efactura-check-input no-icheck');
                 box.type = 'checkbox';
                 box.checked = true;
                 box.id = 'efacturaLookupPick' + index;
