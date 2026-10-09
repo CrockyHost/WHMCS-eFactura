@@ -19,6 +19,7 @@ declare(strict_types=1);
  *   php tests/run.php            unit tests only (no WHMCS needed)
  *   php tests/run.php all        unit + integration tests
  *   php tests/run.php integration
+ *   php tests/run.php integration Queue   only the files whose name contains "Queue"
  *
  * Integration tests boot the WHMCS installation this repository lives in and
  * run every test inside a database transaction that is rolled back.
@@ -37,6 +38,7 @@ require __DIR__ . '/AnafSimulator.php';
 require __DIR__ . '/DevValidators.php';
 
 $suite = $argv[1] ?? 'unit';
+$filter = $argv[2] ?? '';
 $suites = $suite === 'all' ? ['Unit', 'Integration'] : [ucfirst($suite)];
 
 $passed = 0;
@@ -44,7 +46,7 @@ $failed = [];
 $skipped = [];
 
 foreach ($suites as $name) {
-    $files = glob(__DIR__ . '/' . $name . '/*Test.php') ?: [];
+    $files = array_values(array_filter(glob(__DIR__ . '/' . $name . '/*Test.php') ?: [], static fn (string $file): bool => $filter === '' || str_contains(basename($file), $filter)));
     sort($files);
     if ($name === 'Integration' && $files !== []) {
         // WHMCS expects to be booted from the global scope.
@@ -58,6 +60,8 @@ foreach ($suites as $name) {
             $label = $name . '/' . basename($file, '.php') . ': ' . $description;
             $connection = $name === 'Integration' ? \WHMCS\Database\Capsule::connection() : null;
             $connection?->beginTransaction();
+            // WHMCS sets a time limit when it boots; payments render PDFs.
+            set_time_limit(0);
             try {
                 $test();
                 $passed++;

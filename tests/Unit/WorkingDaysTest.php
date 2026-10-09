@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 use WHMCS\Module\Addon\Efactura\Fiscal\WorkingDays;
 use WHMCS\Module\Addon\Efactura\Numbering\SeriesCounter;
+use WHMCS\Module\Addon\Efactura\Queue\DeadlineMonitor;
 
 $day = static fn (string $date): DateTimeImmutable => new DateTimeImmutable($date);
 
@@ -54,6 +55,13 @@ return [
         Assert::same(0, WorkingDays::remaining($day('2026-10-12'), $day('2026-10-12')));
         Assert::same(-1, WorkingDays::remaining($day('2026-10-13'), $day('2026-10-12')));
         Assert::same(-1, WorkingDays::remaining($day('2026-10-19'), $day('2026-10-16')), 'the weekend does not count');
+    },
+    'deadline alert levels' => static function () use ($day): void {
+        $deadline = $day('2026-10-16');
+        $levels = ['2026-10-12' => 0, '2026-10-13' => 0, '2026-10-14' => 1, '2026-10-15' => 2, '2026-10-16' => 3, '2026-10-17' => 3, '2026-10-19' => 4, '2026-10-20' => 5];
+        foreach ($levels as $today => $level) {
+            Assert::same($level, DeadlineMonitor::level($day($today), $deadline), $today);
+        }
     },
     'the series counter keeps its zero padding' => static function (): void {
         Assert::same('0095', SeriesCounter::increment('0094'));

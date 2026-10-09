@@ -50,3 +50,8 @@ add_hook('InvoiceCreated', 10, static function (array $vars): void {
 add_hook('DailyCronJob', 10, static function (): void {
     CronHooks::daily();
 });
+
+// The e-Factura queue, after every run of the system cron.
+add_hook('AfterCronJob', 10, static function (): void {
+    CronHooks::afterCron();
+});

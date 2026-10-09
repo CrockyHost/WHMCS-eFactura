@@ -34,6 +34,28 @@ UBL 2.1 / CIUS-RO și le trimite în sistemul RO e-Factura al ANAF.
 `date.timezone = Europe/Bucharest` în `php.ini` / `.user.ini` (cPanel:
 MultiPHP INI Editor), care singur acoperă doar paginile web.
 
+## Sending to ANAF
+
+The documents are sent by the WHMCS system cron: the addon runs its queue
+after every cron run (`AfterCronJob`, at most 45 seconds per run). It uploads
+the documents that are due, checks their status, downloads and archives the
+signed answer of ANAF, resolves uploads whose answer was lost and emails the
+administrators when a document gets close to the legal deadline (5 working
+days from issue).
+
+For a faster queue, the same work can run from a separate cron entry, for
+example every minute:
+
+```
+php -q /path/to/whmcs/modules/addons/efactura/cron/worker.php
+```
+
+**Română:** documentele sunt trimise de cron-ul WHMCS: după fiecare rulare,
+addonul procesează coada (trimitere, verificarea stării, descărcarea și
+arhivarea răspunsului semnat, reconcilierea încărcărilor fără răspuns și
+alertele de termen). Opțional, `cron/worker.php` poate rula separat, de
+exemplu la fiecare minut.
+
 ## Development
 
 The repository root is the root of a local WHMCS 9 installation; only the
@@ -44,9 +66,11 @@ Tests run from the command line, without extra dependencies:
 ```
 php tests/run.php        # unit tests, no WHMCS needed
 php tests/run.php all    # unit + integration tests against the local WHMCS
+php tests/run.php integration Queue   # only the test files whose name contains "Queue"
 ```
 
 Integration tests run inside a database transaction that is rolled back.
+The queue is tested against a simulator of the ANAF API (`tests/AnafSimulator.php`).
 
 The e-Factura XML is checked in the tests with the official validators,
 which are development tools and not part of the addon: the OASIS UBL 2.1

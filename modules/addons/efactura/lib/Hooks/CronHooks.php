@@ -28,6 +28,23 @@ use WHMCS\Module\Addon\Efactura\Support\Lang;
  */
 final class CronHooks
 {
+    /** Time for the queue in each cron run (the system cron runs every 5 minutes). */
+    private const WORKER_BUDGET_SECONDS = 45;
+
+    /**
+     * After every cron run: uploads, status checks, downloads, reconciliation
+     * and deadline alerts.
+     */
+    public static function afterCron(): void
+    {
+        try {
+            Lang::boot(Settings::string('ui_language'));
+            Addon::worker()->run(self::WORKER_BUDGET_SECONDS);
+        } catch (Throwable $e) {
+            logActivity(Addon::NAME . ': the e-Factura queue run failed: ' . $e->getMessage());
+        }
+    }
+
     public static function daily(): void
     {
         try {

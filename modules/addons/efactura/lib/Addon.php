@@ -28,7 +28,11 @@ use WHMCS\Module\Addon\Efactura\Numbering\EarlyIssue;
 use WHMCS\Module\Addon\Efactura\Numbering\FiscalNumbering;
 use WHMCS\Module\Addon\Efactura\Numbering\PaymentNumbering;
 use WHMCS\Module\Addon\Efactura\Numbering\SeriesCounter;
+use WHMCS\Module\Addon\Efactura\Queue\DeadlineMonitor;
+use WHMCS\Module\Addon\Efactura\Queue\Reconciler;
+use WHMCS\Module\Addon\Efactura\Queue\Worker;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
 use WHMCS\Module\Addon\Efactura\Ubl\DocumentBuilder;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
 
@@ -168,5 +172,17 @@ final class Addon
     public static function api(): ApiClient
     {
         return new ApiClient(new CurlTransport(), self::connection(), Settings::environment());
+    }
+
+    /**
+     * The queue worker, with reconciliation and deadline alerts.
+     */
+    public static function worker(): Worker
+    {
+        $connection = self::connection();
+        $api = new ApiClient(new CurlTransport(), $connection, Settings::environment());
+        $state = new RuntimeState();
+
+        return new Worker($api, $connection, self::documentBuilder(), self::documents(), $state, new Reconciler($api, self::documents(), $state), new DeadlineMonitor());
     }
 }

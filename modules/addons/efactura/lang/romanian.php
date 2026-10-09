@@ -356,6 +356,17 @@ $_ADDONLANG['alert_archive_lost_subject'] = 'Răspunsul ANAF pentru %s nu mai po
 $_ADDONLANG['alert_archive_lost_body'] = "Răspunsul semnat al ANAF pentru documentul %s (factura #%d) nu a putut fi arhivat: %s\n%s";
 $_ADDONLANG['alert_auth_subject'] = 'ANAF refuză apelurile e-Factura';
 $_ADDONLANG['alert_auth_body'] = "ANAF a răspuns: %s\nTrimiterea în SPV este oprită o oră, apoi se reîncearcă. Verificați conexiunea ANAF și drepturile SPV ale certificatului: %s";
+$_ADDONLANG['alert_deadline_soon_subject'] = 'Documente aproape de termenul e-Factura (%d)';
+$_ADDONLANG['alert_deadline_today_subject'] = 'Ultima zi de trimitere în e-Factura (%d documente)';
+$_ADDONLANG['alert_deadline_overdue_subject'] = 'URGENT: documente cu termenul e-Factura depășit (%d)';
+$_ADDONLANG['alert_deadline_body'] = "Documentele de mai jos nu au ajuns încă la ANAF, iar termenul legal (5 zile lucrătoare de la emitere) se apropie sau a trecut:\n\n%s\n\nPentru fiecare: corectați datele dacă e invalid sau respins, eliberați-l dacă e ținut pe loc, sau verificați conexiunea ANAF.\n%s";
+$_ADDONLANG['alert_deadline_line'] = '%s (factura #%d): %s, termen %s, %s';
+$_ADDONLANG['alert_deadline_left'] = 'zile lucrătoare rămase: %d';
+$_ADDONLANG['alert_deadline_last_day'] = 'ultima zi';
+$_ADDONLANG['alert_deadline_late'] = 'zile lucrătoare de întârziere: %d';
+$_ADDONLANG['alert_processing_subject'] = 'ANAF procesează unele documente de peste %d de ore (%d)';
+$_ADDONLANG['alert_processing_body'] = "ANAF nu a dat încă un verdict pentru aceste încărcări:\n\n%s\n\nStarea se verifică automat. Au fost raportate întârzieri de peste 2 zile; dacă persistă, contactați suportul ANAF cu indexul de încărcare.\n%s";
+$_ADDONLANG['alert_processing_line'] = '%s (factura #%d): index de încărcare %s, încărcat la %s';
 
 // Validare
 $_ADDONLANG['error_csrf'] = 'Formularul a expirat. Reîncărcați pagina și încercați din nou.';

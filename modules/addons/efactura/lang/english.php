@@ -356,6 +356,17 @@ $_ADDONLANG['alert_archive_lost_subject'] = 'The ANAF answer for %s can no longe
 $_ADDONLANG['alert_archive_lost_body'] = "The signed answer of ANAF for document %s (invoice #%d) could not be archived: %s\n%s";
 $_ADDONLANG['alert_auth_subject'] = 'ANAF refuses the e-Factura calls';
 $_ADDONLANG['alert_auth_body'] = "ANAF answered: %s\nSending to SPV is paused for an hour and retried. Check the ANAF connection and the SPV rights of the certificate: %s";
+$_ADDONLANG['alert_deadline_soon_subject'] = 'Documents close to the e-Factura deadline (%d)';
+$_ADDONLANG['alert_deadline_today_subject'] = 'Last day to send documents to e-Factura (%d)';
+$_ADDONLANG['alert_deadline_overdue_subject'] = 'URGENT: documents past the e-Factura deadline (%d)';
+$_ADDONLANG['alert_deadline_body'] = "These documents have not reached ANAF yet, and the legal deadline (5 working days from issue) is close or has passed:\n\n%s\n\nFor each one: correct the data if it is invalid or rejected, release it if it is on hold, or check the ANAF connection.\n%s";
+$_ADDONLANG['alert_deadline_line'] = '%s (invoice #%d): %s, deadline %s, %s';
+$_ADDONLANG['alert_deadline_left'] = '%d working day(s) left';
+$_ADDONLANG['alert_deadline_last_day'] = 'last day';
+$_ADDONLANG['alert_deadline_late'] = '%d working day(s) late';
+$_ADDONLANG['alert_processing_subject'] = 'ANAF has been processing documents for over %d hours (%d)';
+$_ADDONLANG['alert_processing_body'] = "ANAF has not given a verdict yet for these uploads:\n\n%s\n\nThe status is checked automatically. Delays of over 2 days have been reported; if it persists, contact ANAF support with the upload index.\n%s";
+$_ADDONLANG['alert_processing_line'] = '%s (invoice #%d): upload index %s, uploaded at %s';
 
 // Validation
 $_ADDONLANG['error_csrf'] = 'The form has expired. Reload the page and try again.';

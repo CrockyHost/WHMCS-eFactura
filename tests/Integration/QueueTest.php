@@ -23,11 +23,14 @@ use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
 use WHMCS\Module\Addon\Efactura\Http\Request;
 use WHMCS\Module\Addon\Efactura\Numbering\NumberingLock;
+use WHMCS\Module\Addon\Efactura\Fiscal\WorkingDays;
+use WHMCS\Module\Addon\Efactura\Queue\DeadlineMonitor;
 use WHMCS\Module\Addon\Efactura\Queue\DocumentActions;
 use WHMCS\Module\Addon\Efactura\Queue\Reconciler;
 use WHMCS\Module\Addon\Efactura\Queue\Worker;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Crypto;
+use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
 
 /*
@@ -347,6 +350,48 @@ return [
         Assert::same(Document::STATE_VALIDATED, $doc->state);
         Assert::same(null, $doc->lock_token);
         Assert::same(['upload', 'listaMesajePaginatieFactura', 'descarcare'], $anaf->calls());
+    }),
+    'deadline alerts grow more insistent and are sent once per level' => static fn () => $clean(static function () use ($setup, $document, $reload): void {
+        $setup(['send_delay_days' => 3]);
+        $doc = $document();
+        Assert::true((new DocumentActions(Addon::documents()))->hold((int) $doc->id, 1));
+        $validated = $document();
+        $today = Clock::today();
+        Capsule::table(Document::TABLE)->whereIn('id', [$doc->id, $validated->id])->update(['deadline_date' => WorkingDays::add($today, 2)->format('Y-m-d')]);
+        Capsule::table(Document::TABLE)->where('id', $validated->id)->update(['state' => Document::STATE_VALIDATED]);
+        $monitor = new DeadlineMonitor();
+        $alerts = static fn (): array => Capsule::table('tblactivitylog')->where('description', 'like', Addon::NAME . ':%' . $doc->number . '%')->orderBy('id')->pluck('description')->all();
+
+        Assert::same(1, $monitor->run([(int) $doc->id, (int) $validated->id]));
+        Assert::same(1, (int) $reload($doc)->deadline_alert);
+        Assert::same(0, $monitor->run([(int) $doc->id, (int) $validated->id]), 'once per level');
+        Assert::same(null, $reload($validated)->deadline_alert);
+
+        Clock::freeze(WorkingDays::add($today, 2)->setTime(10, 0));
+        Assert::same(1, $monitor->run([(int) $doc->id]));
+        Clock::freeze(WorkingDays::add($today, 3)->setTime(10, 0));
+        Assert::same(1, $monitor->run([(int) $doc->id]));
+        Assert::same(4, (int) $reload($doc)->deadline_alert);
+        $sent = $alerts();
+        Assert::same(3, count($sent));
+        Assert::true(str_contains($sent[0], Lang::get('alert_deadline_soon_subject', 1)));
+        Assert::true(str_contains($sent[1], Lang::get('alert_deadline_today_subject', 1)));
+        Assert::true(str_contains($sent[2], Lang::get('alert_deadline_overdue_subject', 1)));
+        Assert::true(str_contains($sent[2], Lang::get('alert_deadline_late', 1)));
+    }),
+    'uploads processing for over a day are reported' => static fn () => $clean(static function () use ($setup, $document, $reload): void {
+        $setup();
+        $doc = $document();
+        $update = static fn (string $uploaded) => Capsule::table(Document::TABLE)->where('id', $doc->id)->update(['state' => Document::STATE_PROCESSING, 'upload_index' => '5000000123', 'uploaded_at' => Clock::now()->modify($uploaded)->format('Y-m-d H:i:s')]);
+        $monitor = new DeadlineMonitor();
+        $update('-23 hours');
+        Assert::same(0, $monitor->run([(int) $doc->id]));
+        $update('-25 hours');
+        Assert::same(1, $monitor->run([(int) $doc->id]));
+        Assert::same(0, $monitor->run([(int) $doc->id]));
+        $update('-49 hours');
+        Assert::same(1, $monitor->run([(int) $doc->id]));
+        Assert::same(2, (int) $reload($doc)->processing_alert);
     }),
     'admin actions: hold, release, send now' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload): void {
         $setup(['send_delay_days' => 3]);
