@@ -62,6 +62,24 @@
     margin-top: 2px;
 }
 
+.efactura-check-steps {
+    margin: 8px 0 0;
+    padding-left: 18px;
+    color: #6b7280;
+}
+
+.efactura-check-steps li {
+    margin-bottom: 6px;
+}
+
+.efactura-check-steps code {
+    display: block;
+    margin-top: 3px;
+    padding: 4px 8px;
+    width: fit-content;
+    white-space: pre-wrap;
+}
+
 .efactura-intro {
     margin-bottom: 15px;
 }

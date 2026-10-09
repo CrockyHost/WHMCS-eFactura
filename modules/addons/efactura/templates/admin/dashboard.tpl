@@ -35,6 +35,13 @@
                             <td>
                                 <div class="efactura-check-label">{$check.label}</div>
                                 <div class="efactura-check-detail">{$check.detail}</div>
+                                {if $check.steps}
+                                    <ol class="efactura-check-steps">
+                                        {foreach $check.steps as $step}
+                                            <li>{$step.text}<code>{$step.code}</code></li>
+                                        {/foreach}
+                                    </ol>
+                                {/if}
                             </td>
                         </tr>
                     {/foreach}

@@ -8,6 +8,32 @@ UBL 2.1 / CIUS-RO invoices and sends them to ANAF.
 **Română:** addon open-source pentru WHMCS care generează facturile în format
 UBL 2.1 / CIUS-RO și le trimite în sistemul RO e-Factura al ANAF.
 
+## Requirements
+
+- WHMCS 9.0 with PHP 8.2 or newer and the curl, dom, openssl, zip and
+  mbstring extensions.
+- PHP time zone `Europe/Bucharest`. WHMCS dates invoices with the PHP time
+  zone, and at payment that date becomes the fiscal invoice date; with UTC,
+  a payment made shortly after midnight in Romania gets the previous day.
+  1. Recommended: add this line at the end of `configuration.php` in the
+     WHMCS root folder. It applies to the web pages and to the cron, which
+     runs PHP from the command line:
+     ```php
+     date_default_timezone_set('Europe/Bucharest');
+     ```
+  2. Also, for consistency, change `date.timezone` in `php.ini` or
+     `.user.ini` (in cPanel: MultiPHP INI Editor). On its own this setting
+     covers only the web pages, not the cron:
+     ```ini
+     date.timezone = Europe/Bucharest
+     ```
+
+**Română:** setați fusul orar PHP la `Europe/Bucharest`. Recomandat: linia
+`date_default_timezone_set('Europe/Bucharest');` la sfârșitul fișierului
+`configuration.php` (acoperă și paginile web, și cron-ul). În plus,
+`date.timezone = Europe/Bucharest` în `php.ini` / `.user.ini` (cPanel:
+MultiPHP INI Editor), care singur acoperă doar paginile web.
+
 ## Development
 
 The repository root is the root of a local WHMCS 9 installation; only the

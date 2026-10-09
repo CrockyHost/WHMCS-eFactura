@@ -64,7 +64,9 @@ $_ADDONLANG['check_counter'] = 'WHMCS: Next Paid Invoice Number';
 $_ADDONLANG['check_counter_ok'] = 'Next fiscal number: %s.';
 $_ADDONLANG['check_counter_fix'] = 'The next number (%s) is not higher than the last number already issued (%s). Set "Next Paid Invoice Number" to %s, otherwise WHMCS would issue duplicate numbers.';
 $_ADDONLANG['check_timezone'] = 'PHP time zone';
-$_ADDONLANG['check_timezone_fix'] = 'It is %s. WHMCS dates invoices in this time zone, so a payment made shortly after midnight in Romania gets the previous day as fiscal invoice date. Set Europe/Bucharest, for example with date_default_timezone_set(\'Europe/Bucharest\'); in configuration.php.';
+$_ADDONLANG['check_timezone_fix'] = 'It is %s. WHMCS dates invoices in this time zone, so a payment made shortly after midnight in Romania gets the previous day as fiscal invoice date. Set Europe/Bucharest:';
+$_ADDONLANG['check_timezone_step_config'] = 'Recommended: add this line at the end of configuration.php, in the WHMCS root folder. It applies to the web pages and to the cron, which runs PHP from the command line.';
+$_ADDONLANG['check_timezone_step_ini'] = 'Also, for consistency: change date.timezone in php.ini or .user.ini (in cPanel: MultiPHP INI Editor). On its own this setting covers only the web pages, not the cron.';
 $_ADDONLANG['check_php'] = 'PHP extensions';
 $_ADDONLANG['check_php_missing'] = 'Missing: %s.';
 

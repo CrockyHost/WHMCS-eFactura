@@ -37,7 +37,7 @@ final class HealthChecks
     }
 
     /**
-     * @return list<array{label: string, status: string, detail: string}>
+     * @return list<array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}>
      */
     public function all(): array
     {
@@ -69,7 +69,7 @@ final class HealthChecks
 
     /**
      * @param array<string, mixed> $settings
-     * @return array{label: string, status: string, detail: string}
+     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
      */
     private function processing(array $settings): array
     {
@@ -79,7 +79,7 @@ final class HealthChecks
     }
 
     /**
-     * @return array{label: string, status: string, detail: string}
+     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
      */
     private function environment(): array
     {
@@ -90,7 +90,7 @@ final class HealthChecks
 
     /**
      * @param array<string, mixed> $settings
-     * @return array{label: string, status: string, detail: string}
+     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
      */
     private function company(array $settings): array
     {
@@ -104,7 +104,7 @@ final class HealthChecks
     }
 
     /**
-     * @return list<array{label: string, status: string, detail: string}>
+     * @return list<array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}>
      */
     private function whmcsNumbering(): array
     {
@@ -145,7 +145,7 @@ final class HealthChecks
     /**
      * Shows the proforma and fiscal series; they must never overlap.
      *
-     * @return array{label: string, status: string, detail: string}
+     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
      */
     private function series(string $fiscal): array
     {
@@ -167,19 +167,24 @@ final class HealthChecks
      * WHMCS dates invoices with the PHP time zone; at payment that date
      * becomes the fiscal invoice date.
      *
-     * @return array{label: string, status: string, detail: string}
+     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
      */
     private function timezone(): array
     {
         $zone = date_default_timezone_get();
 
-        return $zone === 'Europe/Bucharest'
-            ? self::check('check_timezone', self::OK, $zone)
-            : self::check('check_timezone', self::WARNING, Lang::get('check_timezone_fix', $zone));
+        if ($zone === 'Europe/Bucharest') {
+            return self::check('check_timezone', self::OK, $zone);
+        }
+
+        return self::check('check_timezone', self::WARNING, Lang::get('check_timezone_fix', $zone), [
+            ['text' => Lang::get('check_timezone_step_config'), 'code' => "date_default_timezone_set('Europe/Bucharest');"],
+            ['text' => Lang::get('check_timezone_step_ini'), 'code' => 'date.timezone = Europe/Bucharest'],
+        ]);
     }
 
     /**
-     * @return array{label: string, status: string, detail: string}
+     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
      */
     private function extensions(): array
     {
@@ -191,10 +196,11 @@ final class HealthChecks
     }
 
     /**
-     * @return array{label: string, status: string, detail: string}
+     * @param list<array{text: string, code: string}> $steps instructions to fix the problem, each with a line to copy
+     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
      */
-    private static function check(string $labelKey, string $status, string $detail): array
+    private static function check(string $labelKey, string $status, string $detail, array $steps = []): array
     {
-        return ['label' => Lang::get($labelKey), 'status' => $status, 'detail' => $detail];
+        return ['label' => Lang::get($labelKey), 'status' => $status, 'detail' => $detail, 'steps' => $steps];
     }
 }
