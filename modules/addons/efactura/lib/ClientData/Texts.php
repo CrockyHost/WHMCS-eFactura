@@ -16,7 +16,9 @@ declare(strict_types=1);
 namespace WHMCS\Module\Addon\Efactura\ClientData;
 
 use Throwable;
+use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Addon;
+use WHMCS\Module\Addon\Efactura\Settings\Settings;
 
 /**
  * Strings of the client forms from lang/clientdata/<language>.php, in the
@@ -61,6 +63,21 @@ final class Texts
         } catch (Throwable) {
             // Falls back to English.
         }
+
+        return self::for($language);
+    }
+
+    /**
+     * The interface language of the addon for an administrator: the
+     * setting, or the administrator's own language when it is "auto".
+     */
+    public static function admin(?int $adminId): self
+    {
+        $setting = Settings::string('ui_language');
+        if ($setting !== 'auto') {
+            return self::for($setting);
+        }
+        $language = $adminId === null ? '' : (string) Capsule::table('tbladmins')->where('id', $adminId)->value('language');
 
         return self::for($language);
     }

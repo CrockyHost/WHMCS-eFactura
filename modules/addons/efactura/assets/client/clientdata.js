@@ -561,12 +561,14 @@
             return;
         }
         var id = (input.id || input.name.replace(/\W+/g, '')) + 'EfacturaError';
+        // Below the input, or below the row it shares with the ANAF button.
+        var anchor = input.parentNode.classList.contains('efactura-lookup-row') ? input.parentNode : input;
         if (message) {
             var hint = document.getElementById(id) || element('div', 'efactura-error');
             hint.id = id;
             hint.textContent = message;
-            if (hint.parentNode !== input.parentNode) {
-                input.parentNode.insertBefore(hint, input.nextSibling);
+            if (hint.previousSibling !== anchor) {
+                anchor.parentNode.insertBefore(hint, anchor.nextSibling);
             }
             describe(input, id, true);
             input.setAttribute('aria-invalid', 'true');
@@ -686,6 +688,21 @@
         link.href = config.ticketUrl || 'submitticket.php';
         note.appendChild(link);
         section.appendChild(note);
+
+        // A company can still refresh its (editable) address from ANAF.
+        if (type === COMPANY && config.lookup && isCui(state.cui.value)) {
+            state.lookup = createLookup(state.changes, {
+                scope: scopeOf(state.cui),
+                cui: null,
+                cuiValue: function () {
+                    return state.cui.value;
+                },
+                after: note,
+                label: text.cd_lookup_address_button,
+                identityLocked: true,
+                lockedKeys: config.locked
+            });
+        }
     }
 
     function buildIdentity(scope) {
@@ -848,9 +865,334 @@
         };
         scope.addEventListener('submit', state.onSubmit, true);
 
+        if (config.lookup && config.lookupUrl) {
+            state.lookup = createLookup(changes, {
+                scope: scope,
+                cui: state.cui,
+                cuiValue: function () {
+                    return state.cui.value;
+                },
+                inline: true,
+                statusAfter: groupOf(state.cui),
+                vatBox: state.vatBox,
+                tax: state.tax,
+                identityLocked: false,
+                lockedKeys: config.locked
+            });
+        }
+
         setType(state, config.type || inferType(state));
 
         return state;
+    }
+
+    // ANAF lookup: the server endpoint asks ANAF (cached, rate limited); empty
+    // fields are filled in, fields the client already filled in are listed
+    // with both values so the client chooses, and locked fields are not changed.
+
+    function fold2(value) {
+        return fold(value).replace(/[^a-z0-9]+/g, '');
+    }
+
+    function badge(textValue, kind) {
+        return element('span', 'efactura-badge efactura-badge-' + kind, textValue);
+    }
+
+    function statusBadges(company) {
+        var list = element('span', 'efactura-badges');
+        list.appendChild(company.vatPayer ? badge(text.cd_status_vat, 'ok') : badge(text.cd_status_novat, 'muted'));
+        if (company.vatOnCollection) {
+            list.appendChild(badge(text.cd_status_vat_collection, 'muted'));
+        }
+        if (company.eInvoiceRegistry) {
+            list.appendChild(badge(text.cd_status_einvoice, 'muted'));
+        }
+        if (company.inactive) {
+            list.appendChild(badge(text.cd_status_inactive, 'warn'));
+        }
+        if (company.deregistered) {
+            list.appendChild(badge(text.cd_status_deregistered, 'danger'));
+        }
+
+        return list;
+    }
+
+    function fire(input, eventName) {
+        input.dispatchEvent(new Event(eventName, {bubbles: true}));
+        if ($) {
+            $(input).trigger(eventName);
+        }
+    }
+
+    // The fields ANAF can fill in, in the order they are set (the county
+    // before the city: in Bucharest the city becomes the sector dropdown).
+    function lookupTargets(scope, lookup, company) {
+        var byName = function (name) {
+            return scope.querySelector('[name="' + name + '"]');
+        };
+        var bucharest = company.county === config.bucharest;
+        var targets = [
+            {key: 'companyname', label: text.cd_company_name, value: company.name, input: byName('companyname'), identity: true},
+            {key: 'regcom', label: text.cd_regcom, value: company.regCom, input: customInput(scope, 'regcom'), identity: true},
+            {key: 'address1', label: text.cd_field_address1, value: company.address1, input: byName('address1')},
+            {key: 'address2', label: text.cd_field_address2, value: company.address2, input: byName('address2')},
+            {key: 'state', label: text.cd_field_state, value: company.county, input: document.getElementById('stateselect') || byName('state')},
+            {key: 'city', label: bucharest ? text.cd_sector : text.cd_field_city, value: company.city, input: byName('city')},
+            {key: 'postcode', label: text.cd_field_postcode, value: company.postcode, input: byName('postcode')}
+        ];
+        if (lookup.vatBox) {
+            targets.push({key: 'vat', label: text.cd_vat_number, value: company.vatPayer ? 'RO' + company.cui : '', vat: true, identity: true});
+        } else if (byName('tax_id') && lookup.allowTaxId) {
+            targets.push({key: 'tax_id', label: text.cd_vat_number, value: company.vatPayer ? 'RO' + company.cui : '', input: byName('tax_id'), identity: true, allowEmpty: true});
+        }
+
+        return targets.filter(function (target) {
+            return (target.input || target.vat) && (target.value !== '' || target.allowEmpty);
+        });
+    }
+
+    function currentValue(lookup, target) {
+        if (target.vat) {
+            return lookup.vatBox.checked ? lookup.tax.value : '';
+        }
+
+        return target.input.value.trim();
+    }
+
+    function isLocked(lookup, target) {
+        if (lookup.lockedKeys.indexOf(target.key) !== -1 || (target.identity && lookup.identityLocked)) {
+            return true;
+        }
+        if (target.vat) {
+            return lookup.vatBox.disabled;
+        }
+
+        return target.input.disabled || target.input.readOnly;
+    }
+
+    function setValue(lookup, target, value) {
+        if (target.vat) {
+            lookup.vatBox.checked = value !== '';
+            fire(lookup.vatBox, 'change');
+
+            return;
+        }
+        var input = target.input;
+        if (target.key === 'state' && input.tagName === 'SELECT') {
+            input.value = value;
+            fire(input, 'change');
+
+            return;
+        }
+        if (target.key === 'city') {
+            var sector = document.getElementById(SECTOR_ID);
+            if (sector && sector.efacturaCity === input) {
+                sector.value = value;
+                fire(sector, 'change');
+
+                return;
+            }
+        }
+        input.value = value;
+        fire(input, 'input');
+        fire(input, 'change');
+    }
+
+    function clearPanel(lookup) {
+        if (lookup.panel && lookup.panel.parentNode) {
+            lookup.panel.parentNode.removeChild(lookup.panel);
+        }
+        lookup.panel = null;
+    }
+
+    function showStatus(lookup, message, kind, company) {
+        lookup.status.textContent = '';
+        lookup.status.className = 'efactura-lookup-status' + (kind ? ' efactura-lookup-' + kind : '');
+        if (message) {
+            lookup.status.appendChild(element('span', 'efactura-lookup-message', message));
+        }
+        if (company) {
+            lookup.status.appendChild(statusBadges(company));
+        }
+    }
+
+    function applyCompany(lookup, company) {
+        clearPanel(lookup);
+        if (lookup.cui && !lookup.identityLocked && lookup.cui.value.trim() !== company.cui) {
+            lookup.cui.value = company.cui;
+            fire(lookup.cui, 'change');
+        }
+        var conflicts = [];
+        var changed = 0;
+        lookupTargets(lookup.scope, lookup, company).forEach(function (target) {
+            var now = currentValue(lookup, target);
+            if (fold2(now) === fold2(target.value)) {
+                return;
+            }
+            var locked = isLocked(lookup, target);
+            if (now === '' && !locked) {
+                setValue(lookup, target, target.value);
+                changed++;
+            } else {
+                conflicts.push({target: target, now: now, locked: locked});
+            }
+        });
+
+        var editable = conflicts.filter(function (conflict) {
+            return !conflict.locked;
+        });
+        var message = changed > 0 ? text.cd_lookup_filled : (conflicts.length === 0 ? text.cd_lookup_same : '');
+        showStatus(lookup, message, changed > 0 ? 'ok' : '', company);
+        if (conflicts.length === 0) {
+            return;
+        }
+
+        // Fields that already have a value: the client chooses.
+        var panel = element('div', 'efactura-lookup-panel');
+        panel.setAttribute('role', 'group');
+        if (editable.length > 0) {
+            panel.appendChild(element('p', 'efactura-lookup-panel-title', text.cd_lookup_review));
+        }
+        var list = element('ul', 'efactura-lookup-list');
+        conflicts.forEach(function (conflict, index) {
+            var item = element('li', 'efactura-lookup-item' + (conflict.locked ? ' is-locked' : ''));
+            var head = element('label', 'efactura-lookup-item-head');
+            if (!conflict.locked) {
+                var box = element('input', 'efactura-check-input');
+                box.type = 'checkbox';
+                box.checked = true;
+                box.id = 'efacturaLookupPick' + index;
+                conflict.box = box;
+                head.appendChild(box);
+            }
+            head.appendChild(element('span', 'efactura-lookup-field', conflict.target.label));
+            item.appendChild(head);
+            var values = element('div', 'efactura-lookup-values');
+            values.appendChild(element('span', 'efactura-lookup-now', text.cd_lookup_now + ': ' + (conflict.now || '-')));
+            values.appendChild(element('span', 'efactura-lookup-anaf', text.cd_lookup_anaf + ': ' + (conflict.target.value || '-')));
+            if (conflict.locked) {
+                values.appendChild(element('span', 'efactura-lookup-locked', text.cd_lookup_locked));
+            }
+            item.appendChild(values);
+            list.appendChild(item);
+        });
+        panel.appendChild(list);
+        if (editable.length > 0) {
+            var actions = element('div', 'efactura-lookup-actions');
+            var apply = element('button', 'btn btn-primary btn-sm', text.cd_lookup_apply);
+            apply.type = 'button';
+            var keep = element('button', 'btn btn-default btn-sm', text.cd_lookup_keep);
+            keep.type = 'button';
+            apply.addEventListener('click', function () {
+                editable.forEach(function (conflict) {
+                    if (conflict.box.checked) {
+                        setValue(lookup, conflict.target, conflict.target.value);
+                    }
+                });
+                clearPanel(lookup);
+                showStatus(lookup, text.cd_lookup_filled, 'ok', company);
+            });
+            keep.addEventListener('click', function () {
+                clearPanel(lookup);
+            });
+            actions.appendChild(apply);
+            actions.appendChild(keep);
+            panel.appendChild(actions);
+        }
+        lookup.status.parentNode.insertBefore(panel, lookup.status.nextSibling);
+        lookup.panel = panel;
+    }
+
+    function runLookup(lookup) {
+        var cui = cuiDigits(lookup.cuiValue());
+        if (!isCui(cui)) {
+            showStatus(lookup, text.cd_lookup_need_cui, 'error');
+            if (lookup.cui) {
+                lookup.cui.focus();
+            }
+
+            return;
+        }
+        clearPanel(lookup);
+        lookup.button.disabled = true;
+        lookup.button.setAttribute('aria-busy', 'true');
+        showStatus(lookup, text.cd_lookup_busy, 'busy');
+        var body = new URLSearchParams();
+        body.append('token', config.token || '');
+        body.append('cui', cui);
+        body.append('scope', config.lookupScope || 'client');
+        fetch(config.lookupUrl, {method: 'POST', body: body, credentials: 'same-origin', headers: {'Accept': 'application/json'}})
+            .then(function (response) {
+                return response.json().catch(function () {
+                    return {ok: false, message: text.cd_lookup_error};
+                });
+            })
+            .then(function (data) {
+                if (data && data.ok && data.company) {
+                    applyCompany(lookup, data.company);
+                } else {
+                    showStatus(lookup, (data && data.message) || text.cd_lookup_error, 'error');
+                }
+            })
+            .catch(function () {
+                showStatus(lookup, text.cd_lookup_error, 'error');
+            })
+            .then(function () {
+                lookup.button.disabled = false;
+                lookup.button.removeAttribute('aria-busy');
+            });
+    }
+
+    // options: scope (form), cui (input or null), cuiValue(), after (node the
+    // button row follows), label, vatBox/tax, identityLocked, lockedKeys, allowTaxId.
+    function createLookup(changes, options) {
+        var lookup = options;
+        lookup.lockedKeys = lookup.lockedKeys || [];
+        var row = element('div', 'efactura-lookup-row');
+        lookup.button = element('button', 'btn btn-default efactura-lookup-button', options.label || text.cd_lookup_button);
+        lookup.button.type = 'button';
+        lookup.status = element('div', 'efactura-lookup-status');
+        lookup.status.setAttribute('aria-live', 'polite');
+        lookup.button.addEventListener('click', function () {
+            runLookup(lookup);
+        });
+        if (options.inline && lookup.cui) {
+            // The button next to the CUI input, in one row; the status (and the
+            // review panel) below the row or below statusAfter.
+            changes.place(row, lookup.cui.parentNode, lookup.cui);
+            changes.place(lookup.cui, row);
+            row.appendChild(lookup.button);
+            var statusAfter = options.statusAfter || row;
+            changes.place(lookup.status, statusAfter.parentNode, statusAfter.nextSibling);
+        } else {
+            row.appendChild(lookup.button);
+            changes.place(row, options.after.parentNode, options.after.nextSibling);
+            changes.place(lookup.status, row.parentNode, row.nextSibling);
+        }
+
+        return lookup;
+    }
+
+    // The admin client pages: the button next to the CUI custom field.
+    function setupAdminLookup() {
+        if (config.context !== 'admin' || !config.lookup) {
+            return;
+        }
+        var cui = document.querySelector('[name="customfield[' + config.fields.cui + ']"]');
+        if (!cui) {
+            return;
+        }
+        var scope = scopeOf(cui);
+        createLookup(new Changes(), {
+            scope: scope,
+            cui: cui,
+            cuiValue: function () {
+                return cui.value;
+            },
+            inline: true,
+            allowTaxId: true,
+            identityLocked: false
+        });
     }
 
     function teardownIdentity() {
@@ -919,6 +1261,7 @@
     $(document).on('change', '#stateselect', update);
     $(document).on('change', 'select[name="country"]', updateIdentity);
     updateIdentity();
+    setupAdminLookup();
 
     var registered = registerCounties();
     prepareStateInputs();

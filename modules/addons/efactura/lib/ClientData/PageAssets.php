@@ -77,6 +77,30 @@ final class PageAssets
         'cd_error_company_name',
         'cd_error_regcom',
         'cd_error_cnp',
+        'cd_lookup_button',
+        'cd_lookup_address_button',
+        'cd_lookup_busy',
+        'cd_lookup_filled',
+        'cd_lookup_same',
+        'cd_lookup_review',
+        'cd_lookup_apply',
+        'cd_lookup_keep',
+        'cd_lookup_now',
+        'cd_lookup_anaf',
+        'cd_lookup_locked',
+        'cd_lookup_error',
+        'cd_lookup_need_cui',
+        'cd_field_address1',
+        'cd_field_address2',
+        'cd_field_city',
+        'cd_field_state',
+        'cd_field_postcode',
+        'cd_status_vat',
+        'cd_status_novat',
+        'cd_status_vat_collection',
+        'cd_status_inactive',
+        'cd_status_deregistered',
+        'cd_status_einvoice',
     ];
 
     /** Forms that get the billing details section (client type, CUI, CNP). */
@@ -104,8 +128,10 @@ final class PageAssets
             return '';
         }
 
+        $root = rtrim((string) ($vars['WEB_ROOT'] ?? ''), '/');
         $config = self::config($context, Texts::client());
-        $config['ticketUrl'] = rtrim((string) ($vars['WEB_ROOT'] ?? ''), '/') . '/submitticket.php';
+        $config['ticketUrl'] = $root . '/submitticket.php';
+        $config['lookupUrl'] = $root . '/modules/addons/' . Addon::MODULE . '/clientdata.php';
 
         return self::script(self::clientBase($vars), $config);
     }
@@ -127,7 +153,11 @@ final class PageAssets
             return '';
         }
 
-        return self::script(self::adminBase(), self::config(FormContext::ADMIN, Texts::for(self::adminLanguage())));
+        $config = self::config(FormContext::ADMIN, Texts::admin(AdminContext::id()));
+        $config['lookupUrl'] = '../modules/addons/' . Addon::MODULE . '/clientdata.php';
+        $config['lookupScope'] = 'admin';
+
+        return self::script(self::adminBase(), $config);
     }
 
     /**
@@ -155,6 +185,10 @@ final class PageAssets
             'lock' => $identity && $context === FormContext::PROFILE && Settings::bool('client_profile_lock'),
             'locked' => $context === FormContext::PROFILE ? FormContext::lockedProfileFields() : [],
             'year' => (int) date('Y'),
+            // The ANAF lookup needs the CUI field; the endpoint checks the session token.
+            'lookup' => $fields->id('cui') !== null && in_array($context, [...self::IDENTITY_CONTEXTS, FormContext::ADMIN], true),
+            'lookupScope' => 'client',
+            'token' => function_exists('generate_token') ? (string) generate_token('plain') : '',
             'text' => $texts->pick(self::SCRIPT_TEXTS),
         ];
     }
@@ -219,19 +253,5 @@ final class PageAssets
         $version = Addon::VERSION . '.' . (is_file($path) ? (string) filemtime($path) : '0');
 
         return htmlspecialchars($base . '/' . $file . '?v=' . $version, ENT_QUOTES);
-    }
-
-    /**
-     * The interface language of the addon for the current administrator.
-     */
-    private static function adminLanguage(): string
-    {
-        $setting = Settings::string('ui_language');
-        if ($setting !== 'auto') {
-            return $setting;
-        }
-        $adminId = AdminContext::id();
-
-        return $adminId === null ? 'english' : strtolower((string) Capsule::table('tbladmins')->where('id', $adminId)->value('language'));
     }
 }

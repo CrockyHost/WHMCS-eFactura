@@ -180,3 +180,157 @@
     font-size: 0.875em;
     color: var(--text-lighter-color, #6c757d);
 }
+
+/* ANAF lookup */
+
+.efactura-lookup-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.efactura-lookup-row > input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.efactura-lookup-button {
+    flex: none;
+    white-space: nowrap;
+}
+
+.efactura-lookup-button[aria-busy="true"] {
+    cursor: progress;
+    opacity: 0.7;
+}
+
+.efactura-lookup-status:empty {
+    display: none;
+}
+
+.efactura-lookup-status {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin: 8px 0 0;
+    font-size: 0.875em;
+    line-height: 1.4;
+    color: var(--text-lighter-color, #6c757d);
+}
+
+.efactura-lookup-ok .efactura-lookup-message {
+    color: var(--brand-success, #1e7b32);
+}
+
+.efactura-lookup-error .efactura-lookup-message {
+    color: var(--brand-danger, #c0262d);
+}
+
+.efactura-badges {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.efactura-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.8125em;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.efactura-badge-ok {
+    color: var(--brand-success, #1e7b32);
+    background: color-mix(in srgb, var(--brand-success, #1e7b32) 12%, transparent);
+}
+
+.efactura-badge-muted {
+    color: var(--text-body-color, #495057);
+    background: color-mix(in srgb, var(--text-body-color, #495057) 10%, transparent);
+}
+
+.efactura-badge-warn {
+    color: var(--brand-warning, #a14a00);
+    background: color-mix(in srgb, var(--brand-warning, #a14a00) 12%, transparent);
+}
+
+.efactura-badge-danger {
+    color: var(--brand-danger, #c0262d);
+    background: color-mix(in srgb, var(--brand-danger, #c0262d) 12%, transparent);
+}
+
+.efactura-lookup-panel {
+    grid-column: 1 / -1;
+    margin: 10px 0 16px;
+    padding: 12px 14px;
+    border: 1px solid var(--ui-block-border-color, #dee2e6);
+    border-radius: var(--border-radius-base, 6px);
+    background: var(--ui-block-bg, #fff);
+}
+
+.efactura-lookup-panel-title {
+    margin: 0 0 8px;
+    font-weight: 500;
+    color: var(--text-heading-color, inherit);
+}
+
+.efactura-lookup-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.efactura-lookup-item {
+    padding: 8px 0;
+    border-top: 1px solid var(--ui-block-border-color, #e9ecef);
+}
+
+.efactura-lookup-item:first-child {
+    border-top: 0;
+}
+
+.efactura-lookup-item-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.efactura-lookup-item.is-locked .efactura-lookup-item-head {
+    cursor: default;
+}
+
+.efactura-lookup-values {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 4px 0 0 24px;
+    font-size: 0.875em;
+    overflow-wrap: anywhere;
+}
+
+.efactura-lookup-now {
+    color: var(--text-lighter-color, #6c757d);
+}
+
+.efactura-lookup-anaf {
+    color: var(--text-heading-color, inherit);
+}
+
+.efactura-lookup-locked {
+    color: var(--brand-warning, #a14a00);
+}
+
+.efactura-lookup-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
