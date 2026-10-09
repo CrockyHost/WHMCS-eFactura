@@ -51,7 +51,8 @@ foreach ($suites as $name) {
     }
 
     foreach ($files as $file) {
-        $tests = require $file;
+        // Each test file gets its own scope, so its variables cannot clash with the runner's.
+        $tests = (static fn (string $path): array => require $path)($file);
         foreach ($tests as $description => $test) {
             $label = $name . '/' . basename($file, '.php') . ': ' . $description;
             $connection = $name === 'Integration' ? \WHMCS\Database\Capsule::connection() : null;
