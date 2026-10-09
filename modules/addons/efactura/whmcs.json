@@ -2,7 +2,7 @@
   "schema": "1.0",
   "type": "whmcs-addons",
   "name": "efactura",
-  "license": "GPL-3.0",
+  "license": "GPL-3.0-only",
   "category": "utilities",
   "description": {
     "name": "WHMCS-eFactura",

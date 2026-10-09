@@ -3,7 +3,7 @@
  * WHMCS-eFactura - RO e-Factura (ANAF) addon for WHMCS
  *
  * Copyright (C) 2026 S.C. CROCKY S.R.L.
- * SPDX-License-Identifier: GPL-3.0
+ * SPDX-License-Identifier: GPL-3.0-only
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3, with the
@@ -185,4 +185,4 @@ $_ADDONLANG['error_unknown_groups'] = 'Grupuri de clienți necunoscute: %s.';
 $_ADDONLANG['error_unknown_clients'] = 'Nu există clienți cu aceste ID-uri: %s.';
 $_ADDONLANG['error_invalid_choice'] = 'Opțiune invalidă.';
 $_ADDONLANG['error_required_to_enable'] = 'Obligatoriu înainte de activarea procesării.';
-$_ADDONLANG['error_whmcs_not_ready'] = 'Numerotarea facturilor din WHMCS nu trece încă verificările din panou.';
+$_ADDONLANG['error_system_not_ready'] = 'Verificările din panou (numerotarea facturilor WHMCS, fusul orar PHP, extensiile PHP) nu trec încă.';

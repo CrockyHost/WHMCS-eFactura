@@ -3,7 +3,7 @@
  * WHMCS-eFactura - RO e-Factura (ANAF) addon for WHMCS
  *
  * Copyright (C) 2026 S.C. CROCKY S.R.L.
- * SPDX-License-Identifier: GPL-3.0
+ * SPDX-License-Identifier: GPL-3.0-only
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3, with the
@@ -185,4 +185,4 @@ $_ADDONLANG['error_unknown_groups'] = 'Unknown client groups: %s.';
 $_ADDONLANG['error_unknown_clients'] = 'There is no client with these IDs: %s.';
 $_ADDONLANG['error_invalid_choice'] = 'Invalid choice.';
 $_ADDONLANG['error_required_to_enable'] = 'Required before processing can be enabled.';
-$_ADDONLANG['error_whmcs_not_ready'] = 'The WHMCS invoice numbering does not pass the checks on the dashboard yet.';
+$_ADDONLANG['error_system_not_ready'] = 'The configuration checks on the dashboard (WHMCS invoice numbering, PHP time zone, PHP extensions) do not pass yet.';

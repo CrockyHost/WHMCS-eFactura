@@ -3,7 +3,7 @@
  * WHMCS-eFactura - RO e-Factura (ANAF) addon for WHMCS
  *
  * Copyright (C) 2026 S.C. CROCKY S.R.L.
- * SPDX-License-Identifier: GPL-3.0
+ * SPDX-License-Identifier: GPL-3.0-only
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3, with the
@@ -53,27 +53,46 @@ Lang::boot('english');
 return [
     'proforma series CRP next to fiscal series CRK is accepted' => static function () use ($configure, $seriesCheck): void {
         $configure([]);
-        Assert::true((new HealthChecks(new InvoicingConfig()))->whmcsReady());
+        Assert::true((new HealthChecks(new InvoicingConfig()))->systemReady());
         Assert::same('ok', $seriesCheck()['status']);
         Assert::true(str_contains($seriesCheck()['detail'], 'CRP-{NUMBER}'));
     },
     'proformas without numbers are accepted' => static function () use ($configure, $seriesCheck): void {
         $configure(['TaxCustomInvoiceNumbering' => '0']);
-        Assert::true((new HealthChecks(new InvoicingConfig()))->whmcsReady());
+        Assert::true((new HealthChecks(new InvoicingConfig()))->systemReady());
         Assert::same('ok', $seriesCheck()['status']);
     },
     'overlapping proforma and fiscal series block processing' => static function () use ($configure, $seriesCheck): void {
         $configure(['TaxCustomInvoiceNumberFormat' => 'CRK-{NUMBER}']);
-        Assert::false((new HealthChecks(new InvoicingConfig()))->whmcsReady());
+        Assert::false((new HealthChecks(new InvoicingConfig()))->systemReady());
         Assert::same('danger', $seriesCheck()['status']);
     },
     'a fiscal counter not above the last fiscal number blocks processing' => static function () use ($configure): void {
         $configure(['SequentialInvoiceNumberValue' => '0001']);
         $highest = (new InvoicingConfig())->highestIssuedNumber();
-        Assert::same($highest !== null, !(new HealthChecks(new InvoicingConfig()))->whmcsReady());
+        Assert::same($highest !== null, !(new HealthChecks(new InvoicingConfig()))->systemReady());
+    },
+    'a PHP time zone other than Europe/Bucharest blocks processing' => static function () use ($configure): void {
+        $configure([]);
+        $previous = date_default_timezone_get();
+        try {
+            date_default_timezone_set('Europe/Bucharest');
+            Assert::true((new HealthChecks(new InvoicingConfig()))->systemReady());
+
+            date_default_timezone_set('UTC');
+            Assert::false((new HealthChecks(new InvoicingConfig()))->systemReady());
+            $timezone = array_values(array_filter(
+                (new HealthChecks(new InvoicingConfig()))->all(),
+                static fn (array $check): bool => $check['label'] === Lang::get('check_timezone')
+            ))[0];
+            Assert::same('danger', $timezone['status']);
+            Assert::same(2, count($timezone['steps']));
+        } finally {
+            date_default_timezone_set($previous);
+        }
     },
     'proforma mode switched off blocks processing' => static function () use ($configure): void {
         $configure(['EnableProformaInvoicing' => '0']);
-        Assert::false((new HealthChecks(new InvoicingConfig()))->whmcsReady());
+        Assert::false((new HealthChecks(new InvoicingConfig()))->systemReady());
     },
 ];

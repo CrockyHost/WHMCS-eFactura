@@ -2,7 +2,7 @@
  * WHMCS-eFactura - RO e-Factura (ANAF) addon for WHMCS
  *
  * Copyright (C) 2026 S.C. CROCKY S.R.L.
- * SPDX-License-Identifier: GPL-3.0
+ * SPDX-License-Identifier: GPL-3.0-only
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3, with the

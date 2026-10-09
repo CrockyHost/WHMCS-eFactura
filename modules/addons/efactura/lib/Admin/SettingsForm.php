@@ -3,7 +3,7 @@
  * WHMCS-eFactura - RO e-Factura (ANAF) addon for WHMCS
  *
  * Copyright (C) 2026 S.C. CROCKY S.R.L.
- * SPDX-License-Identifier: GPL-3.0
+ * SPDX-License-Identifier: GPL-3.0-only
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3, with the
@@ -101,10 +101,10 @@ final class SettingsForm
 
     /**
      * @param array<string, mixed> $values
-     * @param bool $whmcsReady whether the WHMCS numbering checks pass
+     * @param bool $systemReady whether the blocking system checks pass (HealthChecks::systemReady)
      * @return array<string, string> errors by setting name (empty when valid)
      */
-    public function validate(array $values, bool $whmcsReady): array
+    public function validate(array $values, bool $systemReady): array
     {
         $this->errors = [];
 
@@ -162,8 +162,8 @@ final class SettingsForm
                     $this->errors[$name] = Lang::get('error_required_to_enable');
                 }
             }
-            if (!$whmcsReady) {
-                $this->errors['enabled'] = Lang::get('error_whmcs_not_ready');
+            if (!$systemReady) {
+                $this->errors['enabled'] = Lang::get('error_system_not_ready');
             }
         }
 

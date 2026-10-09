@@ -3,7 +3,7 @@
  * WHMCS-eFactura - RO e-Factura (ANAF) addon for WHMCS
  *
  * Copyright (C) 2026 S.C. CROCKY S.R.L.
- * SPDX-License-Identifier: GPL-3.0
+ * SPDX-License-Identifier: GPL-3.0-only
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 3, with the
@@ -54,11 +54,14 @@ final class HealthChecks
     }
 
     /**
-     * True when WHMCS numbers invoices the way the addon expects.
+     * True when the system checks that block processing pass: WHMCS numbers
+     * invoices the way the addon expects, the PHP time zone gives correct
+     * invoice dates and the PHP extensions are present. The seller details
+     * are validated by the settings form.
      */
-    public function whmcsReady(): bool
+    public function systemReady(): bool
     {
-        foreach ($this->whmcsNumbering() as $check) {
+        foreach ([...$this->whmcsNumbering(), $this->timezone(), $this->extensions()] as $check) {
             if ($check['status'] === self::DANGER) {
                 return false;
             }
@@ -165,7 +168,7 @@ final class HealthChecks
 
     /**
      * WHMCS dates invoices with the PHP time zone; at payment that date
-     * becomes the fiscal invoice date.
+     * becomes the fiscal invoice date, so a wrong zone blocks processing.
      *
      * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
      */
@@ -177,7 +180,7 @@ final class HealthChecks
             return self::check('check_timezone', self::OK, $zone);
         }
 
-        return self::check('check_timezone', self::WARNING, Lang::get('check_timezone_fix', $zone), [
+        return self::check('check_timezone', self::DANGER, Lang::get('check_timezone_fix', $zone), [
             ['text' => Lang::get('check_timezone_step_config'), 'code' => "date_default_timezone_set('Europe/Bucharest');"],
             ['text' => Lang::get('check_timezone_step_ini'), 'code' => 'date.timezone = Europe/Bucharest'],
         ]);
