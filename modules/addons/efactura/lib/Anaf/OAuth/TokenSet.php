@@ -55,7 +55,6 @@ final class TokenSet
         $refreshExpires = Jwt::expiresAt($refresh) ?? $now->modify('+' . self::REFRESH_DAYS . ' days');
 
         $claims = Jwt::claims($access) ?? [];
-        $roles = $claims['role'] ?? '';
 
         return new self(
             $access,
@@ -63,7 +62,24 @@ final class TokenSet
             $accessExpires,
             $refreshExpires,
             (string) ($claims['serial'] ?? ''),
-            is_array($roles) ? implode(', ', array_map('strval', $roles)) : (string) $roles,
+            self::roles($claims),
         );
+    }
+
+    /**
+     * The services granted to the token. ANAF sends them in the "roles"
+     * claim separated by "@" (e.g. "HELLO@EFACTURA@ETRANSPORT@SRV_EFACTURA",
+     * seen in 2026); "role" is accepted as well.
+     *
+     * @param array<string, mixed> $claims
+     */
+    public static function roles(array $claims): string
+    {
+        $roles = $claims['roles'] ?? $claims['role'] ?? [];
+        if (!is_array($roles)) {
+            $roles = preg_split('/[@,\s]+/', (string) $roles, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        }
+
+        return implode(', ', array_map('strval', $roles));
     }
 }

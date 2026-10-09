@@ -39,6 +39,11 @@ return [
         Assert::same('CERT-1', $tokens->certificateSerial);
         Assert::same('EFACTURA, HELLO', $tokens->roles);
     },
+    'roles are read from the ANAF "roles" claim separated by @' => static function (): void {
+        Assert::same('HELLO, EFACTURA, ETRANSPORT, SRV_EFACTURA', TokenSet::roles(['roles' => 'HELLO@EFACTURA@ETRANSPORT@SRV_EFACTURA']));
+        Assert::same('EFACTURA, HELLO', TokenSet::roles(['role' => ['EFACTURA', 'HELLO']]));
+        Assert::same('', TokenSet::roles([]));
+    },
     'token set falls back to expires_in and strips whitespace' => static function () use ($now): void {
         $tokens = TokenSet::fromResponse(['access_token' => " opaque\r\n", 'refresh_token' => "ref\n", 'expires_in' => 3600], $now);
         Assert::same('opaque', $tokens->accessToken);
