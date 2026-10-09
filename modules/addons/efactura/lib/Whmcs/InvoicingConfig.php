@@ -19,12 +19,19 @@ use WHMCS\Config\Setting;
 use WHMCS\Database\Capsule;
 
 /**
- * Reads the WHMCS invoice numbering configuration. The addon relies on the
- * native proforma mode: unpaid invoices have no number and WHMCS assigns the
- * next "Sequential Paid Invoice Number" (the fiscal series) at payment.
+ * Reads the WHMCS invoice numbering configuration.
+ *
+ * The addon relies on the native proforma mode: at payment WHMCS replaces the
+ * invoice number with the next "Sequential Paid Invoice Number" (the fiscal
+ * series, SequentialInvoiceNumberFormat) and sets the payment date. Unpaid
+ * invoices are proformas: they have no number, or a number from the separate
+ * "Custom Invoice Numbering" series (TaxCustomInvoiceNumberFormat) when that
+ * is enabled. The two series have separate counters.
  */
 final class InvoicingConfig
 {
+    private const TAGS = ['{NUMBER}', '{YEAR}', '{MONTH}', '{DAY}'];
+
     public function sequentialPaidNumbering(): bool
     {
         return self::isOn(Setting::getValue('SequentialInvoiceNumbering'));
@@ -40,44 +47,56 @@ final class InvoicingConfig
         return self::isOn(Setting::getValue('TaxSetInvoiceDateOnPayment'));
     }
 
-    public function customInvoiceNumbering(): bool
+    /**
+     * Whether proformas get a number from the custom series when created.
+     */
+    public function proformaNumbering(): bool
     {
         return self::isOn(Setting::getValue('TaxCustomInvoiceNumbering'));
     }
 
-    public function numberFormat(): string
+    public function fiscalFormat(): string
     {
         return trim((string) Setting::getValue('SequentialInvoiceNumberFormat'));
     }
 
     /**
-     * The raw counter WHMCS uses for the next paid invoice ("Next Paid
-     * Invoice Number").
+     * The counter of the fiscal series ("Next Paid Invoice Number").
      */
-    public function nextNumberValue(): string
+    public function fiscalCounter(): string
     {
         return trim((string) Setting::getValue('SequentialInvoiceNumberValue'));
     }
 
+    public function proformaFormat(): string
+    {
+        return trim((string) Setting::getValue('TaxCustomInvoiceNumberFormat'));
+    }
+
+    public function proformaCounter(): string
+    {
+        return trim((string) Setting::getValue('TaxNextCustomInvoiceNumber'));
+    }
+
     /**
      * The highest number of the fiscal series already present on an invoice
-     * or a billing note, or null when the series is unused.
+     * or a billing note, or null when the series is unused. Only the fiscal
+     * series counts; proforma numbers are ignored.
      *
      * @return array{number: string, counter: string, value: int}|null
      *         the full number, its counter part as written and its value
      */
     public function highestIssuedNumber(): ?array
     {
-        $pattern = self::numberPattern($this->numberFormat());
+        $format = $this->fiscalFormat();
+        $pattern = self::numberPattern($format);
         if ($pattern === null) {
             return null;
         }
-        $prefix = addcslashes(self::literalPrefix($this->numberFormat()), '%_\\');
+        $like = addcslashes(self::literalPrefix($format), '%_\\') . '%';
 
-        $numbers = Capsule::table('tblinvoices')
-            ->where('invoicenum', 'like', $prefix . '%')
-            ->pluck('invoicenum')
-            ->merge(Capsule::table('tblbillingnotes')->where('custom_number', 'like', $prefix . '%')->pluck('custom_number'));
+        $numbers = Capsule::table('tblinvoices')->where('invoicenum', 'like', $like)->pluck('invoicenum')
+            ->merge(Capsule::table('tblbillingnotes')->where('custom_number', 'like', $like)->pluck('custom_number'));
 
         $highest = null;
         foreach ($numbers as $number) {
@@ -90,16 +109,19 @@ final class InvoicingConfig
     }
 
     /**
-     * Formats a counter value with the series format, for display. The
-     * {YEAR}, {MONTH} and {DAY} tags use today's date.
+     * Fills a series format with a counter value, the way WHMCS does: the
+     * counter is inserted as stored (with its zero padding) and the date tags
+     * use the given date.
      */
-    public function format(string $counter): string
+    public static function format(string $format, string $counter, ?\DateTimeInterface $date = null): string
     {
-        return strtr($this->numberFormat(), [
+        $date ??= new \DateTimeImmutable();
+
+        return strtr($format, [
             '{NUMBER}' => $counter,
-            '{YEAR}' => date('Y'),
-            '{MONTH}' => date('m'),
-            '{DAY}' => date('d'),
+            '{YEAR}' => $date->format('Y'),
+            '{MONTH}' => $date->format('m'),
+            '{DAY}' => $date->format('d'),
         ]);
     }
 
@@ -109,11 +131,54 @@ final class InvoicingConfig
      */
     public static function numberPattern(string $format): ?string
     {
-        if (!str_contains($format, '{NUMBER}')) {
-            return null;
+        return str_contains($format, '{NUMBER}') ? self::pattern($format) : null;
+    }
+
+    /**
+     * Whether two series formats can produce the same number, or start with
+     * the same literal text (which makes them impossible to tell apart). Used
+     * to make sure proforma numbers never look like fiscal numbers.
+     */
+    public static function formatsOverlap(string $fiscal, string $proforma): bool
+    {
+        if (self::literalPrefix($fiscal) === self::literalPrefix($proforma)) {
+            return true;
         }
-        $regex = preg_quote($format, '/');
-        $regex = strtr($regex, [
+
+        $fiscalPattern = self::pattern($fiscal);
+        $proformaPattern = self::pattern($proforma);
+        $dates = [new \DateTimeImmutable(), new \DateTimeImmutable('2026-01-01'), new \DateTimeImmutable('2099-12-31')];
+        foreach (['1', '7', '42', '0094', '0100', '2026', '12345', '0000001'] as $counter) {
+            foreach ($dates as $date) {
+                if (preg_match($fiscalPattern, self::format($proforma, $counter, $date)) === 1
+                    || preg_match($proformaPattern, self::format($fiscal, $counter, $date)) === 1) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The literal text before the first tag of a format.
+     */
+    public static function literalPrefix(string $format): string
+    {
+        $position = strlen($format);
+        foreach (self::TAGS as $tag) {
+            $found = strpos($format, $tag);
+            if ($found !== false && $found < $position) {
+                $position = $found;
+            }
+        }
+
+        return substr($format, 0, $position);
+    }
+
+    private static function pattern(string $format): string
+    {
+        $regex = strtr(preg_quote($format, '/'), [
             '\{NUMBER\}' => '(?<n>\d+)',
             '\{YEAR\}' => '\d{4}',
             '\{MONTH\}' => '\d{2}',
@@ -121,13 +186,6 @@ final class InvoicingConfig
         ]);
 
         return '/^' . $regex . '$/';
-    }
-
-    private static function literalPrefix(string $format): string
-    {
-        $position = strpos($format, '{');
-
-        return $position === false ? $format : substr($format, 0, $position);
     }
 
     private static function isOn(mixed $value): bool

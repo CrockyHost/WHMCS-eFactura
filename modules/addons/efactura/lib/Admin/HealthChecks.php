@@ -48,6 +48,7 @@ final class HealthChecks
             $this->environment(),
             $this->company($settings),
             ...$this->whmcsNumbering(),
+            $this->timezone(),
             $this->extensions(),
         ];
     }
@@ -109,36 +110,72 @@ final class HealthChecks
     {
         $checks = [];
         $flags = [
-            'check_sequential' => [$this->invoicing->sequentialPaidNumbering(), true],
-            'check_proforma' => [$this->invoicing->proformaInvoicing(), true],
-            'check_date_on_payment' => [$this->invoicing->invoiceDateOnPayment(), true],
-            'check_custom_numbering' => [$this->invoicing->customInvoiceNumbering(), false],
+            'check_sequential' => $this->invoicing->sequentialPaidNumbering(),
+            'check_proforma' => $this->invoicing->proformaInvoicing(),
+            'check_date_on_payment' => $this->invoicing->invoiceDateOnPayment(),
         ];
-        foreach ($flags as $key => [$actual, $expected]) {
-            $checks[] = $actual === $expected
-                ? self::check($key, self::OK, Lang::get($expected ? 'value_enabled' : 'value_disabled'))
+        foreach ($flags as $key => $enabled) {
+            $checks[] = $enabled
+                ? self::check($key, self::OK, Lang::get('value_enabled'))
                 : self::check($key, self::DANGER, Lang::get($key . '_fix'));
         }
 
-        $format = $this->invoicing->numberFormat();
-        if (InvoicingConfig::numberPattern($format) === null) {
-            $checks[] = self::check('check_number_format', self::DANGER, Lang::get('check_number_format_fix', $format));
+        $fiscal = $this->invoicing->fiscalFormat();
+        if (InvoicingConfig::numberPattern($fiscal) === null) {
+            $checks[] = self::check('check_number_format', self::DANGER, Lang::get('check_number_format_fix', $fiscal));
 
             return $checks;
         }
+        $checks[] = $this->series($fiscal);
 
-        $counter = $this->invoicing->nextNumberValue();
-        $next = $this->invoicing->format($counter);
+        $counter = $this->invoicing->fiscalCounter();
+        $next = InvoicingConfig::format($fiscal, $counter);
         $highest = $this->invoicing->highestIssuedNumber();
         if ($highest !== null && (!ctype_digit($counter) || (int) $counter <= $highest['value'])) {
             // Suggest the next value with the same zero padding as the series.
             $suggested = str_pad((string) ($highest['value'] + 1), strlen($highest['counter']), '0', STR_PAD_LEFT);
             $checks[] = self::check('check_counter', self::DANGER, Lang::get('check_counter_fix', $next, $highest['number'], $suggested));
         } else {
-            $checks[] = self::check('check_counter', self::OK, Lang::get('check_counter_ok', $format, $next));
+            $checks[] = self::check('check_counter', self::OK, Lang::get('check_counter_ok', $next));
         }
 
         return $checks;
+    }
+
+    /**
+     * Shows the proforma and fiscal series; they must never overlap.
+     *
+     * @return array{label: string, status: string, detail: string}
+     */
+    private function series(string $fiscal): array
+    {
+        $fiscalText = Lang::get('series_fiscal', $fiscal);
+        if (!$this->invoicing->proformaNumbering()) {
+            return self::check('check_series', self::OK, Lang::get('series_proforma_none') . ' ' . $fiscalText);
+        }
+
+        $proforma = $this->invoicing->proformaFormat();
+        $proformaText = Lang::get('series_proforma', $proforma, InvoicingConfig::format($proforma, $this->invoicing->proformaCounter()));
+        if (InvoicingConfig::formatsOverlap($fiscal, $proforma)) {
+            return self::check('check_series', self::DANGER, Lang::get('check_series_overlap', $proforma, $fiscal));
+        }
+
+        return self::check('check_series', self::OK, $proformaText . ' ' . $fiscalText);
+    }
+
+    /**
+     * WHMCS dates invoices with the PHP time zone; at payment that date
+     * becomes the fiscal invoice date.
+     *
+     * @return array{label: string, status: string, detail: string}
+     */
+    private function timezone(): array
+    {
+        $zone = date_default_timezone_get();
+
+        return $zone === 'Europe/Bucharest'
+            ? self::check('check_timezone', self::OK, $zone)
+            : self::check('check_timezone', self::WARNING, Lang::get('check_timezone_fix', $zone));
     }
 
     /**

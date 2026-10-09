@@ -81,8 +81,11 @@ final class SettingsPage
                 $this->text('bank_bic', 11),
             ]),
             $this->section('section_numbering', [
-                $this->info('numbering_format', $this->invoicing->numberFormat()),
-                $this->info('numbering_next', $this->invoicing->format($this->invoicing->nextNumberValue())),
+                $this->info('numbering_proforma', $this->invoicing->proformaNumbering()
+                    ? $this->invoicing->proformaFormat()
+                    : Lang::get('numbering_proforma_none')),
+                $this->info('numbering_fiscal', $this->invoicing->fiscalFormat()),
+                $this->info('numbering_next', InvoicingConfig::format($this->invoicing->fiscalFormat(), $this->invoicing->fiscalCounter())),
             ]),
             $this->section('section_sending', [
                 $this->select('send_delay_days', $delays),

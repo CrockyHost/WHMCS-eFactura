@@ -42,6 +42,28 @@ return [
         Assert::same(0, preg_match($pattern, 'Fx2026/10-7'));
         Assert::same(null, InvoicingConfig::numberPattern('CRK-'));
     },
+    'proforma and fiscal series with different prefixes do not overlap' => static function (): void {
+        Assert::false(InvoicingConfig::formatsOverlap('CRK-{NUMBER}', 'CRP-{NUMBER}'));
+        Assert::false(InvoicingConfig::formatsOverlap('CRK-{NUMBER}', 'CRK-P{NUMBER}'));
+        Assert::false(InvoicingConfig::formatsOverlap('F{NUMBER}', '{NUMBER}'));
+        Assert::false(InvoicingConfig::formatsOverlap('CRK-{NUMBER}', 'PRO-{YEAR}-{NUMBER}'));
+    },
+    'series with the same prefix or reachable numbers overlap' => static function (): void {
+        Assert::true(InvoicingConfig::formatsOverlap('CRK-{NUMBER}', 'CRK-{NUMBER}'));
+        Assert::true(InvoicingConfig::formatsOverlap('CRK-{NUMBER}', 'CRK-{YEAR}{NUMBER}'));
+        Assert::true(InvoicingConfig::formatsOverlap('{NUMBER}', '{YEAR}{NUMBER}'));
+        // Different literal prefixes, but "{NUMBER}" also produces "2026...".
+        Assert::true(InvoicingConfig::formatsOverlap('{NUMBER}', '2026{NUMBER}'));
+    },
+    'literal prefix stops at the first tag only' => static function (): void {
+        Assert::same('CRK-', InvoicingConfig::literalPrefix('CRK-{NUMBER}'));
+        Assert::same('A{B}-', InvoicingConfig::literalPrefix('A{B}-{YEAR}/{NUMBER}'));
+        Assert::same('', InvoicingConfig::literalPrefix('{NUMBER}'));
+    },
+    'format fills the counter as stored and the date tags' => static function (): void {
+        Assert::same('CRK-0094', InvoicingConfig::format('CRK-{NUMBER}', '0094'));
+        Assert::same('F-2026/03/09-7', InvoicingConfig::format('F-{YEAR}/{MONTH}/{DAY}-{NUMBER}', '7', new DateTimeImmutable('2026-03-09')));
+    },
     'attribution notice is shown unaltered' => static function (): void {
         $text = html_entity_decode(strip_tags(str_replace('<br>', "\n", Addon::attributionHtml())));
         Assert::same(implode("\n", Addon::ATTRIBUTION), $text);
