@@ -19,6 +19,7 @@ use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
 use WHMCS\Module\Addon\Efactura\Fiscal\ReportingPolicy;
+use WHMCS\Module\Addon\Efactura\Fiscal\Stornos;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Support\Money;
@@ -71,6 +72,8 @@ final class InvoicePanel
                 'tax' => Money::format(max(0, $tax)),
                 'total' => Money::format(max(0, $net + $tax)) . ' ' . $document->currency,
                 'currency' => (string) $document->currency,
+                'rate' => Stornos::vatRate($document),
+                'vatHint' => Stornos::vatRate($document) !== '0' ? Lang::get('panel_storno_vat_hint', Stornos::vatRate($document)) : '',
             ];
         } elseif ($invoice !== null) {
             $reason = ReportingPolicy::nonFiscalReason($invoiceId);

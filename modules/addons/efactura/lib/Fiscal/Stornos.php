@@ -65,6 +65,7 @@ final class Stornos
         private readonly FiscalNumbering $numbering,
         private readonly DocumentRepository $documents,
         private readonly RuntimeState $state,
+        private readonly ?DocumentBuilder $builder = null,
     ) {
     }
 
@@ -94,6 +95,10 @@ final class Stornos
      * what is left of the invoice. The whole rest gives the invoice lines
      * negated when nothing was reversed before; otherwise one line.
      *
+     * The VAT must match the rate of the invoice (within the ANAF tolerance),
+     * and the XML is built before the storno is kept: when it cannot be
+     * built, nothing is recorded and no fiscal number is used.
+     *
      * @return int the document ID
      * @throws StornoException
      */
@@ -112,20 +117,63 @@ final class Stornos
             if ($netCents < 0 || $taxCents < 0 || $netCents + $taxCents <= 0 || $netCents > $restNet || $taxCents > $restTax) {
                 throw new StornoException('The amounts are not within what is left of the invoice.', StornoException::AMOUNTS);
             }
+            $this->checkVat($original, $netCents, $taxCents);
 
-            return $this->issue($original, [
-                'dedupe_key' => 'manual:' . $invoiceId . ':' . bin2hex(random_bytes(6)),
-                'source' => Document::SOURCE_MANUAL,
-                'reason' => DocumentBuilder::REASON_MANUAL,
-                'net_cents' => -$netCents,
-                'tax_cents' => -$taxCents,
-                'issued_by' => $adminId,
-            ]);
+            return Capsule::connection()->transaction(function () use ($original, $invoiceId, $netCents, $taxCents, $adminId): int {
+                $id = $this->issue($original, [
+                    'dedupe_key' => 'manual:' . $invoiceId . ':' . bin2hex(random_bytes(6)),
+                    'source' => Document::SOURCE_MANUAL,
+                    'reason' => DocumentBuilder::REASON_MANUAL,
+                    'net_cents' => -$netCents,
+                    'tax_cents' => -$taxCents,
+                    'issued_by' => $adminId,
+                ]);
+                $result = ($this->builder ?? \WHMCS\Module\Addon\Efactura\Addon::documentBuilder())->build($this->documents->find($id));
+                if (!$result->ok()) {
+                    // Rolls back the document and the fiscal counter.
+                    throw new StornoException('The storno cannot be built.', StornoException::INVALID, array_column($result->issues, 'message'));
+                }
+
+                return $id;
+            });
         } finally {
             if ($ownLock) {
                 NumberingLock::releaseIfOwner(0);
             }
         }
+    }
+
+    /**
+     * The VAT of a part reversed by hand: the rate of the invoice applied to
+     * the net, within the tolerance ANAF accepts (less than 1.00); none when
+     * the invoice has no VAT.
+     *
+     * @throws StornoException
+     */
+    private function checkVat(object $original, int $netCents, int $taxCents): void
+    {
+        $rate = self::vatRate($original);
+        if ($rate === '0') {
+            if ($taxCents !== 0) {
+                throw new StornoException('The invoice has no VAT.', StornoException::VAT_NONE);
+            }
+
+            return;
+        }
+        $expected = Money::percent($netCents, $rate);
+        if ($netCents === 0 || abs($taxCents - $expected) >= 100) {
+            throw new StornoException('The VAT does not match the rate of the invoice.', StornoException::VAT, [Money::format($taxCents), $rate, Money::format($netCents), Money::format($expected)]);
+        }
+    }
+
+    /**
+     * The VAT rate of a fiscal invoice, "0" when it has no VAT.
+     */
+    public static function vatRate(object $original): string
+    {
+        $invoice = Capsule::table('tblinvoices')->where('id', $original->invoice_id)->first(['tax', 'taxrate']);
+
+        return $invoice === null || Money::cents((string) $invoice->tax) === 0 ? '0' : Money::trimDecimal((string) $invoice->taxrate);
     }
 
     /**

@@ -25,8 +25,16 @@ final class StornoException extends RuntimeException
     public const NOT_FISCAL = 'not_fiscal';
     public const AMOUNTS = 'amounts';
     public const BUSY = 'busy';
+    /** The VAT does not match the rate; details: VAT, rate, net, expected VAT. */
+    public const VAT = 'vat';
+    public const VAT_NONE = 'vat_none';
+    /** The XML cannot be built; details: the problems. */
+    public const INVALID = 'invalid';
 
-    public function __construct(string $message, public readonly string $reason)
+    /**
+     * @param list<string> $details
+     */
+    public function __construct(string $message, public readonly string $reason, public readonly array $details = [])
     {
         parent::__construct($message);
     }

@@ -515,3 +515,7 @@ $_ADDONLANG['event_number_withdrawn'] = 'Fiscal number given back';
 $_ADDONLANG['event_number_gap'] = 'Possible gap in the series';
 $_ADDONLANG['note_no_storno'] = 'No storno was issued from this credit note: it does not come from a refund of a fiscal invoice.';
 $_ADDONLANG['note_corrects'] = 'Credit note on the fiscal invoice';
+$_ADDONLANG['storno_error_vat'] = 'The VAT %s does not match %s%% of the net %s (expected %s). Correct the VAT: the form computes it from the net.';
+$_ADDONLANG['storno_error_vat_none'] = 'This invoice has no VAT: the VAT of the storno must be 0.';
+$_ADDONLANG['storno_error_invalid'] = 'The storno cannot be built from the current data, so nothing was issued and no number was used:';
+$_ADDONLANG['panel_storno_vat_hint'] = 'The VAT is computed at %s%% of the net; it can be changed.';

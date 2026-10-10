@@ -47,7 +47,7 @@
                         <i class="fas fa-undo-alt"></i> {$lang.panel_storno_title}
                     </a>
                     <div class="collapse" id="efactura-storno-form">
-                        <form method="post" action="{$actionUrl}" class="form-inline" data-efactura-confirm="{$lang.panel_storno_confirm}">
+                        <form method="post" action="{$actionUrl}" class="form-inline" data-efactura-confirm="{$lang.panel_storno_confirm}" data-efactura-vat-rate="{$storno.rate}">
                             <p class="help-block">{$lang.panel_storno_intro} <strong>{$storno.total}</strong></p>
                             <input type="hidden" name="token" value="{$csrfToken}">
                             <input type="hidden" name="return" value="{$returnUrl}">
@@ -63,6 +63,7 @@
                             </div>
                             <span class="text-muted">{$storno.currency}</span>
                             <button type="submit" class="btn btn-warning btn-sm">{$lang.btn_storno}</button>
+                            {if $storno.vatHint}<p class="help-block">{$storno.vatHint}</p>{/if}
                         </form>
                     </div>
                 </div>

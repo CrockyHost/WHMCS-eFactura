@@ -91,7 +91,11 @@ final class AdminActions
         try {
             $id = Addon::stornos()->issueManual($invoiceId, Money::cents(str_replace(',', '.', trim($net))), Money::cents(str_replace(',', '.', trim($tax))), $adminId, NumberingLock::ADMIN_TIMEOUT);
         } catch (StornoException $e) {
-            return self::result('warning', Lang::get('storno_error_' . $e->reason));
+            return match ($e->reason) {
+                StornoException::VAT => self::result('warning', Lang::get('storno_error_vat', ...$e->details)),
+                StornoException::INVALID => self::result('danger', Lang::get('storno_error_invalid'), $e->details),
+                default => self::result('warning', Lang::get('storno_error_' . $e->reason)),
+            };
         }
 
         return self::result('success', Lang::get('action_done_storno', (string) Addon::documents()->find($id)?->number));

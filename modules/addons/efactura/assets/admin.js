@@ -26,6 +26,22 @@
         column.appendChild(panel);
     }
 
+    // Storno form: the VAT follows the net at the rate of the invoice; the
+    // admin can still change it.
+    document.addEventListener('input', function (event) {
+        var net = event.target;
+        var form = net.form;
+        if (!form || net.name !== 'net' || !form.hasAttribute('data-efactura-vat-rate')) {
+            return;
+        }
+        var rate = parseFloat(form.getAttribute('data-efactura-vat-rate')) || 0;
+        var amount = parseFloat(String(net.value).replace(',', '.'));
+        var tax = form.querySelector('[name="tax"]');
+        if (tax && !isNaN(amount)) {
+            tax.value = (Math.round(amount * rate) / 100).toFixed(2);
+        }
+    });
+
     document.addEventListener('submit', function (event) {
         var form = event.target;
         if (!form.closest || !form.closest('.efactura')) {

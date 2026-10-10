@@ -327,6 +327,36 @@ return [
         Assert::same(2, substr_count($document, '<cbc:InvoicedQuantity unitCode="C62">-1</cbc:InvoicedQuantity>'));
         Assert::true(str_contains($document, 'Stornare totală a facturii ' . $original->number));
     }),
+    'a manual storno with a VAT that does not match the rate is refused and uses no number' => static fn () => $clean(static function () use ($setup, $paid, $stornos, $counter): void {
+        $setup();
+        [$invoiceId, $original] = $paid();
+        $before = $counter();
+        foreach ([[1000, 50], [1000, 0], [0, 100]] as [$net, $tax]) {
+            try {
+                Addon::stornos()->issueManual($invoiceId, $net, $tax, 1, 1);
+                Assert::true(false, "net {$net}, VAT {$tax} refused");
+            } catch (\WHMCS\Module\Addon\Efactura\Fiscal\StornoException $e) {
+                Assert::same(\WHMCS\Module\Addon\Efactura\Fiscal\StornoException::VAT, $e->reason, "net {$net}, VAT {$tax}");
+            }
+        }
+        Assert::same($before, $counter(), 'no number used');
+        Assert::same([], $stornos($original));
+        $result = (new \WHMCS\Module\Addon\Efactura\Admin\AdminActions())->run('storno', ['invoice' => $invoiceId, 'net' => '10.00', 'tax' => '0.50'], 1);
+        Assert::same('warning', $result['type']);
+        Assert::true(str_contains($result['text'], '2.10'), 'the expected VAT is shown');
+    }),
+    'a manual storno that cannot be built is rolled back and its problems shown' => static fn () => $clean(static function () use ($setup, $paid, $stornos, $counter): void {
+        $setup();
+        [$invoiceId, $original] = $paid();
+        Capsule::table('tblclients')->where('id', $original->client_id)->update(['state' => 'kkkk']);
+        $before = $counter();
+        $result = (new \WHMCS\Module\Addon\Efactura\Admin\AdminActions())->run('storno', ['invoice' => $invoiceId, 'net' => '10.00', 'tax' => '2.10'], 1);
+        Assert::same('danger', $result['type']);
+        Assert::true($result['details'] !== [], 'the problems are listed');
+        Assert::same($before, $counter(), 'no number used');
+        Assert::same([], $stornos($original));
+        Assert::same(0, Capsule::table('mod_efactura_audit')->where('invoice_id', $invoiceId)->where('event', 'storno_created')->count());
+    }),
     'a proforma cannot be reversed' => static fn () => $clean(static function () use ($setup, $client): void {
         $setup();
         $invoiceId = (int) localAPI('CreateInvoice', ['userid' => $client(), 'status' => 'Unpaid', 'sendinvoice' => false, 'paymentmethod' => 'banktransfer',
