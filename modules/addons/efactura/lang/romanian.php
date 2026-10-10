@@ -521,3 +521,6 @@ $_ADDONLANG['storno_error_invalid'] = 'Stornarea nu poate fi construită din dat
 $_ADDONLANG['panel_storno_vat_hint'] = 'TVA-ul se calculează la %s%% din net; poate fi modificat.';
 $_ADDONLANG['alert_masspay_partly_paid_subject'] = 'Factura Mass Pay #%d rambursată: o factură a fost plătită prin ea doar parțial';
 $_ADDONLANG['alert_masspay_partly_paid_body'] = "Factura Mass Pay #%d a fost rambursată integral, dar a plătit doar restul unei facturi plătite parțial înainte (%s, rambursat / totalul facturii), deci acea factură nu a fost stornată automat (facturile plătite: %s). Emiteți manual stornarea ei din panoul e-Factura.\n%s";
+$_ADDONLANG['check_snapshot'] = 'WHMCS: Store Client Data Snapshot';
+$_ADDONLANG['check_snapshot_on'] = 'Activat: PDF-ul facturii păstrează datele clientului trimise în SPV.';
+$_ADDONLANG['check_snapshot_off'] = 'Oprit: PDF-ul unei facturi deja trimise în SPV se schimbă odată cu profilul clientului. Activați-l din Configuration > System Settings > General Settings (Store Client Data Snapshot).';

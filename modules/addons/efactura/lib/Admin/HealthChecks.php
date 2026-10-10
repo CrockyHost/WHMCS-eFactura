@@ -20,6 +20,7 @@ use WHMCS\Module\Addon\Efactura\Anaf\OAuth\Connection;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
+use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceSnapshot;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
 
 /**
@@ -55,6 +56,7 @@ final class HealthChecks
             $this->company($settings),
             $this->clientFields(),
             ...$this->whmcsNumbering(),
+            $this->invoiceSnapshot(),
             $this->timezone(),
             $this->extensions(),
         ];
@@ -205,6 +207,21 @@ final class HealthChecks
      *
      * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
      */
+    /**
+     * Store Client Data Snapshot keeps the client details of each invoice for
+     * its PDF; the addon refreshes that copy up to the sending, so the PDF
+     * and the XML show the same buyer. Without it, the PDF of an invoice
+     * already sent follows every later change of the client profile.
+     *
+     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
+     */
+    private function invoiceSnapshot(): array
+    {
+        return InvoiceSnapshot::enabled()
+            ? self::check('check_snapshot', self::OK, Lang::get('check_snapshot_on'))
+            : self::check('check_snapshot', self::WARNING, Lang::get('check_snapshot_off'));
+    }
+
     private function timezone(): array
     {
         $zone = date_default_timezone_get();

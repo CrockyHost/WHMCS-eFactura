@@ -12,6 +12,11 @@ UBL 2.1 / CIUS-RO și le trimite în sistemul RO e-Factura al ANAF.
 
 - WHMCS 9.0 with PHP 8.2 or newer and the curl, dom, openssl, zip and
   mbstring extensions.
+- Recommended: **Store Client Data Snapshot** on (Configuration > System
+  Settings > General Settings). WHMCS then keeps the client details of each
+  invoice for its PDF; the addon refreshes that copy when the invoice
+  becomes fiscal and when it is sent, so the PDF and the e-Factura XML show
+  the same buyer, and the PDF no longer changes afterwards.
 - PHP time zone `Europe/Bucharest`. WHMCS dates invoices with the PHP time
   zone, and at payment that date becomes the fiscal invoice date; with UTC,
   a payment made shortly after midnight in Romania gets the previous day.

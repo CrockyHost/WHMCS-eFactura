@@ -39,6 +39,7 @@ use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
 use WHMCS\Module\Addon\Efactura\Ubl\BuyerMapper;
 use WHMCS\Module\Addon\Efactura\Ubl\DocumentBuilder;
+use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceSnapshot;
 
 /**
  * The queue worker, run by the WHMCS cron (AfterCronJob) or cron/worker.php.
@@ -224,6 +225,10 @@ final class Worker
      */
     private function generate(object $document): ?object
     {
+        if ($document->kind === Document::KIND_INVOICE) {
+            // The PDF of the invoice shows the buyer the XML is built from.
+            InvoiceSnapshot::refresh((int) $document->invoice_id);
+        }
         $result = $this->builder->build($document);
         $now = Clock::now();
         if (!$result->ok()) {

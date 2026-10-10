@@ -24,6 +24,7 @@ use WHMCS\Module\Addon\Efactura\Support\AdminContext;
 use WHMCS\Module\Addon\Efactura\Support\AdminNotifier;
 use WHMCS\Module\Addon\Efactura\Support\Audit;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
+use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceSnapshot;
 
 /**
  * Keeps the fiscal series consistent when WHMCS marks an invoice paid.
@@ -222,6 +223,8 @@ final class PaymentNumbering
             'issue_date' => Clock::parse((string) $invoice->date),
             'review_reason' => $review,
         ]);
+        // The copy WHMCS took at creation (for the PDF) follows the profile now.
+        InvoiceSnapshot::refresh($invoiceId);
 
         if ($review !== null) {
             AdminNotifier::send(

@@ -521,3 +521,6 @@ $_ADDONLANG['storno_error_invalid'] = 'The storno cannot be built from the curre
 $_ADDONLANG['panel_storno_vat_hint'] = 'The VAT is computed at %s%% of the net; it can be changed.';
 $_ADDONLANG['alert_masspay_partly_paid_subject'] = 'Mass Pay invoice #%d refunded: an invoice was paid only in part through it';
 $_ADDONLANG['alert_masspay_partly_paid_body'] = "Mass Pay invoice #%d was refunded in full, but it paid only the rest of an invoice paid in part before (%s, refunded / invoice total), so that invoice was not reversed automatically (the invoices paid were: %s). Issue its storno by hand from its e-Factura panel.\n%s";
+$_ADDONLANG['check_snapshot'] = 'WHMCS: Store Client Data Snapshot';
+$_ADDONLANG['check_snapshot_on'] = 'On: the PDF of an invoice keeps the client details sent to SPV.';
+$_ADDONLANG['check_snapshot_off'] = 'Off: the PDF of an invoice already sent to SPV changes with the client profile. Turn it on in Configuration > System Settings > General Settings (Store Client Data Snapshot).';

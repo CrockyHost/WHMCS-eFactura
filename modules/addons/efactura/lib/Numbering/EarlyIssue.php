@@ -22,6 +22,7 @@ use WHMCS\Module\Addon\Efactura\Fiscal\DocumentRepository;
 use WHMCS\Module\Addon\Efactura\Fiscal\ReportingPolicy;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Audit;
+use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceSnapshot;
 
 /**
  * Issues the fiscal invoice before payment ("Issue fiscal now", or the rule
@@ -90,6 +91,8 @@ final class EarlyIssue
                     'issued_by' => $adminId,
                 ]);
                 Audit::log('issued_early', $number, ['proforma_number' => (string) $invoice->invoicenum], null, (int) $invoice->id, adminId: $adminId);
+                // The copy WHMCS took at creation (for the PDF) follows the profile now.
+                InvoiceSnapshot::refresh((int) $invoice->id);
 
                 return $number;
             });

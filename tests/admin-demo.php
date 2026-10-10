@@ -16,7 +16,8 @@ declare(strict_types=1);
 /*
  * Fictive data for trying the admin pages in the development installation:
  *
- *   php tests/admin-demo.php --create    a client "TEST PANOU SRL" with a paid
+ *   php tests/admin-demo.php --create    a client "TEST PANOU SRL" (CUI and trade
+ *                                        register number filled in) with a paid
  *                                        invoice refunded in part (so it has a
  *                                        storno and a WHMCS credit note) and a
  *                                        proforma; prints the IDs
@@ -35,11 +36,13 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/init.php';
 require_once dirname(__DIR__) . '/modules/addons/efactura/bootstrap.php';
 require_once ROOTDIR . '/includes/invoicefunctions.php';
+require __DIR__ . '/TestData.php';
 set_time_limit(0);
 
 use WHMCS\Config\Setting;
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Addon;
+use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
@@ -93,11 +96,15 @@ $run = ['original' => [
 $state->set(DEMO_STATE, $run);
 try {
     Settings::save(['enabled' => true, 'send_delay_days' => 1]);
-    $run['client'] = (int) localAPI('AddClient', ['firstname' => 'Test', 'lastname' => 'Panou', 'companyname' => 'TEST PANOU SRL', 'tax_id' => 'RO87654329',
+    $run['client'] = (int) localAPI('AddClient', ['firstname' => 'Test', 'lastname' => 'Panou', 'companyname' => 'TEST PANOU SRL', 'tax_id' => '',
         'email' => 'efactura-demo-' . uniqid() . '@example.invalid', 'address1' => 'Strada Exemplului nr. 1', 'city' => 'Craiova', 'state' => 'Dolj',
-        'postcode' => '200000', 'country' => 'RO', 'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)), 'currency' => 2,
+        'postcode' => '200000', 'country' => 'RO', 'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)), 'currency' => efactura_ron_currency(),
         'noemail' => true, 'skipvalidation' => true])['clientid'];
     $state->set(DEMO_STATE, $run);
+    // The company fields of the addon, as a client fills them in.
+    foreach (['cui' => 'RO87654329', 'regcom' => 'J16/1234/2020'] as $role => $value) {
+        Capsule::table('tblcustomfieldsvalues')->updateOrInsert(['fieldid' => ClientFields::id($role), 'relid' => $run['client']], ['value' => $value]);
+    }
     $paid = (int) localAPI('CreateInvoice', ['userid' => $run['client'], 'status' => 'Unpaid', 'sendinvoice' => false, 'paymentmethod' => 'banktransfer',
         'itemdescription1' => 'TEST Găzduire (date fictive)', 'itemamount1' => 60, 'itemtaxed1' => true,
         'itemdescription2' => 'TEST Domeniu exemplu.ro (date fictive)', 'itemamount2' => 40, 'itemtaxed2' => true])['invoiceid'];
