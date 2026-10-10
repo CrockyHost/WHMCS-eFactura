@@ -196,6 +196,12 @@ return [
         Assert::true($queue['attention'] >= 1);
         Assert::same(1, $queue['pendingStornos']);
     }),
+    'the request input is read as it was sent, not as WHMCS escaped it' => static function (): void {
+        Assert::same(
+            ['return' => 'invoices.php?action=edit&id=5', 'name' => 'A & B "C" \'D\' <E>', 'list' => ['x&y'], 'n' => 3],
+            \WHMCS\Module\Addon\Efactura\Support\Input::clean(['return' => 'invoices.php?action=edit&amp;id=5', 'name' => 'A &amp; B &quot;C&quot; &#039;D&#039; &lt;E&gt;', 'list' => ['x&amp;y'], 'n' => 3])
+        );
+    },
     'the return address and the download name are safe' => static function (): void {
         $fallback = 'addonmodules.php?module=efactura';
         Assert::same('invoices.php?action=edit&id=12', AdminController::returnUrl('invoices.php?action=edit&id=12', $fallback));

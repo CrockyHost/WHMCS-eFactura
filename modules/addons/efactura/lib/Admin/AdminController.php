@@ -21,6 +21,7 @@ use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\AdminContext;
+use WHMCS\Module\Addon\Efactura\Support\Input;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Whmcs\ClientDirectory;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
@@ -74,7 +75,7 @@ final class AdminController
         }
 
         echo match ($view) {
-            'documents' => $this->page('documents', (new DocumentsPage($this->modulelink()))->list($_GET)),
+            'documents' => $this->page('documents', (new DocumentsPage($this->modulelink()))->list(Input::get())),
             'anaf' => $this->anaf(),
             'settings' => $this->settings(),
             default => $this->dashboard(),
@@ -87,11 +88,12 @@ final class AdminController
      */
     private function action(): void
     {
-        $return = self::returnUrl((string) ($_POST['return'] ?? ''), $this->modulelink());
+        $input = Input::post();
+        $return = self::returnUrl((string) ($input['return'] ?? ''), $this->modulelink());
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' || !$this->validToken()) {
             Flash::set('danger', Lang::get('error_csrf'));
         } else {
-            $result = (new AdminActions())->run((string) ($_POST['efactura_action'] ?? ''), $_POST, AdminContext::id());
+            $result = (new AdminActions())->run((string) ($input['efactura_action'] ?? ''), $input, AdminContext::id());
             Flash::set($result['type'], $result['text'], $result['details']);
         }
         self::redirect($return);
@@ -207,7 +209,7 @@ final class AdminController
     private function anaf(): string
     {
         $result = (new AnafPage(Addon::connection()))->handle(
-            $_POST,
+            Input::post(),
             ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST',
             $this->validToken(),
             isset($_GET['connected'])
@@ -230,7 +232,7 @@ final class AdminController
             if (!$this->validToken()) {
                 $alert = ['type' => 'danger', 'text' => Lang::get('error_csrf')];
             } else {
-                $values = $form->read($_POST);
+                $values = $form->read(Input::post());
                 $errors = $form->validate($values, $healthChecks->systemReady());
                 if ($errors === []) {
                     Settings::save($values);
