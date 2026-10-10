@@ -31,7 +31,7 @@ use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
  */
 final class AdminController
 {
-    private const VIEWS = ['dashboard', 'documents', 'anaf', 'settings'];
+    private const VIEWS = ['dashboard', 'documents', 'inbox', 'anaf', 'settings'];
 
     /**
      * @param array<string, mixed> $vars parameters WHMCS passes to efactura_output()
@@ -65,6 +65,11 @@ final class AdminController
 
             return;
         }
+        if ($view === 'message') {
+            echo $this->message((int) ($_GET['id'] ?? 0));
+
+            return;
+        }
         if ($view === 'document') {
             echo $this->document((int) ($_GET['id'] ?? 0));
 
@@ -76,6 +81,10 @@ final class AdminController
 
         echo match ($view) {
             'documents' => $this->page('documents', (new DocumentsPage($this->modulelink()))->list(Input::get())),
+            'inbox' => $this->page('inbox', (new InboxPage($this->modulelink()))->list(Input::get()) + [
+                'actionUrl' => $this->modulelink() . '&view=action',
+                'returnUrl' => $this->modulelink() . '&view=inbox',
+            ]),
             'anaf' => $this->anaf(),
             'settings' => $this->settings(),
             default => $this->dashboard(),
@@ -111,7 +120,9 @@ final class AdminController
 
             return;
         }
-        $number = (string) Capsule::table(Document::TABLE)->where('id', $archive->document_id)->value('number');
+        $number = $archive->message_id !== null
+            ? (string) Capsule::table('mod_efactura_messages')->where('id', $archive->message_id)->value('invoice_number')
+            : (string) Capsule::table(Document::TABLE)->where('id', $archive->document_id)->value('number');
         $filename = self::downloadName($number, (string) $archive->kind, (string) $archive->filename);
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -133,6 +144,7 @@ final class AdminController
             'xml_sent' => $base . '.xml',
             'anaf_zip' => $base . '_semnat_ANAF.zip',
             'anaf_errors_zip' => $base . '_erori_ANAF.zip',
+            'inbox_zip' => $base . '_SPV.zip',
             default => $base . '_' . preg_replace('/[^A-Za-z0-9._-]/', '_', $filename),
         };
     }
@@ -193,7 +205,22 @@ final class AdminController
             'checks' => $checks->all(),
             'states' => $states,
             'queue' => (new DocumentsPage($this->modulelink()))->queue(),
+            'inbox' => [
+                'unseen' => InboxPage::unseen(),
+                'lastSync' => DocumentPresenter::dateTime(Addon::inbox()->lastRun()),
+                'url' => $this->modulelink() . '&view=inbox&show=unseen',
+            ],
         ]);
+    }
+
+    private function message(int $messageId): string
+    {
+        $detail = (new InboxPage($this->modulelink()))->detail($messageId, AdminContext::id());
+
+        return $this->page('message', ($detail ?? ['message' => null]) + [
+            'actionUrl' => $this->modulelink() . '&view=action',
+            'returnUrl' => $this->modulelink() . '&view=message&id=' . $messageId,
+        ], 'inbox');
     }
 
     private function document(int $documentId): string
@@ -262,7 +289,7 @@ final class AdminController
         $tab ??= $template;
         $nav = [];
         foreach (self::VIEWS as $item) {
-            $nav[] = ['view' => $item, 'label' => Lang::get('nav_' . $item), 'active' => $item === $tab];
+            $nav[] = ['view' => $item, 'label' => Lang::get('nav_' . $item), 'active' => $item === $tab, 'badge' => $item === 'inbox' ? InboxPage::unseen() : 0];
         }
 
         return View::render($template, $vars + [

@@ -31,6 +31,8 @@ final class CronHooks
 {
     /** Time for the queue in each cron run (the system cron runs every 5 minutes). */
     private const WORKER_BUDGET_SECONDS = 45;
+    /** Time for the SPV inbox when its sync is due. */
+    private const INBOX_BUDGET_SECONDS = 30;
 
     /**
      * After every cron run: uploads, status checks, downloads, reconciliation
@@ -47,6 +49,16 @@ final class CronHooks
             Addon::worker()->run(self::WORKER_BUDGET_SECONDS);
         } catch (Throwable $e) {
             logActivity(Addon::NAME . ': the e-Factura queue run failed: ' . $e->getMessage());
+        }
+        try {
+            // The SPV inbox, every half hour.
+            $inbox = Addon::inbox();
+            if (Settings::bool('enabled') && $inbox->due() && Addon::connection()->status()['connected']) {
+                $until = microtime(true) + self::INBOX_BUDGET_SECONDS;
+                $inbox->run(static fn (): bool => microtime(true) < $until);
+            }
+        } catch (Throwable $e) {
+            logActivity(Addon::NAME . ': the SPV inbox sync failed: ' . $e->getMessage());
         }
     }
 

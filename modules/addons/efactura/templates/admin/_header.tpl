@@ -27,7 +27,7 @@
         </div>
         <ul class="nav nav-tabs">
             {foreach $nav as $item}
-                <li{if $item.active} class="active"{/if}><a href="{$modulelink}&amp;view={$item.view}">{$item.label}</a></li>
+                <li{if $item.active} class="active"{/if}><a href="{$modulelink}&amp;view={$item.view}">{$item.label}{if $item.badge} <span class="badge efactura-nav-badge">{$item.badge}</span>{/if}</a></li>
             {/foreach}
         </ul>
     </div>

@@ -78,6 +78,19 @@
         </div>
         <div class="panel panel-default">
             <div class="panel-heading">
+                <h3 class="panel-title">{$lang.nav_inbox}</h3>
+            </div>
+            <ul class="list-group">
+                <li class="list-group-item{if $inbox.unseen} list-group-item-info{/if}">
+                    <span class="badge">{$inbox.unseen}</span><a href="{$inbox.url}">{$lang.inbox_unseen}</a>
+                </li>
+                <li class="list-group-item">
+                    {$lang.inbox_last_sync} <strong>{if $inbox.lastSync}{$inbox.lastSync}{else}{$lang.queue_never}{/if}</strong>
+                </li>
+            </ul>
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-heading">
                 <h3 class="panel-title">{$lang.documents_title}</h3>
             </div>
             {if $states}

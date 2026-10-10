@@ -57,7 +57,16 @@ final class AnafSimulator implements Transport
     /** @var list<string> descarcare answers, in order (then "zip"): zip, limit, expired */
     public array $downloadModes = [];
 
+    /**
+     * Messages for the seller that do not come from its uploads: invoices
+     * received from suppliers (P) and messages from buyers (R).
+     *
+     * @var array<string, array{tip: string, filter: string, request: string, details: string, files: array<string, string>}> by download ID
+     */
+    public array $inbox = [];
+
     private int $nextIndex = 5000000001;
+    private int $nextInbox = 3100000001;
 
     public function send(Request $request): Response
     {
@@ -81,6 +90,41 @@ final class AnafSimulator implements Transport
     public function calls(): array
     {
         return array_map(static fn (Request $request): string => basename((string) parse_url($request->url, PHP_URL_PATH)), $this->requests);
+    }
+
+    /**
+     * An invoice from a supplier, as SPV lists it for the buyer.
+     */
+    public function addReceivedInvoice(string $xml, string $supplierCui): string
+    {
+        $index = (string) $this->nextIndex++;
+
+        return $this->addInbox('FACTURA PRIMITA', 'P', $index,
+            'Factura cu id_incarcare=' . $index . ' emisa de cif_emitent=' . $supplierCui . ' pentru cif_beneficiar=12345674',
+            [$index . '.xml' => $xml]);
+    }
+
+    /**
+     * A message from a buyer (RASP) about the upload $invoiceIndex.
+     */
+    public function addBuyerMessage(string $invoiceIndex, string $text): string
+    {
+        $index = (string) $this->nextIndex++;
+        $rasp = '<?xml version="1.0" encoding="UTF-8"?><header xmlns="mfp:anaf:dgti:spv:reqMesaj:v1" index_incarcare="' . $invoiceIndex . '" message="' . htmlspecialchars($text, ENT_QUOTES) . '"/>';
+
+        return $this->addInbox('MESAJ CUMPARATOR PRIMIT / MESAJ CUMPARATOR TRANSMIS', 'R', $index, 'Mesaj cumparator pentru id_incarcare=' . $invoiceIndex, [$index . '.xml' => $rasp]);
+    }
+
+    /**
+     * @param array<string, string> $files
+     */
+    private function addInbox(string $tip, string $filter, string $index, string $details, array $files): string
+    {
+        $id = (string) $this->nextInbox++;
+        $files['semnatura_' . $index . '.xml'] = '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo/></Signature>';
+        $this->inbox[$id] = ['tip' => $tip, 'filter' => $filter, 'request' => $index, 'details' => $details, 'files' => $files];
+
+        return $id;
     }
 
     public static function downloadId(string $index): string
@@ -145,6 +189,9 @@ final class AnafSimulator implements Transport
         if ($mode === 'expired') {
             return $json('Fisierul nu mai poate fi descarcat pentru ca a trecut perioada de 60 de zile in care este disponibil');
         }
+        if (isset($this->inbox[$id])) {
+            return new Response(200, ['content-type' => 'application/octet-stream'], self::zip($this->inbox[$id]['files']));
+        }
         $index = (string) ((int) $id - 1000000000);
         if (!isset($this->uploads[$index])) {
             return $json('Pentru id=' . $id . ' nu exista inregistrata nici o factura');
@@ -184,6 +231,19 @@ final class AnafSimulator implements Transport
                     : 'Erori de validare identificate la factura primita cu id_incarcare=' . $index,
                 'tip' => $type === 'T' ? 'FACTURA TRIMISA' : 'ERORI FACTURA',
                 'id' => self::downloadId((string) $index),
+            ];
+        }
+        foreach ($this->inbox as $id => $message) {
+            if (isset($query['filtru']) && $query['filtru'] !== $message['filter']) {
+                continue;
+            }
+            $messages[] = [
+                'data_creare' => '202610091205',
+                'cif' => '12345674',
+                'id_solicitare' => $message['request'],
+                'detalii' => $message['details'],
+                'tip' => $message['tip'],
+                'id' => (string) $id,
             ];
         }
         if ($messages === []) {

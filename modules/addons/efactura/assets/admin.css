@@ -367,3 +367,39 @@
         margin-left: 0;
     }
 }
+
+/* SPV inbox. */
+
+.efactura-nav-badge {
+    margin-left: 4px;
+    background: #2563eb;
+    font-size: 10px;
+}
+
+.efactura-inbox-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.efactura-inbox-sync .small {
+    margin-right: 6px;
+}
+
+.efactura-unseen td {
+    font-weight: 600;
+}
+
+.efactura-message-text {
+    color: #78350f;
+}
+
+.efactura-message-actions form {
+    margin-bottom: 10px;
+}
+
+.efactura-notes {
+    padding-left: 18px;
+}

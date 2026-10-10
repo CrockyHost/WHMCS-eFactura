@@ -16,9 +16,12 @@ declare(strict_types=1);
 namespace WHMCS\Module\Addon\Efactura\Admin;
 
 use Throwable;
+use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Addon;
+use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
 use WHMCS\Module\Addon\Efactura\Fiscal\StornoException;
+use WHMCS\Module\Addon\Efactura\Inbox\InboxSync;
 use WHMCS\Module\Addon\Efactura\Numbering\EarlyIssueException;
 use WHMCS\Module\Addon\Efactura\Numbering\NumberingLock;
 use WHMCS\Module\Addon\Efactura\Queue\DocumentActions;
@@ -31,7 +34,7 @@ use WHMCS\Module\Addon\Efactura\Support\Money;
  */
 final class AdminActions
 {
-    public const ACTIONS = ['send_now', 'hold', 'release', 'issue_early', 'storno', 'check'];
+    public const ACTIONS = ['send_now', 'hold', 'release', 'issue_early', 'storno', 'check', 'inbox_sync', 'message_processed', 'message_unprocessed'];
 
     /**
      * @param array<string, mixed> $input the submitted form
@@ -45,6 +48,8 @@ final class AdminActions
                 'issue_early' => $this->issueEarly((int) ($input['invoice'] ?? 0), $adminId),
                 'storno' => $this->storno((int) ($input['invoice'] ?? 0), (string) ($input['net'] ?? ''), (string) ($input['tax'] ?? ''), $adminId),
                 'check' => $this->check((int) ($input['document'] ?? 0)),
+                'inbox_sync' => $this->inboxSync(),
+                'message_processed', 'message_unprocessed' => $this->messageProcessed((int) ($input['message'] ?? 0), $action === 'message_processed', $adminId),
                 default => self::result('danger', Lang::get('action_unknown')),
             };
         } catch (Throwable $e) {
@@ -119,6 +124,36 @@ final class AdminActions
             static fn (array $issue): string => $issue['message'],
             $result->issues
         ));
+    }
+
+    /**
+     * Reads the SPV inbox now (the cron does it every half hour).
+     */
+    private function inboxSync(): array
+    {
+        if (!Addon::connection()->status()['connected']) {
+            return self::result('warning', Lang::get('inbox_not_connected'));
+        }
+        $until = microtime(true) + 40;
+        $report = Addon::inbox()->run(static fn (): bool => microtime(true) < $until);
+        if ($report['error'] !== '') {
+            return self::result('warning', Lang::get('inbox_sync_failed', $report['error'] === 'busy' ? Lang::get('inbox_busy') : $report['error']));
+        }
+
+        return self::result('success', Lang::get('inbox_synced', $report['new'], $report['downloaded']));
+    }
+
+    private function messageProcessed(int $messageId, bool $processed, ?int $adminId): array
+    {
+        if (!Capsule::table(InboxSync::TABLE)->where('id', $messageId)->exists()) {
+            return self::result('danger', Lang::get('inbox_message_missing'));
+        }
+        Capsule::table(InboxSync::TABLE)->where('id', $messageId)->update([
+            'processed_at' => $processed ? Clock::now()->format('Y-m-d H:i:s') : null,
+            'processed_by' => $processed ? $adminId : null,
+        ]);
+
+        return self::result('success', Lang::get($processed ? 'inbox_marked_processed' : 'inbox_marked_unprocessed'));
     }
 
     /**

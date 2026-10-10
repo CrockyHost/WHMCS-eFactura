@@ -104,6 +104,39 @@ loc, verifică datele, retrimite după corectare, emite fiscal acum,
 stornare. Pagina notei de credit arată stornarea emisă din ea, iar paginile
 addonului au lista documentelor și istoricul fiecăruia.
 
+## SPV inbox
+
+Every 30 minutes, after the queue, the cron reads the e-Factura messages of
+the company CUI from ANAF (at most 30 seconds per run; the first time, the
+last 59 days, since ANAF keeps the messages 60 days):
+
+- **invoices received** from suppliers: downloaded, archived as the signed
+  ZIP of ANAF and shown with the supplier, number, date, total and lines;
+- **messages from buyers** about the invoices sent by the addon: downloaded,
+  linked to the fiscal document they are about, shown in the e-Factura panel
+  of the invoice, and e-mailed to the administrators;
+- the answers to the addon's own uploads (sent, errors): listed and linked to
+  their documents; the queue already archives their files.
+
+The inbox page (Addons > WHMCS-eFactura > SPV inbox) has filters, the
+messages not opened yet (also counted in the menu and on the dashboard) and a
+"processed" mark for the invoices booked. A file ANAF no longer keeps is
+marked as lost with the answer of ANAF.
+
+The general SPV messages (notices of the tax administration, not e-Factura)
+are not read: ANAF serves them only to a client authenticated with the
+qualified certificate, not to the OAuth token the addon uses.
+
+**Română:** la fiecare 30 de minute, cron-ul citește din SPV mesajele
+e-Factura ale CUI-ului firmei: facturile primite de la furnizori (descărcate,
+arhivate, afișate cu furnizor, număr, total și linii), mesajele
+cumpărătorilor despre facturile trimise (legate de documentul fiscal,
+afișate pe pagina facturii și trimise pe e-mail administratorilor) și
+răspunsurile la propriile încărcări. Pagina „Inbox SPV” are filtre,
+mesajele nedeschise și marcajul „procesat”. Mesajele generale din SPV (în
+afara e-Factura) nu sunt citite: ANAF le servește doar cu certificatul
+calificat, nu prin OAuth.
+
 ## Known issues
 
 - **ANAF answers `A aparut o eroare tehnica. Cod: 1814` to some uploads.**
@@ -147,6 +180,7 @@ tests that need them are skipped otherwise.
 php tests/concurrency.php --yes   # two simultaneous payments (creates and deletes test data)
 php tests/anaf-validate.php       # sends the fictive fixtures to the public ANAF validator
 php tests/anaf-live-queue.php --yes   # the queue against the ANAF test environment (a fictive individual, the seller as test buyer)
+php tests/anaf-live-inbox.php --yes   # reads the SPV inbox of the ANAF test environment (--cleanup forgets it)
 php tests/admin-demo.php --create     # fictive invoices for trying the admin pages (--cleanup removes them)
 ```
 

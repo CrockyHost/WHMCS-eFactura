@@ -34,6 +34,16 @@
         {if $document}
             {include file="_document.tpl" doc=$document main=true showLink=true}
 
+            {if $buyerMessages}
+                <h4 class="efactura-subtitle">{$lang.panel_buyer_messages}</h4>
+                {foreach $buyerMessages as $buyerMessage}
+                    <div class="efactura-note efactura-note-warning">
+                        <span class="text-muted small">{$buyerMessage.date}</span> {$buyerMessage.text}
+                        <a href="{$buyerMessage.url}" class="small">{$lang.btn_details}</a>
+                    </div>
+                {/foreach}
+            {/if}
+
             {if $stornos}
                 <h4 class="efactura-subtitle">{$lang.panel_stornos}</h4>
                 {foreach $stornos as $storno}

@@ -54,6 +54,7 @@ final class InvoicePanel
             'invoiceId' => $invoiceId,
             'document' => $fiscal ? $presenter->present($document) : null,
             'stornos' => [],
+            'buyerMessages' => $fiscal ? (new InboxPage($this->modulelink))->forDocument((int) $document->id) : [],
             'storno' => null,
             'proforma' => false,
             'canIssueEarly' => false,
