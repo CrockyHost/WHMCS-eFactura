@@ -146,6 +146,19 @@ return [
         Assert::same('unavailable', $down['body']['error']);
         Assert::true($down['body']['message'] !== '');
     },
+    'the IP limit uses the visitor IP from WHMCS, not the proxy address' => static function () use ($clean): void {
+        $clean();
+        Settings::save(['client_forms' => true]);
+        $token = (string) generate_token('plain');
+        [$max] = LookupLimiter::LIMITS['ip'];
+        for ($i = 0; $i < $max; $i++) {
+            LookupLimiter::allow(['ip' => '198.51.100.7']);
+        }
+        // Behind a proxy REMOTE_ADDR is the proxy; the limit follows the visitor IP.
+        $server = ['REQUEST_METHOD' => 'POST', 'REMOTE_ADDR' => '203.0.113.99'];
+        $limited = LookupEndpoint::process(['token' => $token, 'cui' => '50515950'], $server, new CompanyLookup(new FakeTransport()), '198.51.100.7');
+        Assert::same(429, $limited['status']);
+    },
     'the endpoint stops a visitor over the limit' => static function () use ($clean): void {
         $clean();
         Settings::save(['client_forms' => true]);

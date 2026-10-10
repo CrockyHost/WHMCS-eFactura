@@ -36,9 +36,10 @@ final class LookupEndpoint
     /**
      * @param array<string, mixed> $post
      * @param array<string, mixed> $server
+     * @param string|null $clientIp the visitor IP as WHMCS determines it; REMOTE_ADDR when null
      * @return array{status: int, body: array<string, mixed>, headers: array<string, string>}
      */
-    public static function process(array $post, array $server, ?CompanyLookup $lookup = null): array
+    public static function process(array $post, array $server, ?CompanyLookup $lookup = null, ?string $clientIp = null): array
     {
         $admin = ($post['scope'] ?? '') === 'admin';
         $adminId = $admin ? self::adminId() : null;
@@ -65,7 +66,7 @@ final class LookupEndpoint
 
         $keys = $admin
             ? ['admin' => (string) $adminId]
-            : ['ip' => (string) ($server['REMOTE_ADDR'] ?? ''), 'session' => (string) session_id()];
+            : ['ip' => $clientIp ?? (string) ($server['REMOTE_ADDR'] ?? ''), 'session' => (string) session_id()];
         if (!LookupLimiter::allow($keys)) {
             $result = self::error(429, 'rate_limited', $texts->get('cd_lookup_error_rate'));
             $result['headers']['Retry-After'] = '120';
@@ -92,7 +93,7 @@ final class LookupEndpoint
     public static function handle(): never
     {
         try {
-            $result = self::process($_POST, $_SERVER);
+            $result = self::process($_POST, $_SERVER, null, self::clientIp());
         } catch (Throwable $e) {
             if (function_exists('logActivity')) {
                 logActivity('WHMCS-eFactura company lookup error: ' . $e->getMessage());
@@ -112,6 +113,23 @@ final class LookupEndpoint
         }
         echo json_encode($result['body'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
+    }
+
+    /**
+     * The visitor IP as WHMCS determines it: behind Cloudflare or another
+     * proxy, WHMCS takes it from the proxy header of its settings (General
+     * Settings > Security: Proxy IP Header and Trusted Proxies). Without
+     * that, every visitor would share the proxy address and the per-IP limit.
+     */
+    private static function clientIp(): string
+    {
+        try {
+            $ip = (string) \WHMCS\Utility\Environment\CurrentRequest::getIP();
+        } catch (Throwable) {
+            $ip = '';
+        }
+
+        return $ip !== '' ? $ip : (string) ($_SERVER['REMOTE_ADDR'] ?? '');
     }
 
     /**
