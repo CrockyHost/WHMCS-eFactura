@@ -101,6 +101,7 @@ final class SettingsForm
         }
 
         $values['company_cui'] = Cui::normalize($values['company_cui']);
+        $values['company_phone'] = self::phone($values['company_phone'], (string) ($post['country-calling-code-company_phone'] ?? ''));
         $values['company_city'] = self::normalizeSector($values['company_city'], $values['company_county']);
         $values['iban_ron'] = Iban::normalize($values['iban_ron']);
         $values['iban_eur'] = Iban::normalize($values['iban_eur']);
@@ -224,6 +225,22 @@ final class SettingsForm
     /**
      * "Sector 3", "sectorul 3" or "S3" become SECTOR3 for Bucharest addresses.
      */
+    /**
+     * The number with the country code the WHMCS picker sends apart
+     * ("+40 750265179"); the 0 of the national number is dropped.
+     */
+    public static function phone(string $number, string $callingCode): string
+    {
+        $number = trim(preg_replace('/\s+/', ' ', $number) ?? '');
+        $code = preg_replace('/\D/', '', $callingCode) ?? '';
+        if ($number === '' || str_starts_with($number, '+') || $code === '') {
+            return $number;
+        }
+        $national = ltrim(preg_replace('/\D/', '', $number) ?? '', '0');
+
+        return $national === '' ? '' : '+' . $code . ' ' . $national;
+    }
+
     private static function normalizeSector(string $city, string $county): string
     {
         if ($county === Counties::BUCHAREST

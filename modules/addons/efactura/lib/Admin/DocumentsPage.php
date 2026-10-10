@@ -27,6 +27,7 @@ use WHMCS\Module\Addon\Efactura\Support\AdminContext;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Support\Money;
 use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
+use WHMCS\Module\Addon\Efactura\Support\WhmcsText;
 
 /**
  * The addon pages about documents: the filterable list, one document with
@@ -75,7 +76,9 @@ final class DocumentsPage
                 if (ctype_digit($search)) {
                     $where->orWhere('d.invoice_id', (int) $search)->orWhere('d.upload_index', $search);
                 }
-                $where->orWhere('c.companyname', 'like', '%' . addcslashes($search, '%_\\') . '%');
+                // WHMCS stores what its forms save escaped ("H&amp;M").
+                $where->orWhere('c.companyname', 'like', '%' . addcslashes($search, '%_\\') . '%')
+                    ->orWhere('c.companyname', 'like', '%' . addcslashes(WhmcsText::encode($search), '%_\\') . '%');
             });
         }
         $total = (clone $rows)->count();
@@ -91,7 +94,7 @@ final class DocumentsPage
                 'reasonLabel' => $row->kind === Document::KIND_STORNO ? Lang::get('storno_reason_' . $row->reason) : '',
                 'invoiceId' => (int) $row->invoice_id,
                 'clientId' => (int) $row->client_id,
-                'client' => trim((string) $row->companyname) !== '' ? (string) $row->companyname : trim($row->firstname . ' ' . $row->lastname),
+                'client' => self::clientName($row),
                 'issueDate' => DocumentPresenter::date((string) $row->issue_date),
                 'total' => $row->total !== null ? Money::format(Money::cents((string) $row->total)) . ' ' . $row->currency : '',
                 'stateLabel' => Lang::get('state_' . $row->state),
@@ -159,11 +162,21 @@ final class DocumentsPage
 
         return [
             'doc' => $presenter->present($document),
-            'client' => $client !== null ? (trim((string) $client->companyname) !== '' ? (string) $client->companyname : trim($client->firstname . ' ' . $client->lastname)) : '',
+            'client' => $client !== null ? self::clientName($client) : '',
             'clientId' => (int) $document->client_id,
             'related' => $related,
             'history' => $history,
         ];
+    }
+
+    /**
+     * The company, or the person, of a client row (unescaped).
+     */
+    private static function clientName(object $row): string
+    {
+        $company = trim(WhmcsText::decode($row->companyname));
+
+        return $company !== '' ? $company : trim(WhmcsText::decode($row->firstname) . ' ' . WhmcsText::decode($row->lastname));
     }
 
     /**

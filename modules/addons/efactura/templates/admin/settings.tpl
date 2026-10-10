@@ -31,7 +31,10 @@
                     <div class="form-group{if $field.error} has-error{/if}">
                         <label class="col-sm-4 col-md-3 control-label" for="{$field.id}">{$field.label}</label>
                         <div class="col-sm-8 col-md-6">
-                            {if $field.type == 'text'}
+                            {if $field.type == 'phone'}
+                                <input type="hidden" name="efactura_phone_country" value="RO">
+                                <input type="tel" class="form-control" id="{$field.id}" name="{$field.name}" value="{$field.value}"{if $field.maxlength} maxlength="{$field.maxlength}"{/if}>
+                            {elseif $field.type == 'text'}
                                 <input type="text" class="form-control" id="{$field.id}" name="{$field.name}" value="{$field.value}"{if $field.maxlength} maxlength="{$field.maxlength}"{/if}>
                             {elseif $field.type == 'checkbox'}
                                 <input type="hidden" name="{$field.name}" value="0">

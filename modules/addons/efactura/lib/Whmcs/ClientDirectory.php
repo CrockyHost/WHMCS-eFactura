@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace WHMCS\Module\Addon\Efactura\Whmcs;
 
 use WHMCS\Database\Capsule;
+use WHMCS\Module\Addon\Efactura\Support\WhmcsText;
 
 /**
  * Lookups of WHMCS client metadata used by the settings: client custom
@@ -35,7 +36,7 @@ final class ClientDirectory
             ->orderBy('id')
             ->get(['id', 'fieldname']);
         foreach ($rows as $row) {
-            $fields[(int) $row->id] = self::displayName((string) $row->fieldname);
+            $fields[(int) $row->id] = self::displayName(WhmcsText::decode($row->fieldname));
         }
 
         return $fields;
@@ -48,7 +49,7 @@ final class ClientDirectory
     {
         $groups = [];
         foreach (Capsule::table('tblclientgroups')->orderBy('groupname')->get(['id', 'groupname']) as $row) {
-            $groups[(int) $row->id] = (string) $row->groupname;
+            $groups[(int) $row->id] = WhmcsText::decode($row->groupname);
         }
 
         return $groups;

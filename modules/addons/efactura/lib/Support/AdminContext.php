@@ -54,9 +54,10 @@ final class AdminContext
         if ($admin === null) {
             return '#' . $adminId;
         }
-        $name = trim($admin->firstname . ' ' . $admin->lastname);
+        $name = trim(WhmcsText::decode($admin->firstname) . ' ' . WhmcsText::decode($admin->lastname));
+        $username = WhmcsText::decode($admin->username);
 
-        return $name !== '' ? $name . ' (' . $admin->username . ')' : (string) $admin->username;
+        return $name !== '' ? $name . ' (' . $username . ')' : $username;
     }
 
     /**

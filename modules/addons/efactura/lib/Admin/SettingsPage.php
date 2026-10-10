@@ -20,6 +20,7 @@ use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\Romania\Counties;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
+use WHMCS\Module\Addon\Efactura\Support\WhmcsText;
 use WHMCS\Module\Addon\Efactura\Ubl\PaymentMeans;
 use WHMCS\Module\Addon\Efactura\Ubl\PaymentMeansMapper;
 use WHMCS\Module\Addon\Efactura\Whmcs\ClientDirectory;
@@ -76,7 +77,7 @@ final class SettingsPage
                 $this->select('company_county', $counties),
                 $this->text('company_postcode', 20),
                 $this->text('company_contact_name', 100),
-                $this->text('company_phone', 100),
+                $this->phone('company_phone', 100),
                 $this->text('company_email', 100),
             ]),
             $this->section('section_bank', [
@@ -136,7 +137,7 @@ final class SettingsPage
             $rows[] = $this->note(
                 'client-field-' . $role,
                 Lang::get('client_field_role_' . $role),
-                Lang::get('client_field_value', (string) ($field->fieldname ?? ''), $id),
+                Lang::get('client_field_value', WhmcsText::decode($field->fieldname ?? ''), $id),
                 Lang::get('client_field_state', $yesNo((string) ($field->showorder ?? '')), $yesNo((string) ($field->showinvoice ?? '')))
             );
         }
@@ -216,6 +217,18 @@ final class SettingsPage
     /**
      * @return array<string, mixed>
      */
+    /**
+     * A telephone: WHMCS adds its country code picker to it (any input named
+     * "...phone"); the picker starts on Romania and finds the country of a
+     * number saved with its prefix.
+     *
+     * @return array<string, mixed>
+     */
+    private function phone(string $name, int $maxLength): array
+    {
+        return ['type' => 'phone'] + $this->text($name, $maxLength);
+    }
+
     private function text(string $name, int $maxLength, ?string $value = null): array
     {
         return $this->base('text', $name) + [

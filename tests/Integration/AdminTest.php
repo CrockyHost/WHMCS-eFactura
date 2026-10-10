@@ -196,6 +196,46 @@ return [
         Assert::true($queue['attention'] >= 1);
         Assert::same(1, $queue['pendingStornos']);
     }),
+    'names WHMCS stores escaped are shown and found once unescaped' => static fn () => $clean(static function () use ($setup, $paid): void {
+        $setup();
+        [, $document] = $paid();
+        // As the WHMCS forms save it.
+        Capsule::table('tblclients')->where('id', $document->client_id)->update(['companyname' => 'TEST &amp; PANOU &quot;SRL&quot;']);
+        Capsule::table('tbladmins')->where('id', 1)->update(['firstname' => 'Ana &amp; Co']);
+        $page = new DocumentsPage('addonmodules.php?module=efactura');
+        $found = $page->list(['q' => 'TEST & PANOU']);
+        Assert::same([(string) $document->number], array_column($found['documents'], 'number'), 'found by the name as typed');
+        Assert::same('TEST & PANOU "SRL"', $found['documents'][0]['client']);
+        Assert::same('TEST & PANOU "SRL"', $page->detail((int) $document->id)['client']);
+        Assert::true(str_starts_with(\WHMCS\Module\Addon\Efactura\Support\AdminContext::name(1), 'Ana & Co'));
+
+        $_GET = ['module' => 'efactura', 'view' => 'documents'];
+        ob_start();
+        (new AdminController(['modulelink' => 'addonmodules.php?module=efactura']))->handle();
+        $html = (string) ob_get_clean();
+        Assert::true(str_contains($html, 'TEST &amp; PANOU &quot;SRL&quot;'), 'escaped once in the page');
+        Assert::false(str_contains($html, '&amp;amp;'), 'never twice');
+    }),
+    'the seller phone keeps the country code the WHMCS picker sends apart' => static fn () => $clean(static function () use ($setup, $paid): void {
+        $setup();
+        $form = new \WHMCS\Module\Addon\Efactura\Admin\SettingsForm(new \WHMCS\Module\Addon\Efactura\Whmcs\ClientDirectory());
+        // The picker on Romania (+40), the number as typed.
+        $values = $form->read(['company_phone' => '0750 265 179', 'country-calling-code-company_phone' => '40']);
+        Assert::same('+40 750265179', $values['company_phone']);
+        Assert::same('+40 750265179', \WHMCS\Module\Addon\Efactura\Admin\SettingsForm::phone('+40 750265179', '40'), 'saved again unchanged');
+        Settings::save(['company_phone' => $values['company_phone']]);
+
+        $_GET = ['module' => 'efactura', 'view' => 'settings'];
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        ob_start();
+        (new AdminController(['modulelink' => 'addonmodules.php?module=efactura']))->handle();
+        $html = (string) ob_get_clean();
+        Assert::true(str_contains($html, 'name="efactura_phone_country" value="RO"'), 'the picker starts on Romania');
+        Assert::true(preg_match('/<input type="tel"[^>]*name="company_phone" value="\+40 750265179"/', $html) === 1, 'shown with its prefix');
+
+        [, $document] = $paid();
+        Assert::true(str_contains((string) Addon::documentBuilder()->build($document)->xml, '<cbc:Telephone>+40 750265179</cbc:Telephone>'), 'BT-42');
+    }),
     'the request input is read as it was sent, not as WHMCS escaped it' => static function (): void {
         Assert::same(
             ['return' => 'invoices.php?action=edit&id=5', 'name' => 'A & B "C" \'D\' <E>', 'list' => ['x&y'], 'n' => 3],
