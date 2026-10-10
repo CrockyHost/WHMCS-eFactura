@@ -61,10 +61,17 @@ final class Worker
     private const BREAKER_THRESHOLD = 5;
     private const INVALID_RETRY_MINUTES = 15;
     private const UNKNOWN_FIRST_CHECK_MINUTES = 20;
+    /** Share of the memory left under memory_limit that one run may use. */
+    private const MEMORY_SHARE = 0.5;
+    /** Memory for one run when PHP has no memory_limit. */
+    private const MEMORY_UNLIMITED = 64 * 1024 * 1024;
+
+    private static ?int $memoryOverride = null;
 
     /** @var array<string, int> */
     private array $report = [];
     private float $deadline = 0.0;
+    private int $memoryCeiling = PHP_INT_MAX;
     private Closure $pause;
 
     public function __construct(
@@ -97,12 +104,13 @@ final class Worker
             return ['busy' => 1];
         }
         $this->deadline = microtime(true) + $budgetSeconds;
+        $this->memoryCeiling = memory_get_usage() + (self::$memoryOverride ?? self::memoryAllowance());
         try {
             if ($this->apiUsable()) {
                 $this->sendDue($only);
                 $this->checkStatus($only);
                 $this->downloadAnswers($only);
-                if ($this->reconciler !== null && $this->timeLeft()) {
+                if ($this->reconciler !== null && $this->hasBudget()) {
                     $this->report['reconciled'] += $this->reconciler->run($this, $only);
                 }
             }
@@ -167,7 +175,47 @@ final class Worker
      */
     public function canUpload(): bool
     {
-        return $this->timeLeft() && !$this->breakerOpen() && !$this->authPaused();
+        return $this->hasBudget() && !$this->breakerOpen() && !$this->authPaused();
+    }
+
+    /**
+     * Whether the run still has time and memory; it stops at the first item
+     * that would go over, and the next run goes on from there.
+     */
+    public function hasBudget(): bool
+    {
+        if (memory_get_usage() >= $this->memoryCeiling) {
+            $this->report['memory_stop'] = 1;
+
+            return false;
+        }
+
+        return $this->timeLeft();
+    }
+
+    /**
+     * Tests: the memory one run may use, in bytes (null for the default).
+     */
+    public static function overrideMemoryAllowance(?int $bytes): void
+    {
+        self::$memoryOverride = $bytes;
+    }
+
+    private static function memoryAllowance(): int
+    {
+        $limit = trim((string) ini_get('memory_limit'));
+        if ($limit === '' || $limit === '-1') {
+            return self::MEMORY_UNLIMITED;
+        }
+        $bytes = (int) $limit;
+        $bytes *= match (strtoupper(substr($limit, -1))) {
+            'G' => 1024 ** 3,
+            'M' => 1024 ** 2,
+            'K' => 1024,
+            default => 1,
+        };
+
+        return max(0, (int) (($bytes - memory_get_usage()) * self::MEMORY_SHARE));
     }
 
     /**
@@ -632,7 +680,7 @@ final class Worker
      */
     private function select(?array $only): \Illuminate\Database\Query\Builder
     {
-        $query = Capsule::table(Document::TABLE);
+        $query = Capsule::table(Document::TABLE)->select(DocumentRepository::listColumns());
         if ($only !== null) {
             $query->whereIn('id', $only === [] ? [0] : $only);
         }

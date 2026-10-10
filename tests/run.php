@@ -36,6 +36,7 @@ require __DIR__ . '/Assert.php';
 require __DIR__ . '/FakeTransport.php';
 require __DIR__ . '/AnafSimulator.php';
 require __DIR__ . '/DevValidators.php';
+require __DIR__ . '/SuiteLock.php';
 
 $suite = $argv[1] ?? 'unit';
 $filter = $argv[2] ?? '';
@@ -51,6 +52,7 @@ foreach ($suites as $name) {
     if ($name === 'Integration' && $files !== []) {
         // WHMCS expects to be booted from the global scope.
         require_once dirname(__DIR__) . '/init.php';
+        efactura_suite_lock();
     }
 
     foreach ($files as $file) {

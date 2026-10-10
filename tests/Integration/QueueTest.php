@@ -434,6 +434,56 @@ return [
         Assert::same(1, $monitor->run([(int) $doc->id]));
         Assert::same(2, (int) $reload($doc)->processing_alert);
     }),
+    'a run stops when it reaches its memory allowance' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload): void {
+        $setup();
+        $anaf = new AnafSimulator();
+        $first = $document();
+        $second = $document();
+        Worker::overrideMemoryAllowance(0);
+        try {
+            $report = $worker($anaf)->run(30, [(int) $first->id, (int) $second->id]);
+        } finally {
+            Worker::overrideMemoryAllowance(null);
+        }
+        Assert::same(1, $report['memory_stop'] ?? 0);
+        Assert::same([], $anaf->calls(), 'nothing is started over the allowance');
+        Assert::same(Document::STATE_SCHEDULED, $reload($first)->state);
+        $worker($anaf)->run(30, [(int) $first->id, (int) $second->id]);
+        Assert::same(['upload', 'upload'], $anaf->calls(), 'the next run goes on');
+    }),
+    'the worker does not grow in memory over a day of runs, technical errors included' => static fn () => $clean(static function () use ($setup, $document, $reload, $travel): void {
+        $setup();
+        $anaf = new AnafSimulator();
+        // A third of the uploads get the intermittent technical error.
+        $anaf->uploadModes = ['technical', 'accept', 'accept', 'technical', 'accept', 'accept', 'technical', 'technical'];
+        $ids = [];
+        for ($i = 0; $i < 6; $i++) {
+            $ids[] = (int) $document()->id;
+        }
+        $connection = new Connection(new OAuthClient(new FakeTransport()));
+        $api = new ApiClient($anaf, $connection, 'test');
+        $state = new RuntimeState();
+        $worker = new Worker($api, $connection, Addon::documentBuilder(), Addon::documents(), $state, new Reconciler($api, Addon::documents(), $state), new DeadlineMonitor(), static function (): void {
+        });
+        $baseline = 0;
+        // 24 hours, one run every 10 minutes.
+        for ($run = 1; $run <= 144; $run++) {
+            $worker->run(30, $ids);
+            $anaf->requests = [];
+            if ($run === 12) {
+                gc_collect_cycles();
+                $baseline = memory_get_usage();
+            }
+            $travel('+10 minutes');
+        }
+        gc_collect_cycles();
+        $growth = memory_get_usage() - $baseline;
+        Assert::true($growth < 1024 * 1024, sprintf('memory grew by %.2f MB over 132 runs', $growth / 1048576));
+        foreach ($ids as $id) {
+            Assert::same(Document::STATE_VALIDATED, Addon::documents()->find($id)->state, 'document ' . $id);
+            Assert::true(Addon::documents()->find($id)->archive_id > 0, 'archived ' . $id);
+        }
+    }),
     'admin actions: hold, release, send now' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload): void {
         $setup(['send_delay_days' => 3]);
         $anaf = new AnafSimulator();

@@ -56,6 +56,22 @@ arhivarea răspunsului semnat, reconcilierea încărcărilor fără răspuns și
 alertele de termen). Opțional, `cron/worker.php` poate rula separat, de
 exemplu la fiecare minut.
 
+## Known issues
+
+- **ANAF answers `A aparut o eroare tehnica. Cod: 1814` to some uploads.**
+  On the ANAF test environment, on 2026-10-09, about half of the uploads got
+  this answer for a while, whatever their content. These uploads did not
+  appear in the ANAF message lists, and the same file was accepted when sent
+  again. The addon treats the answer as uncertain: after 20 minutes it looks
+  for the file in the list of sent invoices, and if it is not there it sends
+  exactly the same bytes again one hour after the first attempt. When the
+  error repeats, the administrators get an e-mail.
+
+**Română:** ANAF răspunde la unele încărcări cu `A aparut o eroare tehnica.
+Cod: 1814` (pe mediul de test, intermitent, la 9.10.2026). Addonul caută
+fișierul în lista facturilor trimise și, dacă nu e acolo, retrimite aceiași
+octeți după o oră; dacă eroarea se repetă, administratorii primesc un e-mail.
+
 ## Development
 
 The repository root is the root of a local WHMCS 9 installation; only the

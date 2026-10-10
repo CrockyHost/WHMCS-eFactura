@@ -65,6 +65,8 @@ final class Reconciler
     private const WINDOW_END_SECONDS = 60;
     private const MAX_PAGES = 20;
     private const BATCH = 20;
+    /** ZIPs downloaded per run to read their key; the others wait for the next run. */
+    private const MAX_DOWNLOADS = 50;
     /** Messages already downloaded and their invoice key, by upload index. */
     private const SEEN = 'reconcile_seen';
 
@@ -84,6 +86,7 @@ final class Reconciler
         $this->recoverStuck($only);
         $now = Clock::now();
         $query = Capsule::table(Document::TABLE)
+            ->select(DocumentRepository::listColumns())
             ->where('state', Document::STATE_UNKNOWN)
             ->where('next_attempt_at', '<=', $now->format('Y-m-d H:i:s'));
         if ($only !== null) {
@@ -96,7 +99,7 @@ final class Reconciler
 
         $start = Clock::parse((string) $due->min('upload_started_at'))->modify('-' . self::WINDOW_BEFORE_MINUTES . ' minutes');
         try {
-            $sent = $this->sentInvoices($start, $now);
+            $sent = $this->sentInvoices($worker, $start, $now, $due->all());
         } catch (OAuthException | RuntimeException $e) {
             foreach ($due as $document) {
                 $this->documents->update((int) $document->id, [
@@ -172,6 +175,7 @@ final class Reconciler
     {
         $limit = Clock::now()->modify('-' . self::STUCK_MINUTES . ' minutes')->format('Y-m-d H:i:s');
         $query = Capsule::table(Document::TABLE)
+            ->select(DocumentRepository::listColumns())
             ->where('state', Document::STATE_SENDING)
             ->where('upload_started_at', '<', $limit)
             ->where(static function ($query) use ($limit): void {
@@ -191,11 +195,13 @@ final class Reconciler
 
     /**
      * The invoices sent for the seller CUI since $start that are not linked to
-     * a document yet, with the key read from their ZIP.
+     * a document yet, with the key read from their ZIP. A ZIP is kept in
+     * memory only when it matches one of the documents due, for the archive.
      *
+     * @param list<object> $due
      * @return array<string, array{number: string, date: string, seller: string, total: string, sha256: string, download_id: string, zip: string|null}>
      */
-    private function sentInvoices(DateTimeImmutable $start, DateTimeImmutable $now): array
+    private function sentInvoices(Worker $worker, DateTimeImmutable $start, DateTimeImmutable $now, array $due): array
     {
         $cui = Cui::normalize(Settings::string('company_cui'));
         $start = max($start, $now->modify('-59 days'));
@@ -227,6 +233,7 @@ final class Reconciler
         );
         $seen = $this->seen($now);
         $sent = [];
+        $downloads = 0;
         foreach ($messages as $index => $downloadId) {
             $index = (string) $index;
             if (in_array($index, $known, true)) {
@@ -236,6 +243,10 @@ final class Reconciler
                 $sent[$index] = $seen[$index] + ['download_id' => $downloadId, 'zip' => null];
                 continue;
             }
+            if ($downloads >= self::MAX_DOWNLOADS || !$worker->hasBudget()) {
+                continue;
+            }
+            $downloads++;
             $download = ResponseParser::download($this->api->download($downloadId));
             if ($download->kind !== Outcome::ZIP) {
                 continue;
@@ -249,7 +260,8 @@ final class Reconciler
                 continue;
             }
             $seen[$index] = $key + ['at' => $now->format('Y-m-d')];
-            $sent[$index] = $key + ['download_id' => $downloadId, 'zip' => $download->body];
+            $wanted = array_filter($due, static fn (object $document): bool => self::matches($key, $document)) !== [];
+            $sent[$index] = $key + ['download_id' => $downloadId, 'zip' => $wanted ? $download->body : null];
         }
         $this->state->set(self::SEEN, $seen);
 
@@ -274,7 +286,9 @@ final class Reconciler
         if (!$adopted) {
             return;
         }
-        $this->documents->archive($document, 'xml_sent', $document->number . '.xml', 'application/xml', (string) $document->xml, $index);
+        // The rows of the run have no XML.
+        $xml = (string) $this->documents->find((int) $document->id)?->xml;
+        $this->documents->archive($document, 'xml_sent', $document->number . '.xml', 'application/xml', $xml, $index);
         if ($message['zip'] !== null) {
             $archiveId = $this->documents->archive($document, 'anaf_zip', $message['download_id'] . '.zip', 'application/zip', $message['zip'], $index, $message['download_id']);
             $this->documents->update((int) $document->id, ['archive_id' => $archiveId, 'next_attempt_at' => null]);

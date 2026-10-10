@@ -28,6 +28,20 @@ final class DocumentRepository
     /** A claim older than this is considered abandoned (crashed worker). */
     private const CLAIM_MINUTES = 15;
 
+    /** @var list<string>|null */
+    private static ?array $listColumns = null;
+
+    /**
+     * Every column except the XML, for queries that read many documents:
+     * the XML is loaded only for the one being uploaded (find, claim).
+     *
+     * @return list<string>
+     */
+    public static function listColumns(): array
+    {
+        return self::$listColumns ??= array_values(array_diff(Capsule::schema()->getColumnListing(Document::TABLE), ['xml']));
+    }
+
     public function forInvoice(int $invoiceId): ?object
     {
         return Capsule::table(Document::TABLE)->where('dedupe_key', Document::invoiceKey($invoiceId))->first();

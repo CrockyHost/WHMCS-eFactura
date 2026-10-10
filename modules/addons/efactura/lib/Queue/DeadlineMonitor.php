@@ -19,6 +19,7 @@ use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
+use WHMCS\Module\Addon\Efactura\Fiscal\DocumentRepository;
 use WHMCS\Module\Addon\Efactura\Fiscal\WorkingDays;
 use WHMCS\Module\Addon\Efactura\Support\AdminContext;
 use WHMCS\Module\Addon\Efactura\Support\AdminNotifier;
@@ -178,7 +179,7 @@ final class DeadlineMonitor
      */
     private function select(?array $only): \Illuminate\Database\Query\Builder
     {
-        $query = Capsule::table(Document::TABLE);
+        $query = Capsule::table(Document::TABLE)->select(DocumentRepository::listColumns());
         if ($only !== null) {
             $query->whereIn('id', $only === [] ? [0] : $only);
         }

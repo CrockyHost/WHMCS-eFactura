@@ -42,6 +42,7 @@ if (PHP_SAPI !== 'cli') {
 
 require dirname(__DIR__) . '/init.php';
 require_once dirname(__DIR__) . '/modules/addons/efactura/bootstrap.php';
+require __DIR__ . '/SuiteLock.php';
 // WHMCS sets a time limit when it boots; ANAF may take minutes.
 set_time_limit(0);
 
@@ -109,6 +110,7 @@ if (!in_array('--yes', $argv, true)) {
 if ($state->get(LIVE_STATE) !== null) {
     exit("A previous run did not finish: run with --cleanup first.\n");
 }
+efactura_suite_lock();
 if (Settings::environment() !== Settings::ENV_TEST || !str_contains(ApiClient::baseUrl(Settings::environment()), '/test/')) {
     exit("Refusing: the addon is not in the ANAF test environment.\n");
 }

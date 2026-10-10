@@ -37,6 +37,7 @@ if (PHP_SAPI !== 'cli') {
 
 require dirname(__DIR__) . '/init.php';
 require_once dirname(__DIR__) . '/modules/addons/efactura/bootstrap.php';
+require __DIR__ . '/SuiteLock.php';
 
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Addon;
@@ -66,6 +67,7 @@ if (($argv[1] ?? '') === 'child') {
 if (!in_array('--yes', $argv, true)) {
     exit("Creates and deletes test data in the local WHMCS database. Run with --yes.\n");
 }
+efactura_suite_lock();
 if (Settings::environment() !== Settings::ENV_TEST) {
     exit("Refusing: the addon is not in the ANAF test environment.\n");
 }
