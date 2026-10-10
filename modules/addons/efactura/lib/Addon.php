@@ -45,7 +45,7 @@ final class Addon
 {
     public const MODULE = 'efactura';
     public const NAME = 'WHMCS-eFactura';
-    public const VERSION = '0.6.0';
+    public const VERSION = '0.7.0';
     public const SOURCE_URL = 'https://github.com/CrockyHost/WHMCS-eFactura';
 
     /**

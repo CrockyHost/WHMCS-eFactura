@@ -76,6 +76,28 @@ stornare în aceeași serie (totală, a restului sau parțială, după nota de
 credit WHMCS); anularea unei proforme nu emite nimic. Opțional,
 `cron/worker.php` poate rula separat, de exemplu la fiecare minut.
 
+## Admin area
+
+- **Invoice page:** an e-Factura panel shows the fiscal document of the
+  invoice (state, send time, legal deadline, ANAF upload index and answer,
+  errors), its files (the XML sent, the signed ZIP of ANAF or its errors) and
+  its stornos. From there an admin sends a document now, holds or releases
+  it, checks it against the current client data, sends a rejected one again
+  after correcting the data, issues a proforma as a fiscal invoice before
+  payment, or issues a storno of the whole invoice or of a part.
+- **Credit note page:** the storno issued from the credit note.
+- **Addon pages** (Addons > WHMCS-eFactura): the configuration checks and the
+  state of the queue, the list of documents with filters, and the page of
+  each document with its history.
+
+The panels follow the addon access set in Configuration > Addon Modules.
+
+**Română:** pe pagina facturii apare un panou e-Factura (stare, termen,
+index ANAF, erori, fișiere, stornări) cu acțiunile: trimite acum, ține pe
+loc, verifică datele, retrimite după corectare, emite fiscal acum,
+stornare. Pagina notei de credit arată stornarea emisă din ea, iar paginile
+addonului au lista documentelor și istoricul fiecăruia.
+
 ## Known issues
 
 - **ANAF answers `A aparut o eroare tehnica. Cod: 1814` to some uploads.**
@@ -119,6 +141,7 @@ tests that need them are skipped otherwise.
 php tests/concurrency.php --yes   # two simultaneous payments (creates and deletes test data)
 php tests/anaf-validate.php       # sends the fictive fixtures to the public ANAF validator
 php tests/anaf-live-queue.php --yes   # the queue against the ANAF test environment, fictive clients
+php tests/admin-demo.php --create     # fictive invoices for trying the admin pages (--cleanup removes them)
 ```
 
 `tests/fixtures/ubl/` holds the reviewed XML of each scenario, with fictive

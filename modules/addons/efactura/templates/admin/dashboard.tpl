@@ -52,17 +52,43 @@
     <div class="col-md-4">
         <div class="panel panel-default">
             <div class="panel-heading">
+                <h3 class="panel-title">{$lang.queue_title}</h3>
+            </div>
+            <ul class="list-group efactura-queue">
+                <li class="list-group-item{if $queue.workerLate} list-group-item-warning{/if}">
+                    {$lang.queue_last_run} <strong>{if $queue.lastRun}{$queue.lastRun}{else}{$lang.queue_never}{/if}</strong>
+                    {if $queue.workerLate}<div class="small">{$lang.queue_worker_late}</div>{/if}
+                </li>
+                {if $queue.breakerUntil}
+                    <li class="list-group-item list-group-item-warning">{$lang.queue_breaker} <strong>{$queue.breakerUntil}</strong></li>
+                {/if}
+                {if $queue.authPausedUntil}
+                    <li class="list-group-item list-group-item-danger">{$lang.queue_auth_paused} <strong>{$queue.authPausedUntil}</strong></li>
+                {/if}
+                {if $queue.pendingStornos}
+                    <li class="list-group-item list-group-item-warning"><span class="badge">{$queue.pendingStornos}</span>{$lang.queue_pending_stornos}</li>
+                {/if}
+                <li class="list-group-item{if $queue.nearDeadline} list-group-item-danger{/if}">
+                    <span class="badge">{$queue.nearDeadline}</span>{$lang.queue_near_deadline}
+                </li>
+                <li class="list-group-item{if $queue.attention} list-group-item-warning{/if}">
+                    <span class="badge">{$queue.attention}</span><a href="{$queue.attentionUrl}">{$lang.queue_attention}</a>
+                </li>
+            </ul>
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-heading">
                 <h3 class="panel-title">{$lang.documents_title}</h3>
             </div>
             {if $states}
-                <ul class="list-group">
+                <div class="list-group">
                     {foreach $states as $state}
-                        <li class="list-group-item">
+                        <a class="list-group-item" href="{$state.url}">
                             <span class="badge">{$state.total}</span>
                             {$state.label}
-                        </li>
+                        </a>
                     {/foreach}
-                </ul>
+                </div>
             {else}
                 <div class="panel-body text-muted">{$lang.documents_none}</div>
             {/if}

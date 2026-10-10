@@ -20,6 +20,7 @@ if (!defined('WHMCS')) {
 require_once __DIR__ . '/bootstrap.php';
 
 use WHMCS\Module\Addon\Efactura\ClientData\ClientDataHooks;
+use WHMCS\Module\Addon\Efactura\Hooks\AdminHooks;
 use WHMCS\Module\Addon\Efactura\Hooks\CronHooks;
 use WHMCS\Module\Addon\Efactura\Hooks\InvoiceHooks;
 
@@ -66,6 +67,14 @@ add_hook('DailyCronJob', 10, static function (): void {
 // The e-Factura queue, after every run of the system cron.
 add_hook('AfterCronJob', 10, static function (): void {
     CronHooks::afterCron();
+});
+
+// The e-Factura panel on the admin invoice page, and on the credit note page.
+add_hook('AdminInvoicesControlsOutput', 10, static function (array $vars): string {
+    return AdminHooks::invoiceControls($vars);
+});
+add_hook('AdminAreaFooterOutput', 10, static function (array $vars): string {
+    return AdminHooks::footer($vars);
 });
 
 // Client forms for Romanian clients (county, sector): registration, checkout,

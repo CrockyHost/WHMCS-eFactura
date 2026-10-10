@@ -153,9 +153,217 @@
     margin: 0 0 4px;
 }
 
+/* Fiscal documents: the invoice panel, the document page. */
+
+/* The invoice page centres the column the panel sits in. */
+.efactura-panel {
+    margin-top: 15px;
+    text-align: left;
+}
+
+.efactura-panel .panel-title .label {
+    margin-left: 6px;
+    font-size: 10px;
+    vertical-align: middle;
+}
+
+.efactura-doc + .efactura-doc,
+.efactura-subtitle + .efactura-doc {
+    margin-top: 12px;
+}
+
+.efactura-doc-storno {
+    padding: 10px 12px;
+    border-left: 3px solid #e5e7eb;
+    background: #fafafa;
+}
+
+.efactura-doc-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.efactura-doc-number {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.efactura-doc-reason {
+    color: #6b7280;
+}
+
+.efactura-doc-head .label {
+    font-size: 11px;
+}
+
+.efactura-doc-link {
+    margin-left: auto;
+    font-size: 12px;
+}
+
+.efactura-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 3px 14px;
+    margin: 0 0 10px;
+}
+
+.efactura-facts dt {
+    color: #6b7280;
+    font-weight: normal;
+}
+
+.efactura-facts dd {
+    margin: 0;
+    word-break: break-word;
+}
+
+.efactura-note {
+    margin: 8px 0;
+    padding: 7px 10px;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.efactura-note ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+}
+
+.efactura-note-info {
+    background: #eff6ff;
+    color: #1e3a8a;
+}
+
+.efactura-note-warning {
+    background: #fffbeb;
+    color: #78350f;
+}
+
+.efactura-note-danger {
+    background: #fef2f2;
+    color: #7f1d1d;
+}
+
+.efactura-files {
+    margin: 8px 0;
+    padding: 0;
+    list-style: none;
+}
+
+.efactura-files li {
+    margin: 2px 0;
+}
+
+.efactura-files .text-muted {
+    margin-left: 6px;
+    font-size: 12px;
+}
+
+.efactura-doc .efactura-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 10px 0 0;
+}
+
+.efactura-doc .efactura-actions form {
+    margin: 0;
+}
+
+.efactura-main-action {
+    font-weight: 600;
+    padding-left: 18px;
+    padding-right: 18px;
+}
+
+.efactura-subtitle {
+    margin: 20px 0 8px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.efactura-storno {
+    margin-top: 16px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.efactura-storno form {
+    margin-top: 8px;
+}
+
+.efactura-storno .form-group {
+    margin-right: 8px;
+}
+
+.efactura-muted {
+    margin: 0 0 10px;
+    color: #4b5563;
+}
+
+.efactura-flash ul {
+    margin: 6px 0 0;
+}
+
+/* Documents list and document page. */
+
+.efactura-filters {
+    margin-bottom: 14px;
+}
+
+.efactura-filters .form-group {
+    margin-right: 10px;
+}
+
+.efactura-filters label {
+    margin-right: 4px;
+    font-weight: normal;
+    color: #6b7280;
+}
+
+.efactura-count {
+    margin-left: 10px;
+}
+
+.efactura-table td {
+    vertical-align: middle !important;
+}
+
+.efactura-history {
+    max-height: 640px;
+    overflow-y: auto;
+}
+
+.efactura-history-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.efactura-history-message {
+    word-break: break-word;
+}
+
+.efactura-queue .list-group-item .small {
+    margin-top: 4px;
+}
+
 @media (max-width: 767px) {
     .efactura-badges {
         position: static;
         margin-bottom: 8px;
+    }
+
+    .efactura-facts {
+        grid-template-columns: 1fr;
+    }
+
+    .efactura-doc-link {
+        margin-left: 0;
     }
 }

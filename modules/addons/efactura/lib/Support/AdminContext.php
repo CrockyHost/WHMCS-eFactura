@@ -29,6 +29,22 @@ final class AdminContext
         return $id > 0 ? $id : null;
     }
 
+    /**
+     * Whether the current admin may use the addon: the role is in its access
+     * list (Configuration > Addon Modules), as WHMCS checks for its pages.
+     */
+    public static function canUseAddon(): bool
+    {
+        $adminId = self::id();
+        if ($adminId === null) {
+            return false;
+        }
+        $role = (int) Capsule::table('tbladmins')->where('id', $adminId)->value('roleid');
+        $access = (string) Capsule::table('tbladdonmodules')->where('module', 'efactura')->where('setting', 'access')->value('value');
+
+        return $role > 0 && in_array((string) $role, array_map('trim', explode(',', $access)), true);
+    }
+
     public static function name(?int $adminId): string
     {
         if ($adminId === null || $adminId <= 0) {

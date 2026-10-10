@@ -33,8 +33,22 @@ final class View
         $smarty = new \WHMCS\Smarty(true);
         $smarty->escape_html = true;
         $smarty->setTemplateDir(Addon::path('templates/' . $folder));
-        $smarty->assign($vars);
+        $smarty->assign($vars + ['assetVersion' => self::assetVersion()]);
 
         return (string) $smarty->fetch($template . '.tpl');
+    }
+
+    /**
+     * Changes with the CSS and JS files, so that browsers load them again
+     * after an update.
+     */
+    private static function assetVersion(): string
+    {
+        $stamp = '';
+        foreach (['assets/admin.css', 'assets/admin.js'] as $file) {
+            $stamp .= (string) @filemtime(Addon::path($file));
+        }
+
+        return Addon::VERSION . '-' . substr(md5($stamp), 0, 8);
     }
 }
