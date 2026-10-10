@@ -18,6 +18,7 @@ namespace WHMCS\Module\Addon\Efactura\ClientData;
 use RuntimeException;
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Database\Lock;
+use WHMCS\Module\Addon\Efactura\Settings\Settings;
 
 /**
  * The client custom fields the addon owns: CUI, trade register number and
@@ -34,7 +35,8 @@ final class ClientFields
 
     /**
      * role => name, description (English, the base WHMCS values), the same
-     * in Romanian, shown on invoices.
+     * in Romanian, shown on invoices (for the CUI: the client_cui_on_invoice
+     * setting decides).
      */
     public const DEFINITIONS = [
         'cui' => [
@@ -151,6 +153,26 @@ final class ClientFields
     }
 
     /**
+     * Turns "Show on Invoice" of the CUI field on or off, as the
+     * client_cui_on_invoice setting says (after the setting is saved).
+     */
+    public static function applyInvoiceSetting(): void
+    {
+        if (!Capsule::schema()->hasTable(self::TABLE)) {
+            return;
+        }
+        Capsule::table('tblcustomfields')->where('id', self::id('cui'))->update([
+            'showinvoice' => self::onInvoice('cui') ? 'on' : '',
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    private static function onInvoice(string $role): bool
+    {
+        return $role === 'cui' ? Settings::bool('client_cui_on_invoice') : (bool) self::DEFINITIONS[$role]['invoice'];
+    }
+
+    /**
      * The name of a field as WHMCS shows it to the administrator.
      */
     public static function label(string $role): string
@@ -217,7 +239,7 @@ final class ClientFields
             'adminonly' => '',
             'required' => '',
             'showorder' => 'on',
-            'showinvoice' => $definition['invoice'] ? 'on' : '',
+            'showinvoice' => self::onInvoice($role) ? 'on' : '',
             'sortorder' => $order + 1,
             'created_at' => $now,
             'updated_at' => $now,

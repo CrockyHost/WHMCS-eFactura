@@ -16,7 +16,6 @@ declare(strict_types=1);
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Admin\SettingsForm;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientValidation;
-use WHMCS\Module\Addon\Efactura\ClientData\ClientFieldImport;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientSummary;
 use WHMCS\Module\Addon\Efactura\ClientData\FormContext;
@@ -173,77 +172,22 @@ return [
         Assert::same('CNP (Romanian personal code)', (string) Capsule::table('tblcustomfields')->where('id', $again['cnp'])->value('fieldname'));
         ClientFields::reset();
     },
-    'the one-time import copies old values, routes old CNPs and keeps the old field' => static function () use ($fakeClient, $setFields): void {
-        $now = date('Y-m-d H:i:s');
-        $old = static fn (string $name): int => (int) Capsule::table('tblcustomfields')->insertGetId([
-            'type' => 'client', 'relid' => 0, 'fieldname' => $name, 'fieldtype' => 'text', 'description' => '',
-            'fieldoptions' => '', 'regexpr' => '', 'adminonly' => '', 'required' => '', 'showorder' => 'on', 'showinvoice' => 'on',
-            'sortorder' => 0, 'created_at' => $now, 'updated_at' => $now,
-        ]);
-        $oldCui = $old('Registration Number (test)');
-        $owned = ClientFields::ids();
+    'the CUI is shown on invoices as the setting says, also when the field is created again' => static function (): void {
+        $showInvoice = static fn (): string => (string) Capsule::table('tblcustomfields')->where('id', ClientFields::id('cui'))->value('showinvoice');
+        Settings::save(['client_cui_on_invoice' => false]);
+        Assert::same('', $showInvoice());
+        Settings::save(['client_cui_on_invoice' => true]);
+        Assert::same('on', $showInvoice());
 
-        $company = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'A SRL']);
-        $person = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova']);
-        $bad = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'B SRL']);
-        $conflict = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'C SRL']);
-        $foreign = $fakeClient(['country' => 'KZ', 'state' => 'Almaty', 'city' => 'Almaty', 'companyname' => 'D LLP']);
-        $setFields($company, ['cui' => $oldCui], ['cui' => 'RO 50515950']);
-        $setFields($person, ['cui' => $oldCui], ['cui' => '1960131410041']);
-        $setFields($bad, ['cui' => $oldCui], ['cui' => '1960131410041']);
-        $setFields($conflict, ['cui' => $oldCui], ['cui' => '14399840']);
-        $setFields($conflict, $owned, ['cui' => '27751700']);
-        $setFields($foreign, ['cui' => $oldCui], ['cui' => '123456789012']);
+        Settings::save(['client_cui_on_invoice' => false]);
+        Capsule::table('tblcustomfields')->where('id', ClientFields::id('cui'))->delete();
+        ClientFields::reset();
+        Assert::same('', $showInvoice());
+        ClientFields::reset();
 
-        // The old mapping setting points to the old field.
-        Capsule::table('mod_efactura_settings')->updateOrInsert(['name' => 'client_field_cui'], ['value' => 'cf:' . $oldCui, 'updated_at' => $now]);
-        Capsule::table(ClientFieldImport::TABLE)->delete();
-        $report = ClientFieldImport::run();
-
-        $byTarget = [];
-        foreach ($report as $row) {
-            if ($row['source'] === $oldCui) {
-                $byTarget[$row['target']] = $row;
-            }
-        }
-        Assert::same(1, $byTarget['cui']['imported']);
-        Assert::same([$conflict], $byTarget['cui']['conflicts']);
-        Assert::same([$bad], $byTarget['cui']['invalid']);
-        Assert::same(1, $byTarget['cui']['foreign']);
-        Assert::same(1, $byTarget['cnp']['imported']);
-
-        $value = static fn (int $field, int $client): string => (string) Capsule::table('tblcustomfieldsvalues')->where('fieldid', $field)->where('relid', $client)->value('value');
-        Assert::same('50515950', $value($owned['cui'], $company));
-        Assert::same('1960131410041', $value($owned['cnp'], $person));
-        Assert::same('', $value($owned['cui'], $person));
-        Assert::same('27751700', $value($owned['cui'], $conflict));
-        Assert::same('', $value($owned['cui'], $foreign));
-        // The old field and its values are untouched; the old setting is gone.
-        Assert::same('RO 50515950', $value($oldCui, $company));
-        Assert::true(Capsule::table('tblcustomfields')->where('id', $oldCui)->exists());
-        Assert::same(0, Capsule::table('mod_efactura_settings')->where('name', 'like', 'client_field%')->count());
-        $stored = Capsule::table(ClientFieldImport::TABLE)->where('source_field_id', $oldCui)->where('target_role', 'cui')->first();
-        Assert::same('Registration Number (test)', $stored->source_name);
-        Assert::same(1, (int) $stored->conflict_count);
-    },
-    'without an old mapping the import detects the field from its values' => static function () use ($fakeClient, $setFields): void {
-        $now = date('Y-m-d H:i:s');
-        $oldRegCom = (int) Capsule::table('tblcustomfields')->insertGetId([
-            'type' => 'client', 'relid' => 0, 'fieldname' => 'Commerce Registry (test)', 'fieldtype' => 'text', 'description' => '',
-            'fieldoptions' => '', 'regexpr' => '', 'adminonly' => '', 'required' => '', 'showorder' => '', 'showinvoice' => '',
-            'sortorder' => 0, 'created_at' => $now, 'updated_at' => $now,
-        ]);
-        // More valid numbers than any real field of the dev data has.
-        foreach (range(1, 12) as $n) {
-            $number = sprintf('J40/%d/2010', 100 + $n);
-            $clientId = $fakeClient(['country' => 'RO', 'state' => 'București', 'city' => 'Sector 1', 'companyname' => 'R' . $n . ' SRL']);
-            $setFields($clientId, ['regcom' => $oldRegCom], ['regcom' => $number]);
-        }
-        Capsule::table('mod_efactura_settings')->where('name', 'like', 'client_field%')->delete();
-        Assert::same($oldRegCom, ClientFieldImport::detect('regcom', array_values(ClientFields::ids())));
-        $report = array_values(array_filter(ClientFieldImport::run(), static fn (array $row): bool => $row['source'] === $oldRegCom));
-        Assert::same(12, $report[0]['imported']);
-        Assert::same('regcom', $report[0]['target']);
+        $form = new SettingsForm(new ClientDirectory());
+        Assert::true($form->read(['client_cui_on_invoice' => '1'])['client_cui_on_invoice']);
+        Assert::false($form->read([])['client_cui_on_invoice']);
     },
     'buyer mapping reads the VAT number from tax_id and old CNPs from the CUI field' => static function () use ($fakeClient, $mapFields, $setFields): void {
         $ids = $mapFields();

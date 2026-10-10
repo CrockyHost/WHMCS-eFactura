@@ -17,6 +17,7 @@ namespace WHMCS\Module\Addon\Efactura\Settings;
 
 use InvalidArgumentException;
 use WHMCS\Database\Capsule;
+use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 
 /**
  * Typed access to the addon settings stored in mod_efactura_settings.
@@ -81,6 +82,8 @@ final class Settings
         'client_validation_new' => ['string', 'strict'],
         'client_validation_profile' => ['string', 'strict'],
         'client_profile_lock' => ['bool', true],
+        // "Show on Invoice" of the CUI client field (ClientData\ClientFields)
+        'client_cui_on_invoice' => ['bool', true],
 
         // Invoices that are not reported to SPV
         'exclude_eu_reverse_charge' => ['bool', true],
@@ -183,6 +186,10 @@ final class Settings
         });
 
         self::$raw = null;
+
+        if (array_key_exists('client_cui_on_invoice', $values)) {
+            ClientFields::applyInvoiceSetting();
+        }
     }
 
     public static function environment(): string

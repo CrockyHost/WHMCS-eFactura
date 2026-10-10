@@ -14,7 +14,8 @@
 declare(strict_types=1);
 
 use Illuminate\Database\ConnectionInterface;
-use WHMCS\Module\Addon\Efactura\ClientData\ClientFieldImport;
+use WHMCS\Database\Capsule;
+use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\Database\Migration;
 
 if (!defined('WHMCS')) {
@@ -22,6 +23,16 @@ if (!defined('WHMCS')) {
 }
 
 return new class implements Migration {
+    /**
+     * Fields an earlier version of 0101 created (role => name, description).
+     * They belong to the addon and are taken over instead of duplicated.
+     */
+    private const EARLIER_FIELDS = [
+        'cui' => ['CUI / Company ID', 'Romanian companies: CUI (fiscal code) without RO. Other countries: company registration number.'],
+        'regcom' => ['Nr. Reg. Com.', 'Trade register number of a Romanian company (ONRC).'],
+        'cnp' => ['CNP', 'Personal numeric code of a Romanian individual (optional).'],
+    ];
+
     public function up(ConnectionInterface $db): void
     {
         // The client custom fields the addon owns (CUI, trade register
@@ -34,26 +45,14 @@ return new class implements Migration {
             PRIMARY KEY (`role`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
 
-        // What the one-time import copied from the client fields used before
-        // (lists hold client ids, cut to the first 50).
-        $db->statement('CREATE TABLE IF NOT EXISTS `mod_efactura_client_import` (
-            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            `source_field_id` INT UNSIGNED NOT NULL,
-            `source_name` VARCHAR(255) NOT NULL,
-            `target_role` VARCHAR(16) NOT NULL,
-            `imported` INT UNSIGNED NOT NULL DEFAULT 0,
-            `unchanged` INT UNSIGNED NOT NULL DEFAULT 0,
-            `conflicts` TEXT NULL,
-            `conflict_count` INT UNSIGNED NOT NULL DEFAULT 0,
-            `invalid` TEXT NULL,
-            `invalid_count` INT UNSIGNED NOT NULL DEFAULT 0,
-            `foreign_count` INT UNSIGNED NOT NULL DEFAULT 0,
-            `created_at` DATETIME NOT NULL,
-            PRIMARY KEY (`id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
-
-        // Creates the fields and copies the existing values once; the old
-        // fields stay as they are.
-        ClientFieldImport::run();
+        foreach (self::EARLIER_FIELDS as $role => [$name, $description]) {
+            $earlier = Capsule::table('tblcustomfields')
+                ->where('type', 'client')->where('fieldname', $name)->where('description', $description)
+                ->value('id');
+            if ($earlier !== null) {
+                ClientFields::adopt($role, (int) $earlier);
+            }
+        }
+        ClientFields::ensure();
     }
 };

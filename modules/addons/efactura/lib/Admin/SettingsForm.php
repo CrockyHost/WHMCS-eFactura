@@ -40,6 +40,7 @@ final class SettingsForm
         'exclude_add_funds',
         'client_forms',
         'client_profile_lock',
+        'client_cui_on_invoice',
     ];
 
     /** Maximum lengths from CIUS-RO (BR-RO-xxx) and EN 16931. */
