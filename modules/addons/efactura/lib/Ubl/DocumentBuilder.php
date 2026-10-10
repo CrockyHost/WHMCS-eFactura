@@ -42,6 +42,8 @@ final class DocumentBuilder
     public const REASON_CANCEL = 'cancel';
     /** Cancelled after partial refunds: what was not refunded. */
     public const REASON_CANCEL_REST = 'cancel_rest';
+    /** Issued by an admin: the whole invoice or a part of it. */
+    public const REASON_MANUAL = 'manual';
 
     // Text written in the XML: the fiscal document is in Romanian.
     private const AE_REASON = 'Taxare inversă';
@@ -90,7 +92,9 @@ final class DocumentBuilder
         if ($storno && $document->reason === self::REASON_REFUND_PARTIAL) {
             [$lines, $taxCents] = $this->partialStornoLines($document, $original, $rate, $untaxedCategory);
         } elseif ($storno && $document->reason === self::REASON_CANCEL_REST) {
-            [$lines, $taxCents] = $this->restStornoLines($document, $original, $rate, $untaxedCategory);
+            [$lines, $taxCents] = $this->storedStornoLines($document, $original, $rate, $untaxedCategory, self::REST_STORNO_LINE);
+        } elseif ($storno && $document->reason === self::REASON_MANUAL && !self::wholeInvoice($document, $invoiceRow)) {
+            [$lines, $taxCents] = $this->storedStornoLines($document, $original, $rate, $untaxedCategory, self::PARTIAL_STORNO_LINE);
         } else {
             [$lines, $taxCents] = $this->invoiceLines($invoiceRow, $rate, $untaxedCategory);
             if ($storno) {
@@ -230,12 +234,22 @@ final class DocumentBuilder
     }
 
     /**
-     * One line for the part of a cancelled invoice that was not refunded,
-     * with the amounts fixed when the storno was issued.
+     * Whether a storno reverses the whole invoice (its lines are then negated).
+     */
+    private static function wholeInvoice(object $document, object $invoice): bool
+    {
+        return $document->amount_net !== null && $document->amount_tax !== null
+            && Money::cents((string) $document->amount_net) === -Money::cents((string) $invoice->subtotal)
+            && Money::cents((string) $document->amount_tax) === -Money::cents((string) $invoice->tax);
+    }
+
+    /**
+     * One line with the amounts fixed when the storno was issued: the rest of
+     * a cancelled invoice, or a part reversed by an admin.
      *
      * @return array{0: list<Line>, 1: int}
      */
-    private function restStornoLines(object $document, object $original, string $invoiceRate, ?string $untaxedCategory): array
+    private function storedStornoLines(object $document, object $original, string $invoiceRate, ?string $untaxedCategory, string $lineName): array
     {
         if ($document->amount_net === null || $document->amount_tax === null) {
             $this->issue('MAP-STORNO', Lang::get('map_storno_amounts'));
@@ -247,7 +261,7 @@ final class DocumentBuilder
         [$category, $rate] = $this->category($tax !== 0, $invoiceRate, $untaxedCategory, '');
         $line = new Line(
             id: '1',
-            name: sprintf(self::REST_STORNO_LINE, $original->number),
+            name: sprintf($lineName, $original->number),
             amountCents: $net,
             category: $category,
             rate: $rate,
@@ -364,6 +378,9 @@ final class DocumentBuilder
                 self::REASON_REFUND_PARTIAL => "Stornare parțială a facturii {$original->number} din {$date} (rambursare parțială)",
                 self::REASON_CANCEL => "Stornare totală a facturii {$original->number} din {$date} (factură anulată)",
                 self::REASON_CANCEL_REST => "Stornare a restului facturii {$original->number} din {$date} (factură anulată după rambursări parțiale)",
+                self::REASON_MANUAL => self::wholeInvoice($document, $invoice)
+                    ? "Stornare totală a facturii {$original->number} din {$date}"
+                    : "Stornare parțială a facturii {$original->number} din {$date}",
                 default => "Stornare totală a facturii {$original->number} din {$date} (rambursare)",
             };
         }

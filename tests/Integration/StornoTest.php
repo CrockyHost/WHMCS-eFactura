@@ -297,6 +297,47 @@ return [
         Assert::same(1, Capsule::table('tblactivitylog')->where('description', 'like', Addon::NAME . ': ' . Lang::get('alert_masspay_partial_subject', $containerId) . '%')->count());
         Assert::same([], (new RuntimeState())->withPrefix('storno:'));
     }),
+    'an admin reverses part of an invoice, then the rest' => static fn () => $clean(static function () use ($setup, $paid, $stornos, $xml): void {
+        $setup();
+        [$invoiceId, $original] = $paid();
+        Addon::stornos()->issueManual($invoiceId, 1000, 210, 1, 1);
+        $first = $stornos($original)[0];
+        Assert::same([DocumentBuilder::REASON_MANUAL, Document::SOURCE_MANUAL, '-12.10', 1], [$first->reason, $first->source, $first->total, (int) $first->issued_by]);
+        $document = $xml($first);
+        Assert::same(1, substr_count($document, '<cac:InvoiceLine>'));
+        Assert::true(str_contains($document, '<cbc:Name>Stornare parțială factura ' . $original->number . '</cbc:Name>'));
+        Assert::true(str_contains($document, 'Stornare parțială a facturii ' . $original->number));
+
+        Assert::same([9000, 1890], Addon::stornos()->rest($original));
+        Addon::stornos()->issueManual($invoiceId, 9000, 1890, 1, 1);
+        Assert::same(['-12.10', '-108.90'], array_column($stornos($original), 'total'));
+        Assert::same(1, substr_count($xml($stornos($original)[1]), '<cac:InvoiceLine>'), 'the rest is one line too');
+        try {
+            Addon::stornos()->issueManual($invoiceId, 1, 0, 1, 1);
+            Assert::true(false, 'nothing is left');
+        } catch (\WHMCS\Module\Addon\Efactura\Fiscal\StornoException $e) {
+            Assert::same(\WHMCS\Module\Addon\Efactura\Fiscal\StornoException::AMOUNTS, $e->reason);
+        }
+    }),
+    'an admin reverses a whole invoice: its lines negated' => static fn () => $clean(static function () use ($setup, $paid, $stornos, $xml): void {
+        $setup();
+        [$invoiceId, $original] = $paid();
+        Addon::stornos()->issueManual($invoiceId, 10000, 2100, 1, 1);
+        $document = $xml($stornos($original)[0]);
+        Assert::same(2, substr_count($document, '<cbc:InvoicedQuantity unitCode="C62">-1</cbc:InvoicedQuantity>'));
+        Assert::true(str_contains($document, 'Stornare totală a facturii ' . $original->number));
+    }),
+    'a proforma cannot be reversed' => static fn () => $clean(static function () use ($setup, $client): void {
+        $setup();
+        $invoiceId = (int) localAPI('CreateInvoice', ['userid' => $client(), 'status' => 'Unpaid', 'sendinvoice' => false, 'paymentmethod' => 'banktransfer',
+            'itemdescription1' => 'Proformă', 'itemamount1' => 10, 'itemtaxed1' => true])['invoiceid'];
+        try {
+            Addon::stornos()->issueManual($invoiceId, 1000, 210, 1, 1);
+            Assert::true(false, 'refused');
+        } catch (\WHMCS\Module\Addon\Efactura\Fiscal\StornoException $e) {
+            Assert::same(\WHMCS\Module\Addon\Efactura\Fiscal\StornoException::NOT_FISCAL, $e->reason);
+        }
+    }),
     'the worker sends a storno only after its invoice is validated' => static fn () => $clean(static function () use ($setup, $paid, $stornos): void {
         $setup();
         $now = date('Y-m-d H:i:s');

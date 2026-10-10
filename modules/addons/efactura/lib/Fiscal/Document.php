@@ -30,6 +30,7 @@ final class Document
     public const SOURCE_EARLY = 'early';
     public const SOURCE_REFUND = 'refund';
     public const SOURCE_CANCEL = 'cancel';
+    public const SOURCE_MANUAL = 'manual';
 
     // Waiting for its send time.
     public const STATE_SCHEDULED = 'scheduled';

@@ -90,6 +90,62 @@ final class Stornos
     }
 
     /**
+     * A storno issued by an admin: $netCents and $taxCents (positive) of
+     * what is left of the invoice. The whole rest gives the invoice lines
+     * negated when nothing was reversed before; otherwise one line.
+     *
+     * @return int the document ID
+     * @throws StornoException
+     */
+    public function issueManual(int $invoiceId, int $netCents, int $taxCents, ?int $adminId, int $lockTimeout): int
+    {
+        $original = $this->original($invoiceId);
+        if ($original === null) {
+            throw new StornoException('Not a fiscal invoice.', StornoException::NOT_FISCAL);
+        }
+        $ownLock = !NumberingLock::held();
+        if (!NumberingLock::acquire(0, $lockTimeout)) {
+            throw new StornoException('The fiscal numbering is busy.', StornoException::BUSY);
+        }
+        try {
+            [$restNet, $restTax] = $this->rest($original);
+            if ($netCents < 0 || $taxCents < 0 || $netCents + $taxCents <= 0 || $netCents > $restNet || $taxCents > $restTax) {
+                throw new StornoException('The amounts are not within what is left of the invoice.', StornoException::AMOUNTS);
+            }
+
+            return $this->issue($original, [
+                'dedupe_key' => 'manual:' . $invoiceId . ':' . bin2hex(random_bytes(6)),
+                'source' => Document::SOURCE_MANUAL,
+                'reason' => DocumentBuilder::REASON_MANUAL,
+                'net_cents' => -$netCents,
+                'tax_cents' => -$taxCents,
+                'issued_by' => $adminId,
+            ]);
+        } finally {
+            if ($ownLock) {
+                NumberingLock::releaseIfOwner(0);
+            }
+        }
+    }
+
+    /**
+     * What is left of a fiscal invoice after its stornos: net and VAT, in
+     * minor units.
+     *
+     * @return array{0: int, 1: int}
+     */
+    public function rest(object $original): array
+    {
+        $invoice = Capsule::table('tblinvoices')->where('id', $original->invoice_id)->first(['subtotal', 'tax']);
+        $stornos = $this->documents->stornosOf((int) $original->id);
+
+        return [
+            Money::cents((string) $invoice->subtotal) + $this->sum($stornos, 'amount_net'),
+            Money::cents((string) $invoice->tax) + $this->sum($stornos, 'amount_tax'),
+        ];
+    }
+
+    /**
      * Processes the pending requests at the end of this PHP request, when
      * WHMCS has written everything (the credit note of a partial refund).
      */
