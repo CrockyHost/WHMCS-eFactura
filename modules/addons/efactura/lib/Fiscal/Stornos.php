@@ -39,9 +39,9 @@ use WHMCS\Module\Addon\Efactura\Ubl\DocumentBuilder;
  *   VAT of the credit note. Credit notes not created by a refund (applied
  *   credit, remaining balance, cancelled proformas) are ignored.
  * - A Mass Pay invoice is not fiscal; the invoices it paid are. Refunding it
- *   in full at once reverses each of them in full; a partial refund is not
- *   split automatically: the admin is alerted and stornos each invoice by
- *   hand.
+ *   in full at once reverses each of them in full, unless it paid only the
+ *   rest of an invoice paid in part before; a partial refund is not split
+ *   automatically: the admin is alerted and stornos each invoice by hand.
  *
  * The request is recorded first and the storno is issued under the
  * numbering lock: at once when possible, otherwise from the cron. WHMCS
@@ -423,7 +423,15 @@ final class Stornos
                     }
                     continue;
                 }
-                $invoice = Capsule::table('tblinvoices')->where('id', $childId)->first(['subtotal', 'tax']);
+                $invoice = Capsule::table('tblinvoices')->where('id', $childId)->first(['subtotal', 'tax', 'total']);
+                $line = Money::cents((string) Capsule::table('tblinvoiceitems')->where('invoiceid', $containerId)->where('type', 'Invoice')->where('relid', $childId)->sum('amount'));
+                if ($line !== Money::cents((string) $invoice->total)) {
+                    // Partly paid before: only that part came back.
+                    if ($this->state->add('storno_' . $key, true)) {
+                        $this->massPayAlert('alert_masspay_partly_paid', $containerId, $original->number . ': ' . Money::format($line) . ' / ' . Money::format(Money::cents((string) $invoice->total)), $children);
+                    }
+                    continue;
+                }
                 $this->issue($original, [
                     'dedupe_key' => $key,
                     'source' => Document::SOURCE_REFUND,

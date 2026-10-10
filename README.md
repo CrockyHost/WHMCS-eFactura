@@ -57,8 +57,9 @@ notes that do not come from a refund (applied credit, remaining balance)
 are ignored. A storno is sent to ANAF only after its invoice is validated.
 
 A Mass Pay invoice is not a fiscal invoice; the invoices it paid are.
-Refunding it in full at once reverses each of them in full. A partial
-refund is not split automatically: the administrators get an e-mail and
+Refunding it in full at once reverses each of them in full, except an
+invoice it paid only in part (the rest of an invoice paid in part before).
+A partial refund is not split automatically: the administrators get an e-mail and
 issue the storno of each invoice concerned by hand.
 
 For a faster queue, the same work can run from a separate cron entry, for

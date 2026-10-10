@@ -78,20 +78,26 @@ $paid = static function (array $clientData = [], bool $taxed = true) use ($clien
  *
  * @return array{0: int, 1: list<object>, 2: int} Mass Pay invoice ID, the fiscal documents, payment transaction ID
  */
-$massPay = static function () use ($client): array {
+$massPay = static function (float $paidBefore = 0.0) use ($client): array {
     $clientId = $client();
     $invoice = static fn (float $amount, string $text): int => (int) localAPI('CreateInvoice', ['userid' => $clientId, 'status' => 'Unpaid', 'sendinvoice' => false,
         'paymentmethod' => 'banktransfer', 'itemdescription1' => $text, 'itemamount1' => $amount, 'itemtaxed1' => true])['invoiceid'];
     $children = [$invoice(100, 'Găzduire'), $invoice(10, 'Domeniu')];
+    if ($paidBefore > 0) {
+        // Part of the first invoice paid directly: Mass Pay pays its balance.
+        localAPI('AddInvoicePayment', ['invoiceid' => $children[0], 'transid' => 'PART-' . uniqid(), 'gateway' => 'banktransfer', 'amount' => $paidBefore]);
+    }
+    $lines = [121.00 - $paidBefore, 12.10];
     // As WHMCS builds it: one "Invoice" line per invoice paid.
     $containerId = $invoice(1, 'Mass Pay');
     Capsule::table('tblinvoiceitems')->where('invoiceid', $containerId)->delete();
-    foreach (array_combine($children, [121.00, 12.10]) as $child => $amount) {
+    foreach (array_combine($children, $lines) as $child => $amount) {
         Capsule::table('tblinvoiceitems')->insert(['invoiceid' => $containerId, 'userid' => $clientId, 'type' => 'Invoice', 'relid' => $child,
             'description' => 'Invoice #' . $child, 'amount' => $amount, 'taxed' => 0, 'duedate' => date('Y-m-d'), 'paymentmethod' => 'banktransfer']);
     }
-    Capsule::table('tblinvoices')->where('id', $containerId)->update(['subtotal' => 133.10, 'tax' => 0, 'total' => 133.10]);
-    localAPI('AddInvoicePayment', ['invoiceid' => $containerId, 'transid' => 'MP-' . uniqid(), 'gateway' => 'banktransfer', 'amount' => 133.10]);
+    $sum = array_sum($lines);
+    Capsule::table('tblinvoices')->where('id', $containerId)->update(['subtotal' => $sum, 'tax' => 0, 'total' => $sum]);
+    localAPI('AddInvoicePayment', ['invoiceid' => $containerId, 'transid' => 'MP-' . uniqid(), 'gateway' => 'banktransfer', 'amount' => $sum]);
 
     return [
         $containerId,
@@ -286,6 +292,16 @@ return [
         Assert::true(str_contains($xml($second[0]), '<cbc:ID>' . $children[1]->number . '</cbc:ID>'));
         Assert::same(0, Capsule::table(Document::TABLE)->where('invoice_id', $containerId)->count(), 'nothing for the Mass Pay invoice itself');
         Assert::same(0, Addon::stornos()->process(1), 'issued once');
+    }),
+    'a full Mass Pay refund does not reverse in full an invoice it paid only in part' => static fn () => $clean(static function () use ($setup, $massPay, $stornos): void {
+        $setup();
+        [$containerId, $children, $payment] = $massPay(21.00);
+        Assert::same(2, count($children));
+        refundInvoicePayment($payment, 112.10, false, false, false, 'R-' . uniqid());
+        Addon::stornos()->process(1);
+        Assert::same([], $stornos($children[0]), 'paid 21.00 before, only 100.00 came back');
+        Assert::same([DocumentBuilder::REASON_REFUND_FULL], array_column($stornos($children[1]), 'reason'));
+        Assert::same(1, Capsule::table('tblactivitylog')->where('description', 'like', Addon::NAME . ': ' . Lang::get('alert_masspay_partly_paid_subject', $containerId) . '%')->count());
     }),
     'a partial refund of a Mass Pay invoice is left to the admin' => static fn () => $clean(static function () use ($setup, $massPay, $stornos): void {
         $setup();

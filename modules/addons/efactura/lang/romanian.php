@@ -519,3 +519,5 @@ $_ADDONLANG['storno_error_vat'] = 'TVA-ul %s nu corespunde cotei de %s%% aplicat
 $_ADDONLANG['storno_error_vat_none'] = 'Această factură nu are TVA: TVA-ul stornării trebuie să fie 0.';
 $_ADDONLANG['storno_error_invalid'] = 'Stornarea nu poate fi construită din datele actuale, deci nu s-a emis nimic și nu s-a folosit niciun număr:';
 $_ADDONLANG['panel_storno_vat_hint'] = 'TVA-ul se calculează la %s%% din net; poate fi modificat.';
+$_ADDONLANG['alert_masspay_partly_paid_subject'] = 'Factura Mass Pay #%d rambursată: o factură a fost plătită prin ea doar parțial';
+$_ADDONLANG['alert_masspay_partly_paid_body'] = "Factura Mass Pay #%d a fost rambursată integral, dar a plătit doar restul unei facturi plătite parțial înainte (%s, rambursat / totalul facturii), deci acea factură nu a fost stornată automat (facturile plătite: %s). Emiteți manual stornarea ei din panoul e-Factura.\n%s";
