@@ -40,8 +40,8 @@ final class PageAssets
         'account-paymentmethods-manage' => FormContext::CONTACT,
     ];
 
-    /** Admin pages with a client or contact address form. */
-    private const ADMIN_PAGES = ['clientsprofile', 'clientsadd', 'clientscontacts'];
+    /** Admin pages with a client or contact address form, and the client summary. */
+    private const ADMIN_PAGES = ['clientsprofile', 'clientsadd', 'clientscontacts', 'clientssummary'];
 
     /** Strings the script needs. */
     private const SCRIPT_TEXTS = [
@@ -153,9 +153,14 @@ final class PageAssets
             return '';
         }
 
-        $config = self::config(FormContext::ADMIN, Texts::admin(AdminContext::id()));
+        $texts = Texts::admin(AdminContext::id());
+        $config = self::config(FormContext::ADMIN, $texts);
         $config['lookupUrl'] = '../modules/addons/' . Addon::MODULE . '/clientdata.php';
         $config['lookupScope'] = 'admin';
+        if (($vars['filename'] ?? '') === 'clientssummary') {
+            // Rows for the "Clients Information" panel.
+            $config['summary'] = ClientSummary::rows((int) ($_GET['userid'] ?? 0), $texts);
+        }
 
         return self::script(self::adminBase(), $config);
     }

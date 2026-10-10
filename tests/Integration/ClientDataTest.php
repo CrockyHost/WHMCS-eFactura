@@ -18,6 +18,7 @@ use WHMCS\Module\Addon\Efactura\Admin\SettingsForm;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientValidation;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientFieldImport;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
+use WHMCS\Module\Addon\Efactura\ClientData\ClientSummary;
 use WHMCS\Module\Addon\Efactura\ClientData\FormContext;
 use WHMCS\Module\Addon\Efactura\ClientData\PageAssets;
 use WHMCS\Module\Addon\Efactura\ClientData\Texts;
@@ -265,6 +266,22 @@ return [
 
         $eu = $fakeClient(['country' => 'DE', 'state' => 'Bayern', 'city' => 'München', 'companyname' => 'X GmbH', 'tax_id' => 'DE123456789']);
         Assert::same('DE123456789', (new BuyerMapper())->map($eu)['party']->vatId);
+    },
+    'the admin client summary shows CUI and Reg. Com. for a company, the CNP for an individual' => static function () use ($fakeClient, $mapFields, $setFields): void {
+        $ids = $mapFields();
+        $texts = Texts::for('romanian');
+        $company = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'TEST SRL']);
+        $setFields($company, $ids, ['cui' => '50515950', 'regcom' => 'J2024020698007']);
+        Assert::same([['CUI', '50515950'], ['Nr. Reg. Com.', 'J2024020698007']], ClientSummary::rows($company, $texts));
+
+        $person = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova']);
+        Assert::same([], ClientSummary::rows($person, $texts));
+        $setFields($person, $ids, ['cnp' => '1960131410041']);
+        Assert::same([['CNP', '1960131410041']], ClientSummary::rows($person, $texts));
+
+        $foreign = $fakeClient(['country' => 'DE', 'state' => 'Bayern', 'city' => 'München', 'companyname' => 'X GmbH']);
+        Assert::same([], ClientSummary::rows($foreign, $texts));
+        Assert::same([], ClientSummary::rows(0, $texts));
     },
     'the script gets the field mapping and the profile lock' => static function () use ($mapFields): void {
         $ids = $mapFields();

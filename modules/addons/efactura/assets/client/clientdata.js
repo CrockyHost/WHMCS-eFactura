@@ -1204,6 +1204,28 @@
         });
     }
 
+    // Admin client summary: CUI and trade register number (or the CNP) as
+    // rows of the "Clients Information" panel, styled like the native rows.
+    function setupAdminSummary() {
+        if (config.context !== 'admin' || !config.summary || config.summary.length === 0) {
+            return;
+        }
+        var table = document.querySelector('.client-summary-panels .clientssummarybox table.clientssummarystats');
+        if (!table) {
+            return;
+        }
+        var body = table.tBodies.length > 0 ? table.tBodies[0] : table;
+        var last = body.rows.length > 0 ? body.rows[body.rows.length - 1] : null;
+        var alternate = last ? !last.classList.contains('altrow') : false;
+        config.summary.forEach(function (row) {
+            var line = element('tr', alternate ? 'altrow' : '');
+            line.appendChild(element('td', '', row[0]));
+            line.appendChild(element('td', '', row[1]));
+            body.appendChild(line);
+            alternate = !alternate;
+        });
+    }
+
     function teardownIdentity() {
         if (!identity) {
             return;
@@ -1271,6 +1293,7 @@
     $(document).on('change', 'select[name="country"]', updateIdentity);
     updateIdentity();
     setupAdminLookup();
+    setupAdminSummary();
 
     var registered = registerCounties();
     prepareStateInputs();
