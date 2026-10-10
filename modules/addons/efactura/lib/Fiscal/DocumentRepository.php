@@ -19,6 +19,7 @@ use DateTimeImmutable;
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Audit;
+use WHMCS\Module\Addon\Efactura\Support\Money;
 
 /**
  * Creates and reads the fiscal documents (mod_efactura_documents).
@@ -192,6 +193,77 @@ final class DocumentRepository
         ]), $id, $invoiceId, null, $state, $data['issued_by'] ?? null);
 
         return $id;
+    }
+
+    /**
+     * Records a storno of $original and schedules it. It follows the
+     * reporting of the original: the storno of an invoice that is not
+     * reported is not reported either.
+     *
+     * @param array{dedupe_key: string, number: string, source: string, reason: string, issue_date: DateTimeImmutable,
+     *              net_cents: int, tax_cents: int, billing_note_id?: int|null, issued_by?: int|null} $data
+     * @return int the document ID
+     */
+    public function createStornoDocument(object $original, array $data): int
+    {
+        $now = Clock::now();
+        $issueDate = $data['issue_date']->setTime(0, 0);
+        $excluded = $original->state === Document::STATE_EXCLUDED;
+        $state = $excluded ? Document::STATE_EXCLUDED : Document::STATE_SCHEDULED;
+        $net = Money::format($data['net_cents']);
+        $tax = Money::format($data['tax_cents']);
+
+        $id = (int) Capsule::table(Document::TABLE)->insertGetId([
+            'dedupe_key' => $data['dedupe_key'],
+            'kind' => Document::KIND_STORNO,
+            'source' => $data['source'],
+            'reason' => $data['reason'],
+            'invoice_id' => $original->invoice_id,
+            'billing_note_id' => $data['billing_note_id'] ?? null,
+            'original_document_id' => $original->id,
+            'client_id' => $original->client_id,
+            'number' => $data['number'],
+            'issue_date' => $issueDate->format('Y-m-d'),
+            'issued_by' => $data['issued_by'] ?? null,
+            'currency' => $original->currency,
+            'total' => Money::format($data['net_cents'] + $data['tax_cents']),
+            'amount_net' => $net,
+            'amount_tax' => $tax,
+            'state' => $state,
+            'state_changed_at' => $now->format('Y-m-d H:i:s'),
+            'exclusion_reason' => $excluded ? $original->exclusion_reason : null,
+            'send_after' => $excluded ? null : self::sendAfter($issueDate, $now)->format('Y-m-d H:i:s'),
+            'deadline_date' => $excluded ? null : WorkingDays::legalDeadline($issueDate)->format('Y-m-d'),
+            'created_at' => $now->format('Y-m-d H:i:s'),
+            'updated_at' => $now->format('Y-m-d H:i:s'),
+        ]);
+
+        Audit::log('storno_created', $data['number'], array_filter([
+            'original' => $original->number,
+            'reason' => $data['reason'],
+            'net' => $net,
+            'tax' => $tax,
+            'billing_note_id' => $data['billing_note_id'] ?? null,
+            'state' => $state,
+        ]), $id, (int) $original->invoice_id, null, $state, $data['issued_by'] ?? null);
+
+        return $id;
+    }
+
+    /**
+     * The stornos already issued for an original document.
+     *
+     * @return list<object>
+     */
+    public function stornosOf(int $originalId): array
+    {
+        return Capsule::table(Document::TABLE)
+            ->select(self::listColumns())
+            ->where('kind', Document::KIND_STORNO)
+            ->where('original_document_id', $originalId)
+            ->orderBy('id')
+            ->get()
+            ->all();
     }
 
     public function flagForReview(int $documentId, string $reason): void

@@ -43,6 +43,19 @@ signed answer of ANAF, resolves uploads whose answer was lost and emails the
 administrators when a document gets close to the legal deadline (5 working
 days from issue).
 
+Cancelling or refunding a fiscal invoice issues a storno, a new invoice in
+the same fiscal series with negative quantities that points to the original
+(BT-25/26):
+
+- cancellation: the whole invoice, or what is left after partial refunds;
+- refund of the whole invoice at once: the invoice lines negated;
+- partial refund: one line "Stornare parțială factura ..." with the net and
+  VAT of the credit note WHMCS creates for the refund.
+
+Cancelling a proforma (unpaid invoice) issues nothing, and WHMCS credit
+notes that do not come from a refund (applied credit, remaining balance)
+are ignored. A storno is sent to ANAF only after its invoice is validated.
+
 For a faster queue, the same work can run from a separate cron entry, for
 example every minute:
 
@@ -53,8 +66,10 @@ php -q /path/to/whmcs/modules/addons/efactura/cron/worker.php
 **Română:** documentele sunt trimise de cron-ul WHMCS: după fiecare rulare,
 addonul procesează coada (trimitere, verificarea stării, descărcarea și
 arhivarea răspunsului semnat, reconcilierea încărcărilor fără răspuns și
-alertele de termen). Opțional, `cron/worker.php` poate rula separat, de
-exemplu la fiecare minut.
+alertele de termen). Anularea sau rambursarea unei facturi fiscale emite o
+stornare în aceeași serie (totală, a restului sau parțială, după nota de
+credit WHMCS); anularea unei proforme nu emite nimic. Opțional,
+`cron/worker.php` poate rula separat, de exemplu la fiecare minut.
 
 ## Known issues
 

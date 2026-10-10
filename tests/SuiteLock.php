@@ -29,6 +29,8 @@ function efactura_suite_lock(): void
         return;
     }
     echo "Another test run is using the database; waiting for it to finish...\n";
+    // WHMCS sets a time limit when it boots.
+    set_time_limit(0);
     if (!$acquire(3600)) {
         fwrite(STDERR, "Gave up after an hour of waiting for the other test run.\n");
         exit(2);

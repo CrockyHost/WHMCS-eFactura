@@ -47,6 +47,17 @@ add_hook('InvoiceCreated', 10, static function (array $vars): void {
     InvoiceHooks::invoiceCreated($vars);
 });
 
+// Stornos of fiscal invoices: cancellation and refunds.
+add_hook('InvoiceCancelled', 10, static function (array $vars): void {
+    InvoiceHooks::invoiceCancelled($vars);
+});
+add_hook('AddTransaction', 10, static function (array $vars): void {
+    InvoiceHooks::addTransaction($vars);
+});
+add_hook('InvoiceRefunded', 10, static function (array $vars): void {
+    InvoiceHooks::invoiceRefunded($vars);
+});
+
 // Refreshes the ANAF token and warns about the yearly re-authorization.
 add_hook('DailyCronJob', 10, static function (): void {
     CronHooks::daily();

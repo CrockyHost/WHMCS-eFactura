@@ -318,6 +318,7 @@ $_ADDONLANG['map_client_missing'] = 'Clientul #%d nu există.';
 $_ADDONLANG['map_invoice_missing'] = 'Factura WHMCS #%d nu există.';
 $_ADDONLANG['map_original_missing'] = 'Factura corectată de această stornare nu are număr fiscal.';
 $_ADDONLANG['map_note_missing'] = 'Nota de credit WHMCS #%d nu există.';
+$_ADDONLANG['map_storno_amounts'] = 'Stornarea nu are sumele fixate.';
 $_ADDONLANG['map_currency_missing'] = 'Clientul nu are monedă.';
 $_ADDONLANG['map_company_without_cui'] = 'Clientul "%s" este firmă, dar nu are CUI (câmpul: %s). Adăugați CUI-ul în profilul clientului.';
 $_ADDONLANG['map_cui_invalid'] = 'CUI-ul clientului "%s" nu este valid (cifra de control nu se potrivește). Corectați-l în profilul clientului.';
@@ -357,6 +358,12 @@ $_ADDONLANG['alert_deadline_late'] = 'zile lucrătoare de întârziere: %d';
 $_ADDONLANG['alert_processing_subject'] = 'ANAF procesează unele documente de peste %d de ore (%d)';
 $_ADDONLANG['alert_processing_body'] = "ANAF nu a dat încă un verdict pentru aceste încărcări:\n\n%s\n\nStarea se verifică automat. Au fost raportate întârzieri de peste 2 zile; dacă persistă, contactați suportul ANAF cu indexul de încărcare.\n%s";
 $_ADDONLANG['alert_processing_line'] = '%s (factura #%d): index de încărcare %s, încărcat la %s';
+$_ADDONLANG['alert_storno_waiting_subject'] = 'Stornarea facturii %s nu a fost încă emisă';
+$_ADDONLANG['alert_storno_waiting_body'] = "Factura fiscală %s (factura #%d) a fost anulată sau rambursată, dar stornarea ei nu a putut fi emisă de peste 30 de minute (numerotarea fiscală era ocupată sau a apărut o eroare). Se reîncearcă la fiecare rulare a cron-ului.\n%s\n%s";
+$_ADDONLANG['alert_storno_overflow_subject'] = 'Rambursare pe %s nestornată automat';
+$_ADDONLANG['alert_storno_overflow_body'] = "O rambursare pe factura fiscală %s (factura #%d) ar storna, împreună cu stornările deja emise, mai mult decât factura (nota de credit WHMCS #%s). Nu s-a emis stornare pentru ea: verificați factura și stornările ei.\n%s";
+$_ADDONLANG['alert_storno_no_note_subject'] = 'Lipsește nota de credit pentru o rambursare pe %s';
+$_ADDONLANG['alert_storno_no_note_body'] = "O rambursare pe factura fiscală %s (factura #%d) a fost înregistrată acum o săptămână, dar WHMCS nu a creat o notă de credit pentru ea, deci nu s-a emis stornare. Verificați factura.%s\n%s";
 
 // Validare
 $_ADDONLANG['error_csrf'] = 'Formularul a expirat. Reîncărcați pagina și încercați din nou.';

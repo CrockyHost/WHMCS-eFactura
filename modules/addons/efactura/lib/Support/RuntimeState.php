@@ -44,4 +44,32 @@ final class RuntimeState
     {
         Capsule::table(self::TABLE)->where('name', $name)->delete();
     }
+
+    /**
+     * Every value whose name starts with $prefix, by name.
+     *
+     * @return array<string, mixed>
+     */
+    public function withPrefix(string $prefix): array
+    {
+        $values = [];
+        $rows = Capsule::table(self::TABLE)->where('name', 'like', addcslashes($prefix, '%_\\') . '%')->orderBy('name')->get(['name', 'value']);
+        foreach ($rows as $row) {
+            $values[(string) $row->name] = json_decode((string) $row->value, true);
+        }
+
+        return $values;
+    }
+
+    /**
+     * Sets $name only when it does not exist yet; returns whether it was set.
+     */
+    public function add(string $name, mixed $value): bool
+    {
+        return Capsule::table(self::TABLE)->insertOrIgnore([
+            'name' => $name,
+            'value' => json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]) === 1;
+    }
 }

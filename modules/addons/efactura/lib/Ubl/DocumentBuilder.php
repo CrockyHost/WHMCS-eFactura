@@ -40,11 +40,14 @@ final class DocumentBuilder
     public const REASON_REFUND_FULL = 'refund_full';
     public const REASON_REFUND_PARTIAL = 'refund_partial';
     public const REASON_CANCEL = 'cancel';
+    /** Cancelled after partial refunds: what was not refunded. */
+    public const REASON_CANCEL_REST = 'cancel_rest';
 
     // Text written in the XML: the fiscal document is in Romanian.
     private const AE_REASON = 'Taxare inversă';
     private const E_REASON = 'Neimpozabil în România, art. 278 alin. (2) Cod fiscal';
     private const PARTIAL_STORNO_LINE = 'Stornare parțială factura %s';
+    private const REST_STORNO_LINE = 'Stornare rest factura %s';
 
     /** @var list<array{rule: string, message: string}> */
     private array $issues = [];
@@ -86,6 +89,8 @@ final class DocumentBuilder
 
         if ($storno && $document->reason === self::REASON_REFUND_PARTIAL) {
             [$lines, $taxCents] = $this->partialStornoLines($document, $original, $rate, $untaxedCategory);
+        } elseif ($storno && $document->reason === self::REASON_CANCEL_REST) {
+            [$lines, $taxCents] = $this->restStornoLines($document, $original, $rate, $untaxedCategory);
         } else {
             [$lines, $taxCents] = $this->invoiceLines($invoiceRow, $rate, $untaxedCategory);
             if ($storno) {
@@ -225,6 +230,34 @@ final class DocumentBuilder
     }
 
     /**
+     * One line for the part of a cancelled invoice that was not refunded,
+     * with the amounts fixed when the storno was issued.
+     *
+     * @return array{0: list<Line>, 1: int}
+     */
+    private function restStornoLines(object $document, object $original, string $invoiceRate, ?string $untaxedCategory): array
+    {
+        if ($document->amount_net === null || $document->amount_tax === null) {
+            $this->issue('MAP-STORNO', Lang::get('map_storno_amounts'));
+
+            return [[], 0];
+        }
+        $net = Money::cents((string) $document->amount_net);
+        $tax = Money::cents((string) $document->amount_tax);
+        [$category, $rate] = $this->category($tax !== 0, $invoiceRate, $untaxedCategory, '');
+        $line = new Line(
+            id: '1',
+            name: sprintf(self::REST_STORNO_LINE, $original->number),
+            amountCents: $net,
+            category: $category,
+            rate: $rate,
+            quantity: -1,
+        );
+
+        return [[$line], $tax];
+    }
+
+    /**
      * VAT category and rate of a line.
      *
      * @return array{0: string, 1: ?string}
@@ -330,6 +363,7 @@ final class DocumentBuilder
             $notes[] = match ((string) $document->reason) {
                 self::REASON_REFUND_PARTIAL => "Stornare parțială a facturii {$original->number} din {$date} (rambursare parțială)",
                 self::REASON_CANCEL => "Stornare totală a facturii {$original->number} din {$date} (factură anulată)",
+                self::REASON_CANCEL_REST => "Stornare a restului facturii {$original->number} din {$date} (factură anulată după rambursări parțiale)",
                 default => "Stornare totală a facturii {$original->number} din {$date} (rambursare)",
             };
         }

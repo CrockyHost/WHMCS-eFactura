@@ -318,6 +318,7 @@ $_ADDONLANG['map_client_missing'] = 'Client #%d does not exist.';
 $_ADDONLANG['map_invoice_missing'] = 'WHMCS invoice #%d does not exist.';
 $_ADDONLANG['map_original_missing'] = 'The invoice this storno corrects has no fiscal number.';
 $_ADDONLANG['map_note_missing'] = 'WHMCS credit note #%d does not exist.';
+$_ADDONLANG['map_storno_amounts'] = 'The storno has no fixed amounts.';
 $_ADDONLANG['map_currency_missing'] = 'The client has no currency.';
 $_ADDONLANG['map_company_without_cui'] = 'The client "%s" is a company but has no CUI (field: %s). Add the CUI to the client profile.';
 $_ADDONLANG['map_cui_invalid'] = 'The client CUI "%s" is not valid (the check digit does not match). Correct it in the client profile.';
@@ -357,6 +358,12 @@ $_ADDONLANG['alert_deadline_late'] = '%d working day(s) late';
 $_ADDONLANG['alert_processing_subject'] = 'ANAF has been processing documents for over %d hours (%d)';
 $_ADDONLANG['alert_processing_body'] = "ANAF has not given a verdict yet for these uploads:\n\n%s\n\nThe status is checked automatically. Delays of over 2 days have been reported; if it persists, contact ANAF support with the upload index.\n%s";
 $_ADDONLANG['alert_processing_line'] = '%s (invoice #%d): upload index %s, uploaded at %s';
+$_ADDONLANG['alert_storno_waiting_subject'] = 'The storno of %s has not been issued yet';
+$_ADDONLANG['alert_storno_waiting_body'] = "Fiscal invoice %s (invoice #%d) was cancelled or refunded, but its storno could not be issued for more than 30 minutes (the fiscal numbering was busy, or an error occurred). It is retried at every cron run.\n%s\n%s";
+$_ADDONLANG['alert_storno_overflow_subject'] = 'Refund on %s not reversed automatically';
+$_ADDONLANG['alert_storno_overflow_body'] = "A refund on fiscal invoice %s (invoice #%d) would reverse more than the invoice, together with the stornos already issued (WHMCS credit note #%s). No storno was issued for it: check the invoice and its stornos.\n%s";
+$_ADDONLANG['alert_storno_no_note_subject'] = 'No credit note for a refund on %s';
+$_ADDONLANG['alert_storno_no_note_body'] = "A refund on fiscal invoice %s (invoice #%d) was recorded a week ago, but WHMCS has not created a credit note for it, so no storno was issued. Check the invoice.%s\n%s";
 
 // Validation
 $_ADDONLANG['error_csrf'] = 'The form has expired. Reload the page and try again.';

@@ -18,6 +18,7 @@ namespace WHMCS\Module\Addon\Efactura\Hooks;
 use Throwable;
 use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Anaf\OAuth\ConnectionMonitor;
+use WHMCS\Module\Addon\Efactura\Numbering\NumberingLock;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\AdminNotifier;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
@@ -39,6 +40,10 @@ final class CronHooks
     {
         try {
             Lang::boot(Settings::string('ui_language'));
+            if (Settings::bool('enabled')) {
+                // Stornos still waiting for the numbering lock or a credit note.
+                Addon::stornos()->process(NumberingLock::paymentTimeout());
+            }
             Addon::worker()->run(self::WORKER_BUDGET_SECONDS);
         } catch (Throwable $e) {
             logActivity(Addon::NAME . ': the e-Factura queue run failed: ' . $e->getMessage());

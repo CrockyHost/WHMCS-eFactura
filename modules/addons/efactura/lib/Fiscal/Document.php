@@ -28,6 +28,8 @@ final class Document
 
     public const SOURCE_PAYMENT = 'payment';
     public const SOURCE_EARLY = 'early';
+    public const SOURCE_REFUND = 'refund';
+    public const SOURCE_CANCEL = 'cancel';
 
     // Waiting for its send time.
     public const STATE_SCHEDULED = 'scheduled';

@@ -22,6 +22,7 @@ use WHMCS\Module\Addon\Efactura\Numbering\EarlyIssue;
 use WHMCS\Module\Addon\Efactura\Numbering\EarlyIssueException;
 use WHMCS\Module\Addon\Efactura\Numbering\NumberingLock;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Support\AdminContext;
 use WHMCS\Module\Addon\Efactura\Support\AdminNotifier;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 
@@ -85,6 +86,59 @@ final class InvoiceHooks
                 if ($e->reason === EarlyIssueException::BUSY) {
                     self::report('early issue', $invoiceId, $e);
                 }
+            }
+        });
+    }
+
+    /**
+     * InvoiceCancelled: the storno of a fiscal invoice (a proforma has none).
+     * WHMCS runs the hook before it saves the new status, so the storno is
+     * issued at the end of the request (or by the cron).
+     *
+     * @param array<string, mixed> $vars
+     */
+    public static function invoiceCancelled(array $vars): void
+    {
+        self::guard('InvoiceCancelled', $vars, static function (int $invoiceId): void {
+            $stornos = Addon::stornos();
+            if ($stornos->requestCancel($invoiceId, AdminContext::id())) {
+                $stornos->processAtShutdown();
+            }
+        });
+    }
+
+    /**
+     * AddTransaction: a refund of a payment of a fiscal invoice. WHMCS creates
+     * the credit note after this hook, so the storno is issued at the end of
+     * the request (or by the cron).
+     *
+     * @param array<string, mixed> $vars
+     */
+    public static function addTransaction(array $vars): void
+    {
+        if ((float) ($vars['amountout'] ?? 0) <= 0 || (int) ($vars['refundid'] ?? 0) <= 0) {
+            return;
+        }
+        self::guard('AddTransaction', $vars, static function (int $invoiceId): void {
+            $stornos = Addon::stornos();
+            if ($stornos->requestRefund($invoiceId, AdminContext::id())) {
+                $stornos->processAtShutdown();
+            }
+        });
+    }
+
+    /**
+     * InvoiceRefunded: the invoice is refunded in full; the credit note of the
+     * last refund exists now.
+     *
+     * @param array<string, mixed> $vars
+     */
+    public static function invoiceRefunded(array $vars): void
+    {
+        self::guard('InvoiceRefunded', $vars, static function (int $invoiceId): void {
+            $stornos = Addon::stornos();
+            if ($stornos->requestRefund($invoiceId, AdminContext::id())) {
+                $stornos->process(NumberingLock::paymentTimeout(), [$invoiceId]);
             }
         });
     }
