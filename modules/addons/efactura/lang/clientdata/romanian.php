@@ -114,5 +114,7 @@ $_ADDONLANG['client_field_value'] = '%s (#%d)';
 $_ADDONLANG['client_field_state'] = 'În formularele clienților: %1$s. Pe factură: %2$s.';
 $_ADDONLANG['setting_client_cui_on_invoice'] = 'Afișează CUI-ul pe factură';
 $_ADDONLANG['help_client_cui_on_invoice'] = 'Pornește sau oprește „Show on Invoice” pe câmpul CUI al addonului.';
+$_ADDONLANG['setting_client_regcom_on_invoice'] = 'Afișează Nr. Reg. Com. pe factură';
+$_ADDONLANG['help_client_regcom_on_invoice'] = 'Pornește sau oprește „Show on Invoice” pe câmpul Nr. Reg. Com. al addonului.';
 $_ADDONLANG['check_client_fields'] = 'Câmpurile clientului';
 $_ADDONLANG['check_client_fields_ok'] = 'CUI #%d, Nr. Reg. Com. #%d, CNP #%d';

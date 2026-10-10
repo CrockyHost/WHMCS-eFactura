@@ -82,8 +82,9 @@ final class Settings
         'client_validation_new' => ['string', 'strict'],
         'client_validation_profile' => ['string', 'strict'],
         'client_profile_lock' => ['bool', true],
-        // "Show on Invoice" of the CUI client field (ClientData\ClientFields)
+        // "Show on Invoice" of the CUI and trade register client fields (ClientData\ClientFields)
         'client_cui_on_invoice' => ['bool', true],
+        'client_regcom_on_invoice' => ['bool', true],
 
         // Invoices that are not reported to SPV
         'exclude_eu_reverse_charge' => ['bool', true],
@@ -187,7 +188,7 @@ final class Settings
 
         self::$raw = null;
 
-        if (array_key_exists('client_cui_on_invoice', $values)) {
+        if (array_intersect_key($values, array_flip(ClientFields::INVOICE_SETTINGS)) !== []) {
             ClientFields::applyInvoiceSetting();
         }
     }

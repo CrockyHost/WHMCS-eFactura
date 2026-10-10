@@ -114,5 +114,7 @@ $_ADDONLANG['client_field_value'] = '%s (#%d)';
 $_ADDONLANG['client_field_state'] = 'On the client forms: %1$s. On the invoice: %2$s.';
 $_ADDONLANG['setting_client_cui_on_invoice'] = 'Show the CUI on the invoice';
 $_ADDONLANG['help_client_cui_on_invoice'] = 'Turns "Show on Invoice" on or off for the addon CUI field.';
+$_ADDONLANG['setting_client_regcom_on_invoice'] = 'Show the trade register no. on the invoice';
+$_ADDONLANG['help_client_regcom_on_invoice'] = 'Turns "Show on Invoice" on or off for the addon trade register field.';
 $_ADDONLANG['check_client_fields'] = 'Client fields';
 $_ADDONLANG['check_client_fields_ok'] = 'CUI #%d, trade register no. #%d, CNP #%d';

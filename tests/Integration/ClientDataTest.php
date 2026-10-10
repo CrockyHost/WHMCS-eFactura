@@ -189,6 +189,24 @@ return [
         Assert::true($form->read(['client_cui_on_invoice' => '1'])['client_cui_on_invoice']);
         Assert::false($form->read([])['client_cui_on_invoice']);
     },
+    'the trade register number is shown on invoices as its own setting says' => static function (): void {
+        $showInvoice = static fn (string $role): string => (string) Capsule::table('tblcustomfields')->where('id', ClientFields::id($role))->value('showinvoice');
+        Settings::save(['client_regcom_on_invoice' => false, 'client_cui_on_invoice' => true]);
+        Assert::same('', $showInvoice('regcom'));
+        Assert::same('on', $showInvoice('cui'));
+        Settings::save(['client_regcom_on_invoice' => true]);
+        Assert::same('on', $showInvoice('regcom'));
+        // The CNP has no setting and stays off the invoice.
+        Assert::same('', $showInvoice('cnp'));
+
+        Settings::save(['client_regcom_on_invoice' => false]);
+        Capsule::table('tblcustomfields')->where('id', ClientFields::id('regcom'))->delete();
+        ClientFields::reset();
+        Assert::same('', $showInvoice('regcom'));
+        ClientFields::reset();
+        $form = new SettingsForm(new ClientDirectory());
+        Assert::false($form->read([])['client_regcom_on_invoice']);
+    },
     'buyer mapping reads the VAT number from tax_id and old CNPs from the CUI field' => static function () use ($fakeClient, $mapFields, $setFields): void {
         $ids = $mapFields();
         $payer = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'PAYER SRL', 'tax_id' => 'RO50515950']);

@@ -141,6 +141,7 @@ final class SettingsPage
             );
         }
         $rows[] = $this->checkbox('client_cui_on_invoice');
+        $rows[] = $this->checkbox('client_regcom_on_invoice');
 
         return $rows;
     }

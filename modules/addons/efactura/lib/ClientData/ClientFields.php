@@ -35,8 +35,8 @@ final class ClientFields
 
     /**
      * role => name, description (English, the base WHMCS values), the same
-     * in Romanian, shown on invoices (for the CUI: the client_cui_on_invoice
-     * setting decides).
+     * in Romanian, shown on invoices (for the CUI and the trade register
+     * number a setting decides, see INVOICE_SETTINGS).
      */
     public const DEFINITIONS = [
         'cui' => [
@@ -61,6 +61,9 @@ final class ClientFields
             'invoice' => false,
         ],
     ];
+
+    /** role => setting that decides "Show on Invoice" for that field */
+    public const INVOICE_SETTINGS = ['cui' => 'client_cui_on_invoice', 'regcom' => 'client_regcom_on_invoice'];
 
     private const LOCK = 'client_fields';
 
@@ -153,23 +156,25 @@ final class ClientFields
     }
 
     /**
-     * Turns "Show on Invoice" of the CUI field on or off, as the
-     * client_cui_on_invoice setting says (after the setting is saved).
+     * Turns "Show on Invoice" of the CUI and trade register fields on or
+     * off, as their settings say (after the settings are saved).
      */
     public static function applyInvoiceSetting(): void
     {
         if (!Capsule::schema()->hasTable(self::TABLE)) {
             return;
         }
-        Capsule::table('tblcustomfields')->where('id', self::id('cui'))->update([
-            'showinvoice' => self::onInvoice('cui') ? 'on' : '',
-            'updated_at' => date('Y-m-d H:i:s'),
-        ]);
+        foreach (array_keys(self::INVOICE_SETTINGS) as $role) {
+            Capsule::table('tblcustomfields')->where('id', self::id($role))->update([
+                'showinvoice' => self::onInvoice($role) ? 'on' : '',
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
     }
 
     private static function onInvoice(string $role): bool
     {
-        return $role === 'cui' ? Settings::bool('client_cui_on_invoice') : (bool) self::DEFINITIONS[$role]['invoice'];
+        return isset(self::INVOICE_SETTINGS[$role]) ? Settings::bool(self::INVOICE_SETTINGS[$role]) : (bool) self::DEFINITIONS[$role]['invoice'];
     }
 
     /**
