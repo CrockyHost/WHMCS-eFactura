@@ -15,7 +15,9 @@ declare(strict_types=1);
 
 namespace WHMCS\Module\Addon\Efactura\Admin;
 
+use Throwable;
 use WHMCS\Module\Addon\Efactura\Anaf\OAuth\Connection;
+use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
@@ -51,6 +53,7 @@ final class HealthChecks
             $this->environment(),
             ...($this->connection === null ? [] : [$this->anafConnection()]),
             $this->company($settings),
+            $this->clientFields(),
             ...$this->whmcsNumbering(),
             $this->timezone(),
             $this->extensions(),
@@ -226,6 +229,22 @@ final class HealthChecks
         return $missing === []
             ? self::check('check_php', self::OK, 'PHP ' . PHP_VERSION . ': ' . implode(', ', self::REQUIRED_EXTENSIONS))
             : self::check('check_php', self::DANGER, Lang::get('check_php_missing', implode(', ', $missing)));
+    }
+
+    /**
+     * The client custom fields the addon owns; a missing one is created again.
+     *
+     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
+     */
+    private function clientFields(): array
+    {
+        try {
+            $ids = ClientFields::ensure();
+        } catch (Throwable $e) {
+            return self::check('check_client_fields', self::WARNING, $e->getMessage());
+        }
+
+        return self::check('check_client_fields', self::OK, Lang::get('check_client_fields_ok', $ids['cui'], $ids['regcom'], $ids['cnp']));
     }
 
     /**

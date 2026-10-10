@@ -166,11 +166,6 @@ final class SettingsForm
             }
         }
 
-        $this->expectChoice($values, 'client_field_cui', array_keys($this->fieldChoices('tax_id', false)));
-        $this->expectChoice($values, 'client_field_regcom', array_keys($this->fieldChoices(null, true)));
-        $this->expectChoice($values, 'client_field_cnp', array_keys($this->fieldChoices(null, true)));
-        $this->expectChoice($values, 'client_field_county', array_keys($this->fieldChoices('state', false)));
-
         if ($values['enabled']) {
             foreach (self::REQUIRED_COMPANY_FIELDS as $name) {
                 if ($values[$name] === '' && !isset($this->errors[$name])) {
@@ -183,28 +178,6 @@ final class SettingsForm
         }
 
         return $this->errors;
-    }
-
-    /**
-     * Options for a "where does this client value come from" dropdown.
-     *
-     * @param string|null $native "tax_id", "state" or null when there is no native field
-     * @return array<string, string> value => label
-     */
-    public function fieldChoices(?string $native, bool $allowNone): array
-    {
-        $choices = [];
-        if ($allowNone) {
-            $choices[''] = Lang::get('field_none');
-        }
-        if ($native !== null) {
-            $choices[$native] = Lang::get('field_native_' . $native);
-        }
-        foreach ($this->directory->customFields() as $id => $name) {
-            $choices['cf:' . $id] = Lang::get('field_custom', $name);
-        }
-
-        return $choices;
     }
 
     /**

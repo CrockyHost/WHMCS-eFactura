@@ -33,6 +33,13 @@ final class Settings
     public const MAX_SEND_DELAY_DAYS = 3;
 
     /**
+     * Settings that no longer exist: the client field mapping, replaced by
+     * the client fields the addon owns (ClientData\ClientFields). Saving
+     * them is ignored, so older callers keep working.
+     */
+    private const REMOVED = ['client_field_cui', 'client_field_regcom', 'client_field_cnp', 'client_field_county'];
+
+    /**
      * name => [type, default]. Types: bool, int, string, list (of ints),
      * map (string => string).
      */
@@ -68,12 +75,6 @@ final class Settings
         // Early fiscal issue (number before payment)
         'early_issue_groups' => ['list', []],
         'early_issue_clients' => ['list', []],
-
-        // Where the buyer data comes from: "tax_id", "state" or "cf:<custom field id>"
-        'client_field_cui' => ['string', 'tax_id'],
-        'client_field_regcom' => ['string', ''],
-        'client_field_cnp' => ['string', ''],
-        'client_field_county' => ['string', 'state'],
 
         // Client forms (lib/ClientData): validation is "strict" or "warn"
         'client_forms' => ['bool', true],
@@ -168,6 +169,9 @@ final class Settings
         $rows = [];
         $now = date('Y-m-d H:i:s');
         foreach ($values as $name => $value) {
+            if (in_array((string) $name, self::REMOVED, true)) {
+                continue;
+            }
             [$type] = self::definition((string) $name);
             $rows[] = ['name' => (string) $name, 'value' => self::encode($type, $value), 'updated_at' => $now];
         }

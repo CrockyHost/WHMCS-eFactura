@@ -16,24 +16,26 @@ declare(strict_types=1);
 namespace WHMCS\Module\Addon\Efactura\Ubl;
 
 use WHMCS\Database\Capsule;
+use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
+use WHMCS\Module\Addon\Efactura\ClientData\FieldMap;
 use WHMCS\Module\Addon\Efactura\Fiscal\ReportingPolicy;
 use WHMCS\Module\Addon\Efactura\Romania\Cnp;
 use WHMCS\Module\Addon\Efactura\Romania\Counties;
 use WHMCS\Module\Addon\Efactura\Romania\Cui;
-use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 
 /**
- * The buyer (BG-7) from the current WHMCS client profile and the fields
- * mapped in the settings (CIUS-RO identifiers, research report 03, 3.3):
+ * The buyer (BG-7) from the current WHMCS client profile and the client
+ * fields the addon owns (CIUS-RO identifiers, research report 03, 3.3):
  * - Romanian company: CUI without RO as BT-47; RO + CUI as BT-48 only for a
  *   VAT payer: the client wrote the RO prefix, or the native WHMCS VAT number
- *   (tax_id) is RO + the same CUI while the CUI field is a custom field;
+ *   (tax_id) is RO + the same CUI;
  * - Romanian individual: CNP as BT-47, or 13 zeros when there is none; a
  *   valid CNP typed into the CUI field without a company name (older data)
  *   is read as the CNP of an individual;
  * - when the CUI field is empty, the native tax_id is used (EU VAT numbers);
- * - county as ISO 3166-2:RO, Bucharest sector as the city.
+ * - county (the WHMCS State/Region field) as ISO 3166-2:RO, Bucharest
+ *   sector as the city.
  * Missing or unrecognized data is reported, never filled in by guessing.
  */
 final class BuyerMapper
@@ -61,13 +63,14 @@ final class BuyerMapper
         $company = Text::clean((string) $client->companyname);
         $person = Text::clean($client->firstname . ' ' . $client->lastname);
         $nativeTaxId = Text::clean((string) $client->tax_id);
-        $taxId = Text::clean($this->field($clientId, $client, Settings::string('client_field_cui'), 'tax_id'));
+        $fields = FieldMap::load()->stored($clientId);
+        $taxId = Text::clean($fields['cui']);
         if ($taxId === '') {
             $taxId = $nativeTaxId;
         }
         $legacyCnp = $country === 'RO' && $company === '' && Cnp::isValid($taxId) ? Cnp::normalize($taxId) : null;
         $isCompany = ($company !== '' || $taxId !== '') && $legacyCnp === null;
-        $countyText = Text::clean($this->field($clientId, $client, Settings::string('client_field_county'), 'state'));
+        $countyText = Text::clean((string) $client->state);
 
         $vatId = null;
         $legalId = null;
@@ -77,7 +80,7 @@ final class BuyerMapper
         if ($country === 'RO') {
             if ($isCompany) {
                 if ($taxId === '') {
-                    $this->issue('MAP-CUI', Lang::get('map_company_without_cui', $company, self::fieldLabel(Settings::string('client_field_cui'))));
+                    $this->issue('MAP-CUI', Lang::get('map_company_without_cui', $company, ClientFields::label('cui')));
                 } else {
                     $cui = Cui::normalize($taxId);
                     if (!Cui::isValid($cui)) {
@@ -89,7 +92,7 @@ final class BuyerMapper
                     $vatId = $vatPayer ? 'RO' . $cui : null;
                 }
             } else {
-                $cnp = Cnp::normalize($this->field($clientId, $client, Settings::string('client_field_cnp'), null));
+                $cnp = Cnp::normalize($fields['cnp']);
                 if ($cnp === '' && $legacyCnp !== null) {
                     $cnp = $legacyCnp;
                 }
@@ -102,7 +105,7 @@ final class BuyerMapper
                 }
             }
 
-            $label = self::fieldLabel(Settings::string('client_field_county'));
+            $label = Lang::get('field_native_state');
             if ($countyText === '') {
                 $this->issue('MAP-COUNTY', Lang::get('map_county_missing', $label));
             } else {
@@ -165,38 +168,6 @@ final class BuyerMapper
         );
 
         return ['party' => $party, 'type' => $isCompany ? self::TYPE_B2B : self::TYPE_B2C, 'issues' => $this->issues];
-    }
-
-    /**
-     * The value of a mapped field: a native column ("tax_id", "state") or
-     * "cf:<id>" for a client custom field.
-     */
-    private function field(int $clientId, object $client, string $source, ?string $default): string
-    {
-        $source = $source !== '' ? $source : (string) $default;
-        if ($source === '') {
-            return '';
-        }
-        if (str_starts_with($source, 'cf:')) {
-            return (string) Capsule::table('tblcustomfieldsvalues')
-                ->where('fieldid', (int) substr($source, 3))
-                ->where('relid', $clientId)
-                ->value('value');
-        }
-
-        return (string) ($client->{$source} ?? '');
-    }
-
-    private static function fieldLabel(string $source): string
-    {
-        if (str_starts_with($source, 'cf:')) {
-            $name = (string) Capsule::table('tblcustomfields')->where('id', (int) substr($source, 3))->value('fieldname');
-            $position = strpos($name, '|');
-
-            return $position === false ? $name : substr($name, $position + 1);
-        }
-
-        return Lang::get('field_native_' . ($source === '' ? 'state' : $source));
     }
 
     private function issue(string $rule, string $message): void

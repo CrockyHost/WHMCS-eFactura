@@ -146,19 +146,7 @@ $_ADDONLANG['setting_early_issue_clients'] = 'Client IDs';
 $_ADDONLANG['help_early_issue_clients'] = 'Separated by commas, for example 12, 45.';
 $_ADDONLANG['no_client_groups'] = 'There are no client groups in WHMCS.';
 
-$_ADDONLANG['section_client_fields'] = 'Client data';
-$_ADDONLANG['section_client_fields_intro'] = 'Where the buyer details are read from in WHMCS.';
-$_ADDONLANG['setting_client_field_cui'] = 'CUI / VAT number';
-$_ADDONLANG['help_client_field_cui'] = 'Romanian CUI (with or without RO) or the VAT number of an EU company.';
-$_ADDONLANG['setting_client_field_regcom'] = 'Trade register number';
-$_ADDONLANG['setting_client_field_cnp'] = 'CNP';
-$_ADDONLANG['help_client_field_cnp'] = 'Optional. Individuals without a CNP are reported with 13 zeros, as the law allows.';
-$_ADDONLANG['setting_client_field_county'] = 'County';
-$_ADDONLANG['help_client_field_county'] = 'Free text values are matched to the ISO 3166-2:RO county codes.';
-$_ADDONLANG['field_none'] = '(not used)';
-$_ADDONLANG['field_native_tax_id'] = 'WHMCS Tax ID field';
 $_ADDONLANG['field_native_state'] = 'WHMCS State/Region field';
-$_ADDONLANG['field_custom'] = 'Custom field: %s';
 
 $_ADDONLANG['section_exclusions'] = 'Invoices not reported';
 $_ADDONLANG['section_exclusions_intro'] = 'These invoices are not sent to SPV. They are still listed, with the reason.';

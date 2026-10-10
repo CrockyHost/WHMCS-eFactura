@@ -40,10 +40,6 @@ $validPost = static function (array $overrides = []): array {
         'send_delay_days' => '2',
         'early_issue_groups' => [],
         'early_issue_clients' => '',
-        'client_field_cui' => 'tax_id',
-        'client_field_regcom' => '',
-        'client_field_cnp' => '',
-        'client_field_county' => 'state',
         'exclude_eu_reverse_charge' => '1',
         'exclude_non_eu' => '1',
         'exclude_zero_total' => '1',
@@ -66,7 +62,6 @@ return [
         Assert::same(false, Settings::get('enabled'));
         Assert::same('test', Settings::environment());
         Assert::same(1, Settings::int('send_delay_days'));
-        Assert::same('tax_id', Settings::string('client_field_cui'));
         Assert::same([], Settings::intList('early_issue_groups'));
     },
     'settings round-trip with their types' => static function (): void {
@@ -97,11 +92,10 @@ return [
             'send_delay_days' => '4',
             'early_issue_groups' => ['999999'],
             'early_issue_clients' => '999999999',
-            'client_field_cnp' => 'cf:999999',
             'environment' => 'live',
         ]));
         $errors = $form->validate($values, true);
-        foreach (['company_cui', 'company_city', 'iban_ron', 'send_delay_days', 'early_issue_groups', 'early_issue_clients', 'client_field_cnp', 'environment'] as $name) {
+        foreach (['company_cui', 'company_city', 'iban_ron', 'send_delay_days', 'early_issue_groups', 'early_issue_clients', 'environment'] as $name) {
             Assert::true(isset($errors[$name]), "expected an error for {$name}");
         }
     },

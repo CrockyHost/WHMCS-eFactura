@@ -15,6 +15,9 @@ declare(strict_types=1);
 
 namespace WHMCS\Module\Addon\Efactura\Admin;
 
+use WHMCS\Database\Capsule;
+use WHMCS\Module\Addon\Efactura\ClientData\ClientFieldImport;
+use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\Romania\Counties;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
@@ -99,12 +102,7 @@ final class SettingsPage
                     : $this->checklist('early_issue_groups', $groups),
                 $this->text('early_issue_clients', 0, implode(', ', $this->values['early_issue_clients'])),
             ]),
-            $this->section('section_client_fields', [
-                $this->select('client_field_cui', $this->form->fieldChoices('tax_id', false)),
-                $this->select('client_field_regcom', $this->form->fieldChoices(null, true)),
-                $this->select('client_field_cnp', $this->form->fieldChoices(null, true)),
-                $this->select('client_field_county', $this->form->fieldChoices('state', false)),
-            ]),
+            $this->section('section_client_owned_fields', $this->clientFields()),
             $this->section('section_client_forms', [
                 $this->checkbox('client_forms'),
                 $this->select('client_validation_new', $validation),
@@ -120,6 +118,58 @@ final class SettingsPage
             ]),
             $this->section('section_payment_means', $this->paymentMeans()),
         ];
+    }
+
+    /**
+     * The client fields the addon owns (read-only) and what the one-time
+     * import copied from the fields used before.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function clientFields(): array
+    {
+        $rows = [];
+        $names = Capsule::table('tblcustomfields')->whereIn('id', array_values(ClientFields::ids()))->pluck('fieldname', 'id');
+        foreach (ClientFields::ids() as $role => $id) {
+            $rows[] = $this->note('client-field-' . $role, Lang::get('client_field_role_' . $role), Lang::get('client_field_value', (string) ($names[$id] ?? ''), $id));
+        }
+        $rows[] = $this->note('client-field-county', Lang::get('client_field_role_county'), Lang::get('client_field_county_value'));
+
+        // The values are short (the settings template shows them in a fixed
+        // font); the details go to the help line under each of them.
+        $sources = [];
+        foreach (ClientFieldImport::report() as $import) {
+            $help = Lang::get('client_import_details', (int) $import->unchanged, (int) $import->conflict_count, (int) $import->invalid_count, (int) $import->foreign_count);
+            $check = array_merge((array) json_decode((string) $import->conflicts, true), (array) json_decode((string) $import->invalid, true));
+            if ($check !== []) {
+                $help .= ' ' . Lang::get('client_import_check', implode(', ', array_map(static fn ($id): string => '#' . (int) $id, $check)));
+            }
+            $source = Lang::get('client_field_value', (string) $import->source_name, (int) $import->source_field_id);
+            $rows[] = $this->note(
+                'client-import-' . (int) $import->id,
+                Lang::get('client_import_label', $source),
+                Lang::get('client_import_value', (int) $import->imported, Lang::get('client_field_role_' . $import->target_role)),
+                $help
+            );
+            $sources[(int) $import->source_field_id] = $source;
+        }
+        if ($sources === []) {
+            $rows[] = $this->note('client-import', Lang::get('client_import_title'), Lang::get('client_import_none'));
+        } else {
+            $rows[] = $this->note('client-import-hide', Lang::get('client_import_hide_label'), implode(', ', $sources), Lang::get('client_import_hide'));
+        }
+
+        return $rows;
+    }
+
+    /**
+     * A read-only row with a label and a value that are not settings.
+     *
+     * @return array<string, mixed>
+     */
+    private function note(string $id, string $label, string $value, string $help = ''): array
+    {
+        return ['type' => 'info', 'name' => '', 'id' => 'efactura-' . $id, 'label' => $label, 'help' => $help, 'error' => '', 'value' => $value];
     }
 
     /**

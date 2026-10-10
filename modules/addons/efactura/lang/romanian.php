@@ -146,19 +146,7 @@ $_ADDONLANG['setting_early_issue_clients'] = 'ID-uri de clienți';
 $_ADDONLANG['help_early_issue_clients'] = 'Separate prin virgulă, de exemplu 12, 45.';
 $_ADDONLANG['no_client_groups'] = 'Nu există grupuri de clienți în WHMCS.';
 
-$_ADDONLANG['section_client_fields'] = 'Datele clientului';
-$_ADDONLANG['section_client_fields_intro'] = 'De unde se citesc datele cumpărătorului în WHMCS.';
-$_ADDONLANG['setting_client_field_cui'] = 'CUI / cod TVA';
-$_ADDONLANG['help_client_field_cui'] = 'CUI românesc (cu sau fără RO) sau codul de TVA al unei firme din UE.';
-$_ADDONLANG['setting_client_field_regcom'] = 'Nr. Registrul Comerțului';
-$_ADDONLANG['setting_client_field_cnp'] = 'CNP';
-$_ADDONLANG['help_client_field_cnp'] = 'Opțional. Persoanele fizice fără CNP sunt raportate cu 13 zerouri, cum permite legea.';
-$_ADDONLANG['setting_client_field_county'] = 'Județul';
-$_ADDONLANG['help_client_field_county'] = 'Valorile scrise liber sunt potrivite cu codurile de județ ISO 3166-2:RO.';
-$_ADDONLANG['field_none'] = '(nefolosit)';
-$_ADDONLANG['field_native_tax_id'] = 'Câmpul Tax ID din WHMCS';
 $_ADDONLANG['field_native_state'] = 'Câmpul State/Region din WHMCS';
-$_ADDONLANG['field_custom'] = 'Câmp personalizat: %s';
 
 $_ADDONLANG['section_exclusions'] = 'Facturi neraportate';
 $_ADDONLANG['section_exclusions_intro'] = 'Aceste facturi nu se trimit în SPV. Apar totuși în listă, cu motivul.';

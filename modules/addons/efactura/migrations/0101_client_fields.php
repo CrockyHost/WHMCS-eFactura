@@ -14,7 +14,6 @@
 declare(strict_types=1);
 
 use Illuminate\Database\ConnectionInterface;
-use WHMCS\Module\Addon\Efactura\ClientData\FieldProvisioner;
 use WHMCS\Module\Addon\Efactura\Database\Migration;
 
 if (!defined('WHMCS')) {
@@ -24,9 +23,9 @@ if (!defined('WHMCS')) {
 return new class implements Migration {
     public function up(ConnectionInterface $db): void
     {
-        // The client forms need a custom field for the CUI, the trade register
-        // number and the CNP: existing fields are detected from their values,
-        // missing ones are created, and the settings point to them.
-        FieldProvisioner::provision();
+        // This step used to map the client fields chosen in the settings. The
+        // addon now owns its client fields: 0103 creates them and imports the
+        // existing values. Kept, empty, so the list of applied migrations
+        // stays the same on every installation.
     }
 };

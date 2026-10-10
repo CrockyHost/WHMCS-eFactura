@@ -103,3 +103,23 @@ $_ADDONLANG['cd_status_vat_collection'] = 'TVA la încasare';
 $_ADDONLANG['cd_status_inactive'] = 'Inactivă fiscal';
 $_ADDONLANG['cd_status_deregistered'] = 'Radiată';
 $_ADDONLANG['cd_status_einvoice'] = 'Înscrisă în Registrul RO e-Factura';
+
+// Settings and health check: the client fields the addon owns
+$_ADDONLANG['section_client_owned_fields'] = 'Câmpurile clientului';
+$_ADDONLANG['section_client_owned_fields_intro'] = 'Addonul folosește câmpuri personalizate de client proprii, create automat și recreate dacă lipsesc. Județul este mereu câmpul State/Region din WHMCS.';
+$_ADDONLANG['client_field_role_cui'] = 'CUI';
+$_ADDONLANG['client_field_role_regcom'] = 'Nr. Reg. Com.';
+$_ADDONLANG['client_field_role_cnp'] = 'CNP';
+$_ADDONLANG['client_field_role_county'] = 'Județul';
+$_ADDONLANG['client_field_value'] = '%s (#%d)';
+$_ADDONLANG['client_field_county_value'] = 'Câmpul State/Region din WHMCS';
+$_ADDONLANG['client_import_title'] = 'Import';
+$_ADDONLANG['client_import_none'] = 'Nu au existat valori de importat din alte câmpuri.';
+$_ADDONLANG['client_import_label'] = 'Import din %s';
+$_ADDONLANG['client_import_value'] = '%1$d copiate în %2$s';
+$_ADDONLANG['client_import_details'] = '%1$d erau deja la fel, %2$d conflicte (valoarea existentă păstrată), %3$d invalide, %4$d de la clienți din alte țări (necopiate).';
+$_ADDONLANG['client_import_check'] = 'Clienți de verificat: %s';
+$_ADDONLANG['client_import_hide_label'] = 'Câmpurile vechi';
+$_ADDONLANG['client_import_hide'] = 'Nu au fost șterse și nu se mai citesc. Dacă niciun alt modul nu le mai folosește, ascundeți-le din formulare și de pe factură (Configuration > System Settings > Custom Client Fields). Valorile rămân salvate.';
+$_ADDONLANG['check_client_fields'] = 'Câmpurile clientului';
+$_ADDONLANG['check_client_fields_ok'] = 'CUI #%d, Nr. Reg. Com. #%d, CNP #%d';

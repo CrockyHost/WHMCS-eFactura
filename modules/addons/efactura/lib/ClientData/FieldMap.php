@@ -16,52 +16,27 @@ declare(strict_types=1);
 namespace WHMCS\Module\Addon\Efactura\ClientData;
 
 use WHMCS\Database\Capsule;
-use WHMCS\Module\Addon\Efactura\Settings\Settings;
 
 /**
- * The client custom fields that hold the CUI, the trade register number and
- * the CNP, as mapped in the settings ("cf:<id>"). The forms need custom
- * fields: the native VAT number (tax_id) is validated by WHMCS against VIES
- * and only holds RO + CUI for VAT payers.
+ * Reads the values of the addon's client fields (CUI, trade register
+ * number, CNP): from a submitted form or as stored for a client. The VAT
+ * number of VAT payers is the native WHMCS tax_id (validated against VIES),
+ * the county the native State/Region field.
  */
 final class FieldMap
 {
-    public const ROLES = ['cui', 'regcom', 'cnp'];
+    public const ROLES = ClientFields::ROLES;
 
     /**
-     * @param array<string, int|null> $ids role => custom field id
+     * @param array<string, int> $ids role => custom field id
      */
     public function __construct(private readonly array $ids)
     {
     }
 
-    public static function fromSettings(): self
+    public static function load(): self
     {
-        $wanted = [];
-        foreach (self::ROLES as $role) {
-            $wanted[$role] = self::customFieldId(Settings::string('client_field_' . $role));
-        }
-        $existing = Capsule::table('tblcustomfields')
-            ->where('type', 'client')
-            ->whereIn('id', array_values(array_filter($wanted)))
-            ->pluck('id')
-            ->map(static fn ($id): int => (int) $id)
-            ->all();
-
-        $ids = [];
-        foreach ($wanted as $role => $id) {
-            $ids[$role] = $id !== null && in_array($id, $existing, true) ? $id : null;
-        }
-
-        return new self($ids);
-    }
-
-    /**
-     * The id in a "cf:<id>" setting value, or null.
-     */
-    public static function customFieldId(string $setting): ?int
-    {
-        return preg_match('/^cf:(\d+)$/', $setting, $match) === 1 ? (int) $match[1] : null;
+        return new self(ClientFields::ids());
     }
 
     public function id(string $role): ?int
@@ -70,7 +45,7 @@ final class FieldMap
     }
 
     /**
-     * @return array<string, int|null>
+     * @return array<string, int>
      */
     public function all(): array
     {
@@ -99,15 +74,15 @@ final class FieldMap
      */
     public function stored(int $clientId): array
     {
-        $ids = array_filter($this->ids);
-        $values = $ids === [] ? [] : Capsule::table('tblcustomfieldsvalues')
+        $values = $this->ids === [] ? [] : Capsule::table('tblcustomfieldsvalues')
             ->where('relid', $clientId)
-            ->whereIn('fieldid', array_values($ids))
+            ->whereIn('fieldid', array_values($this->ids))
             ->pluck('value', 'fieldid')
             ->all();
 
         $stored = [];
-        foreach ($this->ids as $role => $id) {
+        foreach (self::ROLES as $role) {
+            $id = $this->id($role);
             $stored[$role] = $id !== null ? trim((string) ($values[$id] ?? '')) : '';
         }
 

@@ -14,6 +14,7 @@
 declare(strict_types=1);
 
 use WHMCS\Database\Capsule;
+use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Exchange\BnrRates;
 use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
@@ -41,7 +42,7 @@ $setup = static function (): void {
         'company_vat_payer' => true, 'company_vat_on_collection' => false, 'company_reg_com' => 'J40/1234/2020', 'company_share_capital' => '200 RON',
         'company_street' => 'Strada Exemplului nr. 10', 'company_city' => 'SECTOR3', 'company_county' => 'RO-B', 'company_postcode' => '030000',
         'company_email' => 'facturare@exemplu-hosting.invalid', 'iban_ron' => 'RO49AAAA1B31007593840000', 'iban_eur' => 'RO66BACX0000001234567890',
-        'client_field_cui' => 'tax_id', 'client_field_cnp' => '', 'client_field_county' => 'state', 'payment_means' => [],
+        'payment_means' => [],
         'exclude_eu_reverse_charge' => true, 'exclude_non_eu' => true, 'early_issue_groups' => [], 'early_issue_clients' => [],
     ]);
     NumberingLock::overridePaymentTimeout(1);
@@ -222,11 +223,9 @@ return [
             Assert::true($result->issues[0]['message'] !== '' && !str_starts_with($result->issues[0]['message'], 'map_'), 'a readable message');
         }
     },
-    'an invalid CNP in the mapped custom field is reported, not replaced' => static function () use ($setup, $client, $invoice, $pay, $build, $rules): void {
+    'an invalid CNP in the CNP client field is reported, not replaced' => static function () use ($setup, $client, $invoice, $pay, $build, $rules): void {
         $setup();
-        $fieldId = (int) Capsule::table('tblcustomfields')->insertGetId(['type' => 'client', 'relid' => 0, 'fieldname' => 'CNP', 'fieldtype' => 'text',
-            'description' => '', 'fieldoptions' => '', 'regexpr' => '', 'adminonly' => '', 'required' => '', 'showorder' => '', 'showinvoice' => '', 'sortorder' => 0]);
-        Settings::save(['client_field_cnp' => 'cf:' . $fieldId]);
+        $fieldId = ClientFields::id('cnp');
         $clientId = $client();
         Capsule::table('tblcustomfieldsvalues')->insert(['fieldid' => $fieldId, 'relid' => $clientId, 'value' => '1960131410045']);
         $id = $invoice($clientId, [['Găzduire', 10.00]]);

@@ -67,7 +67,7 @@ final class ClientValidation
         $issues = AddressRules::check($data, $locked);
         $errors = [];
 
-        $fields = FieldMap::fromSettings();
+        $fields = FieldMap::load();
         if ($fields->id('cui') !== null) {
             $storedIds = $clientId !== null ? $fields->stored($clientId) : [];
             foreach (FieldMap::ROLES as $role) {

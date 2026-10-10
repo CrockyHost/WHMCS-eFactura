@@ -168,7 +168,7 @@ final class PageAssets
     public static function config(string $context, Texts $texts): array
     {
         $mode = FormContext::mode($context);
-        $fields = FieldMap::fromSettings();
+        $fields = FieldMap::load();
         $identity = in_array($context, self::IDENTITY_CONTEXTS, true) && $fields->id('cui') !== null;
         $postedType = (string) ($_POST[ClientValidation::TYPE_FIELD] ?? '');
 

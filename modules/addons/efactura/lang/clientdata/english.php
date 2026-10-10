@@ -103,3 +103,23 @@ $_ADDONLANG['cd_status_vat_collection'] = 'VAT on collection';
 $_ADDONLANG['cd_status_inactive'] = 'Fiscally inactive';
 $_ADDONLANG['cd_status_deregistered'] = 'Deregistered';
 $_ADDONLANG['cd_status_einvoice'] = 'In the RO e-Factura registry';
+
+// Settings and health check: the client fields the addon owns
+$_ADDONLANG['section_client_owned_fields'] = 'Client fields';
+$_ADDONLANG['section_client_owned_fields_intro'] = 'The addon uses client custom fields of its own, created automatically and created again when missing. The county is always the WHMCS State/Region field.';
+$_ADDONLANG['client_field_role_cui'] = 'CUI';
+$_ADDONLANG['client_field_role_regcom'] = 'Trade register no.';
+$_ADDONLANG['client_field_role_cnp'] = 'CNP';
+$_ADDONLANG['client_field_role_county'] = 'County';
+$_ADDONLANG['client_field_value'] = '%s (#%d)';
+$_ADDONLANG['client_field_county_value'] = 'The WHMCS State/Region field';
+$_ADDONLANG['client_import_title'] = 'Import';
+$_ADDONLANG['client_import_none'] = 'There were no values to import from other fields.';
+$_ADDONLANG['client_import_label'] = 'Import from %s';
+$_ADDONLANG['client_import_value'] = '%1$d copied to %2$s';
+$_ADDONLANG['client_import_details'] = '%1$d were already the same, %2$d conflicts (existing value kept), %3$d invalid, %4$d from clients in other countries (not copied).';
+$_ADDONLANG['client_import_check'] = 'Clients to check: %s';
+$_ADDONLANG['client_import_hide_label'] = 'Old fields';
+$_ADDONLANG['client_import_hide'] = 'They were not deleted and are no longer read. If no other module uses them, hide them from the forms and the invoice (Configuration > System Settings > Custom Client Fields). Their values stay saved.';
+$_ADDONLANG['check_client_fields'] = 'Client fields';
+$_ADDONLANG['check_client_fields_ok'] = 'CUI #%d, trade register no. #%d, CNP #%d';
