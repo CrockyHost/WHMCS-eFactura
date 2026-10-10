@@ -37,6 +37,7 @@ require __DIR__ . '/FakeTransport.php';
 require __DIR__ . '/AnafSimulator.php';
 require __DIR__ . '/DevValidators.php';
 require __DIR__ . '/SuiteLock.php';
+require __DIR__ . '/TestData.php';
 
 $suite = $argv[1] ?? 'unit';
 $filter = $argv[2] ?? '';

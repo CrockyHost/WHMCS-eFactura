@@ -28,8 +28,8 @@ declare(strict_types=1);
  * refuses to run unless the addon is set to the ANAF test environment.
  *
  * ANAF checks that a buyer CUI exists, also on the test environment, so the
- * test company is the seller's own company (CROCKY S.R.L., CUI 50515950);
- * every line says it is a test, for 1 RON. An upload answered with
+ * test company is the seller itself (the CUI and name in the settings, the
+ * name followed by " (TEST)"); every line says it is a test, for 1 RON. An upload answered with
  * "A aparut o eroare tehnica" is sent again after an hour, hence the time.
  *
  * The invoices get a fiscal series unique to the run (LIVEyymmddhhmm-), so
@@ -44,6 +44,7 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/init.php';
 require_once dirname(__DIR__) . '/modules/addons/efactura/bootstrap.php';
 require __DIR__ . '/SuiteLock.php';
+require __DIR__ . '/TestData.php';
 // WHMCS sets a time limit when it boots; ANAF may take minutes.
 set_time_limit(0);
 
@@ -164,7 +165,11 @@ try {
     Settings::save(['enabled' => true, 'send_delay_days' => 0]);
     Setting::setValue('SequentialInvoiceNumberFormat', 'LIVE' . date('ymdHi') . '-{NUMBER}');
     $clients = [
-        'company' => ['companyname' => 'CROCKY S.R.L. (TEST)', 'tax_id' => 'RO50515950', 'firstname' => 'Test', 'lastname' => 'eFactura'],
+        'company' => [
+            'companyname' => Settings::string('company_legal_name') . ' (TEST)',
+            'tax_id' => (Settings::bool('company_vat_payer') ? 'RO' : '') . Cui::normalize(Settings::string('company_cui')),
+            'firstname' => 'Test', 'lastname' => 'eFactura',
+        ],
         'individual' => ['companyname' => '', 'tax_id' => '', 'firstname' => 'Maria', 'lastname' => 'Fictiva'],
     ];
     $lines = [
@@ -176,7 +181,7 @@ try {
         $clientId = (int) localAPI('AddClient', $data + [
             'email' => 'efactura-live-' . uniqid() . '@example.invalid', 'address1' => 'Strada Exemplului nr. 1', 'city' => 'Craiova',
             'state' => 'Dolj', 'postcode' => '200000', 'country' => 'RO', 'phonenumber' => '0700000000',
-            'password2' => bin2hex(random_bytes(8)), 'currency' => 2, 'noemail' => true, 'skipvalidation' => true,
+            'password2' => bin2hex(random_bytes(8)), 'currency' => efactura_ron_currency(), 'noemail' => true, 'skipvalidation' => true,
         ])['clientid'];
         $run['clients'][] = $clientId;
         $state->set(LIVE_STATE, $run);

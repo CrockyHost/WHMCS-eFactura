@@ -72,7 +72,7 @@ $document = static function (array $client = [], float $amount = 100.0): object 
     $clientId = (int) localAPI('AddClient', $client + [
         'firstname' => 'Test', 'lastname' => 'Coada', 'companyname' => 'CLIENT COADA SRL', 'tax_id' => 'RO87654329',
         'email' => 'efactura-queue-' . uniqid() . '@example.invalid', 'address1' => 'Strada Test 1', 'city' => 'Craiova', 'state' => 'Dolj',
-        'postcode' => '200000', 'country' => 'RO', 'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)), 'currency' => 2,
+        'postcode' => '200000', 'country' => 'RO', 'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)), 'currency' => efactura_ron_currency(),
         'noemail' => true, 'skipvalidation' => true,
     ])['clientid'];
     $invoiceId = (int) localAPI('CreateInvoice', ['userid' => $clientId, 'status' => 'Unpaid', 'sendinvoice' => false, 'paymentmethod' => 'banktransfer',

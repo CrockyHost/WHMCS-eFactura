@@ -54,7 +54,7 @@ $setup = static function (array $settings = []): void {
 $client = static fn (array $data = []): int => (int) localAPI('AddClient', $data + [
     'firstname' => 'Test', 'lastname' => 'Storno', 'companyname' => 'CLIENT STORNO SRL', 'tax_id' => 'RO87654329',
     'email' => 'efactura-storno-' . uniqid() . '@example.invalid', 'address1' => 'Strada Test 1', 'city' => 'Craiova', 'state' => 'Dolj',
-    'postcode' => '200000', 'country' => 'RO', 'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)), 'currency' => 2,
+    'postcode' => '200000', 'country' => 'RO', 'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)), 'currency' => efactura_ron_currency(),
     'noemail' => true, 'skipvalidation' => true,
 ])['clientid'];
 

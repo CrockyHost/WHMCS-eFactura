@@ -144,9 +144,9 @@ final class AdminController
     public static function returnUrl(string $url, string $fallback): string
     {
         $allowed = [
-            '#^invoices\.php\?action=edit&id=\d+$#',
-            '#^billing/billingnote/credit/\d+$#',
-            '#^addonmodules\.php\?module=efactura(?:&[A-Za-z0-9_]+=[A-Za-z0-9_.,%-]*)*$#',
+            '#^invoices\.php\?action=edit&id=\d+$#D',
+            '#^billing/billingnote/credit/\d+$#D',
+            '#^addonmodules\.php\?module=efactura(?:&[A-Za-z0-9_]+=[A-Za-z0-9_.,%-]*)*$#D',
         ];
         foreach ($allowed as $pattern) {
             if (preg_match($pattern, $url) === 1) {

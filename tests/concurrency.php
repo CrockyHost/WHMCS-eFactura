@@ -38,6 +38,7 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/init.php';
 require_once dirname(__DIR__) . '/modules/addons/efactura/bootstrap.php';
 require __DIR__ . '/SuiteLock.php';
+require __DIR__ . '/TestData.php';
 
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Addon;
@@ -90,7 +91,7 @@ Settings::save(['enabled' => true]);
 $clientId = (int) localAPI('AddClient', [
     'firstname' => 'Concurrency', 'lastname' => 'eFactura', 'email' => 'efactura-concurrency-' . uniqid() . '@example.invalid',
     'address1' => 'Strada Test 1', 'city' => 'Craiova', 'state' => 'Dolj', 'postcode' => '200000', 'country' => 'RO',
-    'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)), 'currency' => 2, 'noemail' => true, 'skipvalidation' => true,
+    'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)), 'currency' => efactura_ron_currency(), 'noemail' => true, 'skipvalidation' => true,
 ])['clientid'];
 $invoices = [];
 for ($i = 0; $i < 4; $i++) {

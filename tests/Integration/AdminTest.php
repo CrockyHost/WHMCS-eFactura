@@ -54,7 +54,7 @@ $setup = static function (array $settings = []): void {
 $client = static fn (array $data = []): int => (int) localAPI('AddClient', $data + [
     'firstname' => 'Test', 'lastname' => 'Admin', 'companyname' => 'CLIENT ADMIN SRL', 'tax_id' => 'RO87654329',
     'email' => 'efactura-admin-' . uniqid() . '@example.invalid', 'address1' => 'Strada Test 1', 'city' => 'Craiova', 'state' => 'Dolj',
-    'postcode' => '200000', 'country' => 'RO', 'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)), 'currency' => 2,
+    'postcode' => '200000', 'country' => 'RO', 'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)), 'currency' => efactura_ron_currency(),
     'noemail' => true, 'skipvalidation' => true,
 ])['clientid'];
 $unpaid = static fn (int $clientId): int => (int) localAPI('CreateInvoice', ['userid' => $clientId, 'status' => 'Unpaid', 'sendinvoice' => false,
@@ -247,7 +247,8 @@ return [
         Assert::same('invoices.php?action=edit&id=12', AdminController::returnUrl('invoices.php?action=edit&id=12', $fallback));
         Assert::same('billing/billingnote/credit/7', AdminController::returnUrl('billing/billingnote/credit/7', $fallback));
         Assert::same('addonmodules.php?module=efactura&view=document&id=3', AdminController::returnUrl('addonmodules.php?module=efactura&view=document&id=3', $fallback));
-        foreach (['https://evil.example/', '//evil.example/x', 'invoices.php?action=edit&id=1&x=<script>', 'javascript:alert(1)', 'clients.php', ''] as $bad) {
+        foreach (['https://evil.example/', '//evil.example/x', 'invoices.php?action=edit&id=1&x=<script>', 'javascript:alert(1)', 'clients.php', '',
+            "invoices.php?action=edit&id=1\n", "billing/billingnote/credit/2\n", "addonmodules.php?module=efactura\n"] as $bad) {
             Assert::same($fallback, AdminController::returnUrl($bad, $fallback), $bad);
         }
         Assert::same('CRK-0001_semnat_ANAF.zip', AdminController::downloadName('CRK-0001', 'anaf_zip', '3001.zip'));

@@ -55,7 +55,7 @@ $client = static function (array $overrides = []) use ($api): int {
     return (int) $api('AddClient', $overrides + [
         'firstname' => 'Test', 'lastname' => 'eFactura', 'email' => 'efactura-test-' . uniqid() . '@example.invalid',
         'address1' => 'Strada Test 1', 'city' => 'Craiova', 'state' => 'Dolj', 'postcode' => '200000', 'country' => 'RO',
-        'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)), 'currency' => 2, 'noemail' => true, 'skipvalidation' => true,
+        'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)), 'currency' => efactura_ron_currency(), 'noemail' => true, 'skipvalidation' => true,
     ])['clientid'];
 };
 

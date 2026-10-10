@@ -141,7 +141,7 @@ tests that need them are skipped otherwise.
 ```
 php tests/concurrency.php --yes   # two simultaneous payments (creates and deletes test data)
 php tests/anaf-validate.php       # sends the fictive fixtures to the public ANAF validator
-php tests/anaf-live-queue.php --yes   # the queue against the ANAF test environment, fictive clients
+php tests/anaf-live-queue.php --yes   # the queue against the ANAF test environment (a fictive individual, the seller as test buyer)
 php tests/admin-demo.php --create     # fictive invoices for trying the admin pages (--cleanup removes them)
 ```
 
