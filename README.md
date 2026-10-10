@@ -56,6 +56,11 @@ Cancelling a proforma (unpaid invoice) issues nothing, and WHMCS credit
 notes that do not come from a refund (applied credit, remaining balance)
 are ignored. A storno is sent to ANAF only after its invoice is validated.
 
+A Mass Pay invoice is not a fiscal invoice; the invoices it paid are.
+Refunding it in full at once reverses each of them in full. A partial
+refund is not split automatically: the administrators get an e-mail and
+issue the storno of each invoice concerned by hand.
+
 For a faster queue, the same work can run from a separate cron entry, for
 example every minute:
 

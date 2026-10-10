@@ -38,6 +38,10 @@ use WHMCS\Module\Addon\Efactura\Ubl\DocumentBuilder;
  *   otherwise one line "Stornare parțială factura CRK-xxxx" with the net and
  *   VAT of the credit note. Credit notes not created by a refund (applied
  *   credit, remaining balance, cancelled proformas) are ignored.
+ * - A Mass Pay invoice is not fiscal; the invoices it paid are. Refunding it
+ *   in full at once reverses each of them in full; a partial refund is not
+ *   split automatically: the admin is alerted and stornos each invoice by
+ *   hand.
  *
  * The request is recorded first and the storno is issued under the
  * numbering lock: at once when possible, otherwise from the cron. WHMCS
@@ -48,6 +52,7 @@ final class Stornos
 {
     public const CANCEL = 'cancel';
     public const REFUND = 'refund';
+    public const MASS_PAY = 'masspay';
     private const PENDING = 'storno:';
     /** A request still waiting after this is reported. */
     private const ALERT_AFTER_MINUTES = 30;
@@ -68,7 +73,7 @@ final class Stornos
      */
     public function requestCancel(int $invoiceId, ?int $adminId = null): bool
     {
-        return $this->request(self::CANCEL, $invoiceId, $adminId);
+        return $this->original($invoiceId) !== null && $this->record(self::CANCEL, $invoiceId, $adminId);
     }
 
     /**
@@ -77,7 +82,11 @@ final class Stornos
      */
     public function requestRefund(int $invoiceId, ?int $adminId = null): bool
     {
-        return $this->request(self::REFUND, $invoiceId, $adminId);
+        if ($this->original($invoiceId) !== null) {
+            return $this->record(self::REFUND, $invoiceId, $adminId);
+        }
+
+        return $this->massPayChildren($invoiceId) !== [] && $this->record(self::MASS_PAY, $invoiceId, $adminId);
     }
 
     /**
@@ -121,9 +130,11 @@ final class Stornos
         try {
             foreach ($pending as $name => $request) {
                 try {
-                    [$done, $count] = $request['type'] === self::CANCEL
-                        ? $this->cancel($request)
-                        : $this->refunds($request);
+                    [$done, $count] = match ($request['type']) {
+                        self::CANCEL => $this->cancel($request),
+                        self::MASS_PAY => $this->massPayRefunds($request),
+                        default => $this->refunds($request),
+                    };
                     $issued += $count;
                     if ($done) {
                         $this->state->forget($name);
@@ -143,11 +154,8 @@ final class Stornos
         return $issued;
     }
 
-    private function request(string $type, int $invoiceId, ?int $adminId): bool
+    private function record(string $type, int $invoiceId, ?int $adminId): bool
     {
-        if ($this->original($invoiceId) === null) {
-            return false;
-        }
         $this->state->add(self::PENDING . $type . ':' . $invoiceId, [
             'type' => $type,
             'invoice' => $invoiceId,
@@ -232,7 +240,7 @@ final class Stornos
         }
         $invoice = Capsule::table('tblinvoices')->where('id', $invoiceId)->first(['subtotal', 'tax', 'total']);
         $invoiceTotal = Money::cents((string) $invoice->total);
-        $notes = $this->refundNotes($invoiceId, $original);
+        $notes = $this->refundNotes($invoiceId, (string) $original->created_at);
         $issued = 0;
         foreach ($notes as $note) {
             $stornos = $this->documents->stornosOf((int) $original->id);
@@ -269,13 +277,112 @@ final class Stornos
     }
 
     /**
-     * The WHMCS credit notes created by refunds of the invoice that have no
-     * storno yet: each refund transaction is paired with the next credit
-     * adjustment of the same amount on the invoice.
+     * @param array{invoice: int, admin: ?int, since: string} $request
+     * @return array{0: bool, 1: int} done, stornos issued
+     */
+    private function massPayRefunds(array $request): array
+    {
+        $containerId = (int) $request['invoice'];
+        $children = $this->massPayChildren($containerId);
+        if ($children === []) {
+            return [true, 0];
+        }
+        $since = min(array_map(static fn (object $document): string => (string) $document->created_at, $children));
+        $notes = $this->refundNotes($containerId, $since, false);
+        if ($notes === []) {
+            $expired = Clock::parse($request['since']) < Clock::now()->modify('-' . self::GIVE_UP_DAYS . ' days');
+            if ($expired) {
+                $this->alert('alert_storno_no_note', reset($children), '');
+            }
+
+            return [$expired, 0];
+        }
+
+        $containerTotal = Money::cents((string) Capsule::table('tblinvoices')->where('id', $containerId)->value('total'));
+        $issued = 0;
+        foreach ($notes as $note) {
+            if (Money::cents((string) $note->total) !== $containerTotal) {
+                // A partial refund cannot be split between the invoices safely.
+                if ($this->state->add('storno_masspay:' . $note->id, true)) {
+                    $this->massPayAlert('alert_masspay_partial', $containerId, (string) $note->total, $children);
+                }
+                continue;
+            }
+            foreach ($children as $childId => $original) {
+                $key = 'masspay:' . $note->id . ':' . $childId;
+                if (Capsule::table(Document::TABLE)->where('dedupe_key', $key)->exists()) {
+                    continue;
+                }
+                if ($this->documents->stornosOf((int) $original->id) !== []) {
+                    if ($this->state->add('storno_' . $key, true)) {
+                        $this->massPayAlert('alert_masspay_reversed', $containerId, (string) $original->number, $children);
+                    }
+                    continue;
+                }
+                $invoice = Capsule::table('tblinvoices')->where('id', $childId)->first(['subtotal', 'tax']);
+                $this->issue($original, [
+                    'dedupe_key' => $key,
+                    'source' => Document::SOURCE_REFUND,
+                    'reason' => DocumentBuilder::REASON_REFUND_FULL,
+                    'net_cents' => -Money::cents((string) $invoice->subtotal),
+                    'tax_cents' => -Money::cents((string) $invoice->tax),
+                    'issued_by' => $request['admin'],
+                ]);
+                $issued++;
+            }
+        }
+
+        return [true, $issued];
+    }
+
+    /**
+     * The fiscal invoices paid through a Mass Pay invoice, by invoice ID (none
+     * when the invoice is not a Mass Pay invoice).
+     *
+     * @return array<int, object>
+     */
+    private function massPayChildren(int $invoiceId): array
+    {
+        $items = Capsule::table('tblinvoiceitems')->where('invoiceid', $invoiceId)->get(['type', 'relid']);
+        if ($items->isEmpty() || $items->contains(static fn (object $item): bool => $item->type !== 'Invoice')) {
+            return [];
+        }
+        $children = [];
+        foreach ($items as $item) {
+            $original = $this->original((int) $item->relid);
+            if ($original !== null) {
+                $children[(int) $item->relid] = $original;
+            }
+        }
+
+        return $children;
+    }
+
+    /**
+     * @param array<int, object> $children
+     */
+    private function massPayAlert(string $key, int $containerId, string $detail, array $children): void
+    {
+        $numbers = implode(', ', array_map(static fn (object $document): string => (string) $document->number, $children));
+        try {
+            AdminNotifier::send(
+                Lang::get($key . '_subject', $containerId),
+                Lang::get($key . '_body', $containerId, $detail, $numbers, AdminContext::adminUrl('invoices.php?action=edit&id=' . $containerId))
+            );
+        } catch (Throwable) {
+            // An alert never stops the stornos.
+        }
+    }
+
+    /**
+     * The WHMCS credit notes created by refunds of the invoice since $since:
+     * each refund transaction is paired with the next credit adjustment of
+     * the same amount on the invoice. Notes that have a storno already are
+     * left out when $skipReversed.
      *
      * @return list<object>
      */
-    private function refundNotes(int $invoiceId, object $original): array
+    private function refundNotes(int $invoiceId, string $since, bool $skipReversed = true): array
     {
         $refunds = [];
         $noteIds = [];
@@ -295,13 +402,13 @@ final class Stornos
         if ($noteIds === []) {
             return [];
         }
-        $done = Capsule::table(Document::TABLE)->whereIn('billing_note_id', $noteIds)->pluck('billing_note_id')->map(static fn ($id): int => (int) $id)->all();
+        $done = $skipReversed ? Capsule::table(Document::TABLE)->whereIn('billing_note_id', $noteIds)->pluck('billing_note_id')->map(static fn ($id): int => (int) $id)->all() : [];
 
         return Capsule::table('tblbillingnotes')
             ->whereIn('id', array_values(array_diff($noteIds, $done)))
             ->where('note_type', 'credit')
             // Only refunds made after the invoice became fiscal.
-            ->where('date_issued', '>=', Clock::parse((string) $original->created_at)->modify('-1 minute')->format('Y-m-d H:i:s'))
+            ->where('date_issued', '>=', Clock::parse($since)->modify('-1 minute')->format('Y-m-d H:i:s'))
             ->orderBy('id')
             ->get(['id', 'subtotal', 'tax', 'tax2', 'total'])
             ->all();

@@ -364,6 +364,10 @@ $_ADDONLANG['alert_storno_overflow_subject'] = 'Refund on %s not reversed automa
 $_ADDONLANG['alert_storno_overflow_body'] = "A refund on fiscal invoice %s (invoice #%d) would reverse more than the invoice, together with the stornos already issued (WHMCS credit note #%s). No storno was issued for it: check the invoice and its stornos.\n%s";
 $_ADDONLANG['alert_storno_no_note_subject'] = 'No credit note for a refund on %s';
 $_ADDONLANG['alert_storno_no_note_body'] = "A refund on fiscal invoice %s (invoice #%d) was recorded a week ago, but WHMCS has not created a credit note for it, so no storno was issued. Check the invoice.%s\n%s";
+$_ADDONLANG['alert_masspay_partial_subject'] = 'Partial refund of Mass Pay invoice #%d: stornos needed by hand';
+$_ADDONLANG['alert_masspay_partial_body'] = "Mass Pay invoice #%d was refunded in part (%s). It paid these fiscal invoices: %s. A partial refund is not split between them automatically: issue the storno of each invoice concerned from its e-Factura panel.\n%s";
+$_ADDONLANG['alert_masspay_reversed_subject'] = 'Mass Pay invoice #%d refunded: an invoice already has stornos';
+$_ADDONLANG['alert_masspay_reversed_body'] = "Mass Pay invoice #%d was refunded in full, but fiscal invoice %s already has stornos, so it was not reversed automatically (the invoices paid were: %s). Check it and issue what is left by hand.\n%s";
 
 // Validation
 $_ADDONLANG['error_csrf'] = 'The form has expired. Reload the page and try again.';

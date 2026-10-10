@@ -364,6 +364,10 @@ $_ADDONLANG['alert_storno_overflow_subject'] = 'Rambursare pe %s nestornată aut
 $_ADDONLANG['alert_storno_overflow_body'] = "O rambursare pe factura fiscală %s (factura #%d) ar storna, împreună cu stornările deja emise, mai mult decât factura (nota de credit WHMCS #%s). Nu s-a emis stornare pentru ea: verificați factura și stornările ei.\n%s";
 $_ADDONLANG['alert_storno_no_note_subject'] = 'Lipsește nota de credit pentru o rambursare pe %s';
 $_ADDONLANG['alert_storno_no_note_body'] = "O rambursare pe factura fiscală %s (factura #%d) a fost înregistrată acum o săptămână, dar WHMCS nu a creat o notă de credit pentru ea, deci nu s-a emis stornare. Verificați factura.%s\n%s";
+$_ADDONLANG['alert_masspay_partial_subject'] = 'Rambursare parțială a facturii Mass Pay #%d: stornări de făcut manual';
+$_ADDONLANG['alert_masspay_partial_body'] = "Factura Mass Pay #%d a fost rambursată parțial (%s). Ea a plătit aceste facturi fiscale: %s. O rambursare parțială nu se împarte automat între ele: emiteți stornarea fiecărei facturi vizate din panoul ei e-Factura.\n%s";
+$_ADDONLANG['alert_masspay_reversed_subject'] = 'Factura Mass Pay #%d rambursată: o factură are deja stornări';
+$_ADDONLANG['alert_masspay_reversed_body'] = "Factura Mass Pay #%d a fost rambursată integral, dar factura fiscală %s are deja stornări, deci nu a fost stornată automat (facturile plătite: %s). Verificați-o și emiteți manual ce a rămas.\n%s";
 
 // Validare
 $_ADDONLANG['error_csrf'] = 'Formularul a expirat. Reîncărcați pagina și încercați din nou.';

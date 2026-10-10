@@ -73,6 +73,33 @@ $paid = static function (array $clientData = [], bool $taxed = true) use ($clien
     return [$invoiceId, $document, (int) Capsule::table('tblaccounts')->where('invoiceid', $invoiceId)->where('amountin', '>', 0)->value('id')];
 };
 
+/**
+ * Two invoices (121 and 12.10 RON) paid through a Mass Pay invoice.
+ *
+ * @return array{0: int, 1: list<object>, 2: int} Mass Pay invoice ID, the fiscal documents, payment transaction ID
+ */
+$massPay = static function () use ($client): array {
+    $clientId = $client();
+    $invoice = static fn (float $amount, string $text): int => (int) localAPI('CreateInvoice', ['userid' => $clientId, 'status' => 'Unpaid', 'sendinvoice' => false,
+        'paymentmethod' => 'banktransfer', 'itemdescription1' => $text, 'itemamount1' => $amount, 'itemtaxed1' => true])['invoiceid'];
+    $children = [$invoice(100, 'Găzduire'), $invoice(10, 'Domeniu')];
+    // As WHMCS builds it: one "Invoice" line per invoice paid.
+    $containerId = $invoice(1, 'Mass Pay');
+    Capsule::table('tblinvoiceitems')->where('invoiceid', $containerId)->delete();
+    foreach (array_combine($children, [121.00, 12.10]) as $child => $amount) {
+        Capsule::table('tblinvoiceitems')->insert(['invoiceid' => $containerId, 'userid' => $clientId, 'type' => 'Invoice', 'relid' => $child,
+            'description' => 'Invoice #' . $child, 'amount' => $amount, 'taxed' => 0, 'duedate' => date('Y-m-d'), 'paymentmethod' => 'banktransfer']);
+    }
+    Capsule::table('tblinvoices')->where('id', $containerId)->update(['subtotal' => 133.10, 'tax' => 0, 'total' => 133.10]);
+    localAPI('AddInvoicePayment', ['invoiceid' => $containerId, 'transid' => 'MP-' . uniqid(), 'gateway' => 'banktransfer', 'amount' => 133.10]);
+
+    return [
+        $containerId,
+        array_values(array_filter(array_map(static fn (int $id): ?object => Addon::documents()->forInvoice($id), $children))),
+        (int) Capsule::table('tblaccounts')->where('invoiceid', $containerId)->where('amountin', '>', 0)->value('id'),
+    ];
+};
+
 $stornos = static fn (object $original): array => Addon::documents()->stornosOf((int) $original->id);
 $xml = static function (object $storno): string {
     $result = Addon::documentBuilder()->build(Addon::documents()->find((int) $storno->id));
@@ -244,6 +271,31 @@ return [
         localAPI('UpdateInvoice', ['invoiceid' => $invoiceId, 'status' => 'Cancelled']);
         Addon::stornos()->process(1);
         Assert::same(1, count($stornos($original)), 'cancelling a refunded invoice reverses nothing more');
+    }),
+    'a full refund of a Mass Pay invoice reverses in full every invoice it paid' => static fn () => $clean(static function () use ($setup, $massPay, $stornos, $xml): void {
+        $setup();
+        [$containerId, $children, $payment] = $massPay();
+        Assert::same(2, count($children), 'two fiscal invoices paid through it');
+        refundInvoicePayment($payment, 133.10, false, false, false, 'R-' . uniqid());
+        Addon::stornos()->process(1);
+        $first = $stornos($children[0]);
+        $second = $stornos($children[1]);
+        Assert::same([DocumentBuilder::REASON_REFUND_FULL], array_column($first, 'reason'));
+        Assert::same(['-121.00', '-100.00', '-21.00'], [$first[0]->total, $first[0]->amount_net, $first[0]->amount_tax]);
+        Assert::same(['-12.10', '-10.00', '-2.10'], [$second[0]->total, $second[0]->amount_net, $second[0]->amount_tax]);
+        Assert::true(str_contains($xml($second[0]), '<cbc:ID>' . $children[1]->number . '</cbc:ID>'));
+        Assert::same(0, Capsule::table(Document::TABLE)->where('invoice_id', $containerId)->count(), 'nothing for the Mass Pay invoice itself');
+        Assert::same(0, Addon::stornos()->process(1), 'issued once');
+    }),
+    'a partial refund of a Mass Pay invoice is left to the admin' => static fn () => $clean(static function () use ($setup, $massPay, $stornos): void {
+        $setup();
+        [$containerId, $children, $payment] = $massPay();
+        refundInvoicePayment($payment, 50.00, false, false, false, 'R-' . uniqid());
+        Addon::stornos()->process(1);
+        Assert::same([], $stornos($children[0]));
+        Assert::same([], $stornos($children[1]));
+        Assert::same(1, Capsule::table('tblactivitylog')->where('description', 'like', Addon::NAME . ': ' . Lang::get('alert_masspay_partial_subject', $containerId) . '%')->count());
+        Assert::same([], (new RuntimeState())->withPrefix('storno:'));
     }),
     'the worker sends a storno only after its invoice is validated' => static fn () => $clean(static function () use ($setup, $paid, $stornos): void {
         $setup();
