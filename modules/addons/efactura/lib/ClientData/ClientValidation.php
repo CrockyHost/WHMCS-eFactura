@@ -17,6 +17,7 @@ namespace WHMCS\Module\Addon\Efactura\ClientData;
 
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Support\Input;
 
 /**
  * ClientDetailsValidation and ContactDetailsValidation for the client area
@@ -48,8 +49,10 @@ final class ClientValidation
         if ($mode === FormContext::OFF) {
             return [];
         }
+        // WHMCS passes the form HTML-escaped ("A &amp; B"), as it stores it: compare the text itself.
+        $vars = Input::clean($vars);
 
-        $clientId = $context === FormContext::PROFILE ? self::currentClientId() : null;
+        $clientId = $context ===FormContext::PROFILE ? self::currentClientId() : null;
         $stored = $clientId !== null ? self::storedClient($clientId) : [];
         $locked = $clientId !== null ? FormContext::lockedProfileFields() : [];
         $data = [];
@@ -73,7 +76,7 @@ final class ClientValidation
             foreach (FieldMap::ROLES as $role) {
                 $data[$role] = $fields->submitted($vars, $role) ?? ($storedIds[$role] ?? '');
             }
-            $data['type'] = (string) ($vars[self::TYPE_FIELD] ?? $_POST[self::TYPE_FIELD] ?? '');
+            $data['type'] = (string) ($vars[self::TYPE_FIELD] ?? Input::post()[self::TYPE_FIELD] ?? '');
 
             if ($clientId !== null && Settings::bool('client_profile_lock')) {
                 if (self::identityChanged($vars, $fields, $storedIds, $stored, $locked)) {
@@ -101,6 +104,7 @@ final class ClientValidation
         if ($mode === FormContext::OFF) {
             return [];
         }
+        $vars = Input::clean($vars);
         $address = [];
         foreach (self::ADDRESS_FIELDS as $field) {
             $address[$field] = is_scalar($vars[$field] ?? null) ? trim((string) $vars[$field]) : '';
@@ -179,7 +183,7 @@ final class ClientValidation
             return [];
         }
 
-        return array_map(static fn ($value): string => trim((string) $value), (array) $row);
+        return array_map(FieldMap::text(...), (array) $row);
     }
 
     private static function currentClientId(): ?int

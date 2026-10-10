@@ -36,8 +36,7 @@ final class ClientSummary
         }
 
         $values = FieldMap::load()->stored($clientId);
-        $companyName = trim((string) $client->companyname);
-        if (IdentityRules::infer($companyName, $values['cui'], (string) $client->tax_id) === IdentityRules::COMPANY) {
+        if (IdentityRules::infer(FieldMap::text($client->companyname), $values['cui'], FieldMap::text($client->tax_id)) === IdentityRules::COMPANY) {
             return [
                 [$texts->get('client_field_role_cui'), $values['cui']],
                 [$texts->get('client_field_role_regcom'), $values['regcom']],

@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace WHMCS\Module\Addon\Efactura\ClientData;
 
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Support\Input;
 
 /**
  * Which client form a request comes from, how strictly it is validated and
@@ -63,7 +64,7 @@ final class FormContext
 
     public static function current(): string
     {
-        return self::detect($_SERVER, $_GET, defined('ADMINAREA'));
+        return self::detect($_SERVER, Input::get(), defined('ADMINAREA'));
     }
 
     /**

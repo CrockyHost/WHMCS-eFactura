@@ -19,6 +19,7 @@ use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\AdminContext;
+use WHMCS\Module\Addon\Efactura\Support\Input;
 
 /**
  * The stylesheet, the configuration and the script of the client forms,
@@ -159,7 +160,7 @@ final class PageAssets
         $config['lookupScope'] = 'admin';
         if (($vars['filename'] ?? '') === 'clientssummary') {
             // Rows for the "Clients Information" panel.
-            $config['summary'] = ClientSummary::rows((int) ($_GET['userid'] ?? 0), $texts);
+            $config['summary'] = ClientSummary::rows((int) (Input::get()['userid'] ?? 0), $texts);
         }
 
         return self::script(self::adminBase(), $config);
@@ -175,7 +176,7 @@ final class PageAssets
         $mode = FormContext::mode($context);
         $fields = FieldMap::load();
         $identity = in_array($context, self::IDENTITY_CONTEXTS, true) && $fields->id('cui') !== null;
-        $postedType = (string) ($_POST[ClientValidation::TYPE_FIELD] ?? '');
+        $postedType = (string) (Input::post()[ClientValidation::TYPE_FIELD] ?? '');
 
         return [
             'context' => $context,

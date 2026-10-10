@@ -18,6 +18,7 @@ use WHMCS\Module\Addon\Efactura\Admin\SettingsForm;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientValidation;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientSummary;
+use WHMCS\Module\Addon\Efactura\ClientData\FieldMap;
 use WHMCS\Module\Addon\Efactura\ClientData\FormContext;
 use WHMCS\Module\Addon\Efactura\ClientData\PageAssets;
 use WHMCS\Module\Addon\Efactura\ClientData\Texts;
@@ -152,6 +153,24 @@ return [
             $form['customfield'][$ids['cui']] = '50515950';
             Assert::same([], ClientValidation::client($form, FormContext::PROFILE));
         });
+    },
+    'profile: text with "&" and quotes is compared as text, escaped or not' => static function () use ($fakeClient, $mapFields, $setFields, $asClient, $english): void {
+        $ids = $mapFields();
+        Settings::save(['client_profile_lock' => true, 'client_validation_profile' => 'strict']);
+        // WHMCS stores the form escaped; a client added through the API may be stored as is.
+        foreach (['H&amp;M &quot;GENERAL&quot; SRL', 'H&M "GENERAL" SRL'] as $storedName) {
+            $clientId = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'companyname' => $storedName, 'tax_id' => '']);
+            $setFields($clientId, $ids, ['cui' => '50515950', 'regcom' => 'J2024020698007', 'cnp' => '']);
+            $asClient($clientId, 'country', static function () use ($ids, $english): void {
+                // The validation hook gets the form as WHMCS escaped it.
+                $form = ['state' => 'Dolj', 'city' => 'Craiova', 'address1' => 'Str. A &amp; B 1', 'companyname' => 'H&amp;M &quot;GENERAL&quot; SRL', 'tax_id' => '',
+                    'customfield' => [$ids['cui'] => '50515950', $ids['regcom'] => 'J2024020698007', $ids['cnp'] => '']];
+                Assert::same([], ClientValidation::client($form, FormContext::PROFILE));
+                $form['companyname'] = 'H&amp;M SRL';
+                Assert::same([$english->get('cd_error_locked')], ClientValidation::client($form, FormContext::PROFILE));
+            });
+        }
+        Assert::same('H&M "X" \'Y\'', FieldMap::text(' H&amp;M &quot;X&quot; &#039;Y&#039; '));
     },
     'the addon owns its client fields and creates a missing one again' => static function (): void {
         $ids = ClientFields::ids();

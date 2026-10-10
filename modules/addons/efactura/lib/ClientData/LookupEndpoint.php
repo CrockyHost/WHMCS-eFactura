@@ -24,6 +24,7 @@ use WHMCS\Module\Addon\Efactura\ClientData\Anaf\LookupResult;
 use WHMCS\Module\Addon\Efactura\Http\CurlTransport;
 use WHMCS\Module\Addon\Efactura\Romania\Cui;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Support\Input;
 
 /**
  * JSON endpoint of the "fetch from ANAF" button (clientdata.php): POST with
@@ -93,7 +94,7 @@ final class LookupEndpoint
     public static function handle(): never
     {
         try {
-            $result = self::process($_POST, $_SERVER, null, self::clientIp());
+            $result = self::process(Input::post(), $_SERVER, null, self::clientIp());
         } catch (Throwable $e) {
             if (function_exists('logActivity')) {
                 logActivity('WHMCS-eFactura company lookup error: ' . $e->getMessage());

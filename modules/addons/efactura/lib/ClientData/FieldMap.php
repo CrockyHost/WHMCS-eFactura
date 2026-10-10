@@ -54,7 +54,8 @@ final class FieldMap
 
     /**
      * The submitted value of a role from the client form data: "customfield"
-     * (client area forms) keyed by field id.
+     * (client area forms) keyed by field id. The data must already be
+     * unescaped (Support\Input).
      *
      * @param array<string, mixed> $vars
      */
@@ -83,9 +84,17 @@ final class FieldMap
         $stored = [];
         foreach (self::ROLES as $role) {
             $id = $this->id($role);
-            $stored[$role] = $id !== null ? trim((string) ($values[$id] ?? '')) : '';
+            $stored[$role] = $id !== null ? self::text($values[$id] ?? '') : '';
         }
 
         return $stored;
+    }
+
+    /**
+     * A client value as WHMCS stored it (HTML-escaped: "H&amp;M"), as text.
+     */
+    public static function text(mixed $value): string
+    {
+        return trim(htmlspecialchars_decode((string) $value, ENT_QUOTES));
     }
 }
