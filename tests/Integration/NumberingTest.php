@@ -273,10 +273,16 @@ return [
     }),
     'a payment that cannot get the lock goes through and is held for a manual check' => static fn () => $clean(static function () use ($client, $invoice, $pay, $row, $doc, $counter, $number): void {
         $clientId = $client();
-        // A normal payment first, as a baseline for the duration.
-        $started = microtime(true);
-        $pay($invoice($clientId, 100));
-        $baseline = microtime(true) - $started;
+        // Normal payments first: the median of three is the usual duration.
+        $durations = [];
+        for ($i = 0; $i < 3; $i++) {
+            $paid = $invoice($clientId, 100);
+            $started = microtime(true);
+            $pay($paid);
+            $durations[] = microtime(true) - $started;
+        }
+        sort($durations);
+        $baseline = $durations[1];
 
         $id = $invoice($clientId, 100);
         $start = $counter();
@@ -285,11 +291,15 @@ return [
         $other = new PDO(sprintf('mysql:host=%s;port=%s;dbname=%s', $config['host'], $config['port'] ?? 3306, $config['database']), $config['username'], $config['password']);
         $other->query("SELECT GET_LOCK('" . Lock::scoped('numbering') . "', 0)")->fetchAll();
         try {
+            $timeouts = NumberingLock::timeouts();
             $started = microtime(true);
             $pay($id);
             $extra = (microtime(true) - $started) - $baseline;
-            // One lock timeout (1 s here), plus the alert e-mail.
-            Assert::true($extra < NumberingLock::paymentTimeout() + 3, sprintf('the payment waited %.1f s longer than usual', $extra));
+            // Exactly one wait for the lock, however busy the machine is...
+            Assert::same(1, NumberingLock::timeouts() - $timeouts, 'the payment waited for the lock once');
+            // ...and nothing else long: one lock timeout (1 s here), the alert
+            // e-mail, and room for a machine under load.
+            Assert::true($extra < NumberingLock::paymentTimeout() + 8, sprintf('the payment waited %.1f s longer than usual', $extra));
         } finally {
             $other = null;
         }

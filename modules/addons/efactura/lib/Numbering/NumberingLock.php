@@ -37,6 +37,7 @@ final class NumberingLock
     private static ?int $owner = null;
     private static bool $shutdownRegistered = false;
     private static ?int $paymentTimeoutOverride = null;
+    private static int $timeouts = 0;
 
     /**
      * Seconds a payment waits for the lock; tests can shorten it.
@@ -49,6 +50,15 @@ final class NumberingLock
     public static function overridePaymentTimeout(?int $seconds): void
     {
         self::$paymentTimeoutOverride = $seconds;
+    }
+
+    /**
+     * How many times this request waited for the lock in vain; a payment
+     * waits at most once.
+     */
+    public static function timeouts(): int
+    {
+        return self::$timeouts;
     }
 
     public static function held(): bool
@@ -71,6 +81,8 @@ final class NumberingLock
             return true;
         }
         if (!Lock::acquire(self::NAME, $timeoutSeconds)) {
+            self::$timeouts += $timeoutSeconds > 0 ? 1 : 0;
+
             return false;
         }
         self::$held = true;
