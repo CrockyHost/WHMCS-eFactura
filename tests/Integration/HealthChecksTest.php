@@ -14,9 +14,15 @@
 declare(strict_types=1);
 
 use WHMCS\Config\Setting;
+use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Admin\HealthChecks;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
+
+$settingNames = [
+    'SequentialInvoiceNumbering', 'EnableProformaInvoicing', 'TaxSetInvoiceDateOnPayment', 'SequentialInvoiceNumberFormat',
+    'SequentialInvoiceNumberValue', 'TaxCustomInvoiceNumbering', 'TaxCustomInvoiceNumberFormat', 'TaxNextCustomInvoiceNumber',
+];
 
 /**
  * Applies WHMCS numbering settings (inside the test transaction).
@@ -50,7 +56,7 @@ $seriesCheck = static function (): array {
 
 Lang::boot('english');
 
-return [
+$tests = [
     'proforma series CRP next to fiscal series CRK is accepted' => static function () use ($configure, $seriesCheck): void {
         $configure([]);
         Assert::true((new HealthChecks(new InvoicingConfig()))->systemReady());
@@ -96,3 +102,18 @@ return [
         Assert::false((new HealthChecks(new InvoicingConfig()))->systemReady());
     },
 ];
+
+// WHMCS keeps the settings in memory after the rollback, so the next test
+// files would see the values above: each test puts back the values of the
+// database, inside its transaction (nothing is written).
+$original = Capsule::table('tblconfiguration')->whereIn('setting', $settingNames)->pluck('value', 'setting')->all();
+
+return array_map(static fn (callable $test): Closure => static function () use ($test, $original): void {
+    try {
+        $test();
+    } finally {
+        foreach ($original as $name => $value) {
+            Setting::setValue($name, $value);
+        }
+    }
+}, $tests);

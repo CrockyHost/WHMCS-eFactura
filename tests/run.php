@@ -55,6 +55,9 @@ foreach ($suites as $name) {
     if ($name === 'Integration' && $files !== []) {
         // WHMCS expects to be booted from the global scope.
         require_once dirname(__DIR__) . '/init.php';
+        // Payments and the title tests render invoice PDFs, and TCPDF keeps
+        // memory from one PDF to the next in a long run.
+        ini_set('memory_limit', '512M');
         efactura_suite_lock();
         \WHMCS\Module\Addon\Efactura\Addon::migratePending();
     }
