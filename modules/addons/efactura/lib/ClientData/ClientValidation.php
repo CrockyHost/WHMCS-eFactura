@@ -52,7 +52,7 @@ final class ClientValidation
         // WHMCS passes the form HTML-escaped ("A &amp; B"), as it stores it: compare the text itself.
         $vars = Input::clean($vars);
 
-        $clientId = $context ===FormContext::PROFILE ? self::currentClientId() : null;
+        $clientId = $context === FormContext::PROFILE ? self::currentClientId() : null;
         $stored = $clientId !== null ? self::storedClient($clientId) : [];
         $locked = $clientId !== null ? FormContext::lockedProfileFields() : [];
         $data = [];

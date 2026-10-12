@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace WHMCS\Module\Addon\Efactura\ClientData;
 
 use WHMCS\Database\Capsule;
+use WHMCS\Module\Addon\Efactura\Support\WhmcsText;
 
 /**
  * Reads the values of the addon's client fields (CUI, trade register
@@ -95,6 +96,6 @@ final class FieldMap
      */
     public static function text(mixed $value): string
     {
-        return trim(htmlspecialchars_decode((string) $value, ENT_QUOTES));
+        return trim(WhmcsText::decode($value));
     }
 }
