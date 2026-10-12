@@ -13,6 +13,7 @@
 
 declare(strict_types=1);
 
+use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Http\Request;
 use WHMCS\Module\Addon\Efactura\Http\Response;
 use WHMCS\Module\Addon\Efactura\Http\Transport;
@@ -61,9 +62,12 @@ final class AnafSimulator implements Transport
      * Messages for the seller that do not come from its uploads: invoices
      * received from suppliers (P) and messages from buyers (R).
      *
-     * @var array<string, array{tip: string, filter: string, request: string, details: string, files: array<string, string>}> by download ID
+     * @var array<string, array{tip: string, filter: string, request: string, details: string, files: array<string, string>, created: DateTimeImmutable}> by download ID
      */
     public array $inbox = [];
+
+    /** Messages per page of the paged list (500 at ANAF). */
+    public int $pageSize = 500;
 
     private int $nextIndex = 5000000001;
     private int $nextInbox = 3100000001;
@@ -95,34 +99,36 @@ final class AnafSimulator implements Transport
     /**
      * An invoice from a supplier, as SPV lists it for the buyer.
      */
-    public function addReceivedInvoice(string $xml, string $supplierCui): string
+    public function addReceivedInvoice(string $xml, string $supplierCui, ?DateTimeImmutable $created = null): string
     {
         $index = (string) $this->nextIndex++;
 
         return $this->addInbox('FACTURA PRIMITA', 'P', $index,
             'Factura cu id_incarcare=' . $index . ' emisa de cif_emitent=' . $supplierCui . ' pentru cif_beneficiar=12345674',
-            [$index . '.xml' => $xml]);
+            [$index . '.xml' => $xml], $created);
     }
 
     /**
      * A message from a buyer (RASP) about the upload $invoiceIndex.
      */
-    public function addBuyerMessage(string $invoiceIndex, string $text): string
+    public function addBuyerMessage(string $invoiceIndex, string $text, ?DateTimeImmutable $created = null): string
     {
         $index = (string) $this->nextIndex++;
         $rasp = '<?xml version="1.0" encoding="UTF-8"?><header xmlns="mfp:anaf:dgti:spv:reqMesaj:v1" index_incarcare="' . $invoiceIndex . '" message="' . htmlspecialchars($text, ENT_QUOTES) . '"/>';
 
-        return $this->addInbox('MESAJ CUMPARATOR PRIMIT / MESAJ CUMPARATOR TRANSMIS', 'R', $index, 'Mesaj cumparator pentru id_incarcare=' . $invoiceIndex, [$index . '.xml' => $rasp]);
+        return $this->addInbox('MESAJ CUMPARATOR PRIMIT / MESAJ CUMPARATOR TRANSMIS', 'R', $index, 'Mesaj cumparator pentru id_incarcare=' . $invoiceIndex, [$index . '.xml' => $rasp], $created);
     }
 
     /**
      * @param array<string, string> $files
+     * @param DateTimeImmutable|null $created when ANAF created the message; by default two minutes ago
      */
-    private function addInbox(string $tip, string $filter, string $index, string $details, array $files): string
+    private function addInbox(string $tip, string $filter, string $index, string $details, array $files, ?DateTimeImmutable $created): string
     {
         $id = (string) $this->nextInbox++;
         $files['semnatura_' . $index . '.xml'] = '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo/></Signature>';
-        $this->inbox[$id] = ['tip' => $tip, 'filter' => $filter, 'request' => $index, 'details' => $details, 'files' => $files];
+        $this->inbox[$id] = ['tip' => $tip, 'filter' => $filter, 'request' => $index, 'details' => $details, 'files' => $files,
+            'created' => $created ?? Clock::now()->modify('-2 minutes')];
 
         return $id;
     }
@@ -237,8 +243,13 @@ final class AnafSimulator implements Transport
             if (isset($query['filtru']) && $query['filtru'] !== $message['filter']) {
                 continue;
             }
+            // Only the inbox messages are kept to the interval; the uploads are always listed.
+            $created = $message['created']->getTimestamp() * 1000;
+            if ($created < (int) ($query['startTime'] ?? 0) || $created > (int) ($query['endTime'] ?? PHP_INT_MAX)) {
+                continue;
+            }
             $messages[] = [
-                'data_creare' => '202610091205',
+                'data_creare' => $message['created']->format('YmdHi'),
                 'cif' => '12345674',
                 'id_solicitare' => $message['request'],
                 'detalii' => $message['details'],
@@ -250,9 +261,13 @@ final class AnafSimulator implements Transport
             return new Response(200, [], json_encode(['eroare' => 'Nu exista mesaje in intervalul selectat', 'titlu' => 'Lista Mesaje']));
         }
 
+        $pages = (int) ceil(count($messages) / $this->pageSize);
+        $page = min($pages, max(1, (int) ($query['pagina'] ?? 1)));
+        $slice = array_slice($messages, ($page - 1) * $this->pageSize, $this->pageSize);
+
         return new Response(200, ['content-type' => 'application/json'], json_encode([
-            'mesaje' => $messages, 'numar_inregistrari_in_pagina' => count($messages), 'numar_total_inregistrari_per_pagina' => 500,
-            'numar_total_inregistrari' => count($messages), 'numar_total_pagini' => 1, 'index_pagina_curenta' => 1, 'titlu' => 'Lista Mesaje',
+            'mesaje' => $slice, 'numar_inregistrari_in_pagina' => count($slice), 'numar_total_inregistrari_per_pagina' => $this->pageSize,
+            'numar_total_inregistrari' => count($messages), 'numar_total_pagini' => $pages, 'index_pagina_curenta' => $page, 'titlu' => 'Lista Mesaje',
         ]));
     }
 

@@ -53,6 +53,7 @@ final class InboxSync
     public const OTHER = 'other';
 
     private const LOCK = 'inbox';
+    /** Followed by ":<environment>:<CUI>": how far the list of a CUI was read. */
     private const UNTIL = 'inbox_synced_until';
     private const LAST_RUN = 'inbox_last_run';
     /** The cron syncs at most this often. */
@@ -61,7 +62,9 @@ final class InboxSync
     private const FIRST_DAYS = 59;
     private const WINDOW_BEFORE_MINUTES = 5;
     private const WINDOW_END_SECONDS = 60;
+    /** Pages of one window; a window with more is split. */
     private const MAX_PAGES = 20;
+    private const MIN_WINDOW_SECONDS = 60;
     private const MAX_DOWNLOADS = 30;
     private const MAX_ATTEMPTS = 8;
 
@@ -115,15 +118,16 @@ final class InboxSync
         if (!Lock::acquire(self::LOCK, 0)) {
             return ['error' => 'busy'] + $report;
         }
+        $hasBudget ??= static fn (): bool => true;
         try {
             $now = Clock::now();
             $this->state->set(self::LAST_RUN, $now->format('Y-m-d H:i:s'));
             try {
-                [$report['listed'], $report['new']] = $this->list($cui, $now);
+                $this->list($cui, $now, $hasBudget, $report);
             } catch (RuntimeException $e) {
                 $report['error'] = $e->getMessage();
             }
-            $report['downloaded'] = $this->download($hasBudget ?? static fn (): bool => true);
+            $report['downloaded'] = $this->download($hasBudget);
         } finally {
             Lock::release(self::LOCK);
         }
@@ -132,37 +136,65 @@ final class InboxSync
     }
 
     /**
-     * @return array{0: int, 1: int} messages listed, new ones
+     * Reads the list of $cui from where the last run stopped to a minute ago,
+     * one window at a time. A window with more pages than MAX_PAGES is halved
+     * until it fits (a minute is read whole), and the cursor moves to the end
+     * of each window read in full: what the budget leaves is read by the next
+     * run, never skipped.
+     * The cursor is kept per environment and CUI, so that a switch from the
+     * test environment to production, or another CUI, starts with the last
+     * 59 days.
+     *
+     * @param Closure(): bool $hasBudget
+     * @param array{listed: int, new: int, downloaded: int, error: string} $report
      */
-    private function list(string $cui, DateTimeImmutable $now): array
+    private function list(string $cui, DateTimeImmutable $now, Closure $hasBudget, array &$report): void
     {
-        $until = (string) $this->state->get(self::UNTIL, '');
-        $start = $until !== '' ? Clock::parse($until)->modify('-' . self::WINDOW_BEFORE_MINUTES . ' minutes') : $now->modify('-' . self::FIRST_DAYS . ' days');
-        $start = max($start, $now->modify('-' . self::FIRST_DAYS . ' days'));
+        $cursor = self::UNTIL . ':' . $this->api->environment() . ':' . $cui;
+        $oldest = $now->modify('-' . self::FIRST_DAYS . ' days');
+        $until = (string) $this->state->get($cursor, '');
+        $start = $until !== '' ? max(Clock::parse($until)->modify('-' . self::WINDOW_BEFORE_MINUTES . ' minutes'), $oldest) : $oldest;
         $end = $now->modify('-' . self::WINDOW_END_SECONDS . ' seconds');
-        if ($end <= $start) {
-            return [0, 0];
+        $span = max(1, $end->getTimestamp() - $start->getTimestamp());
+
+        while ($start < $end && $hasBudget()) {
+            // The first page tells how many pages the window has.
+            do {
+                $windowEnd = min($start->modify('+' . $span . ' seconds'), $end);
+                $outcome = $this->page($cui, $start, $windowEnd, 1);
+                $split = $outcome !== null && $outcome->pages > self::MAX_PAGES && $span > self::MIN_WINDOW_SECONDS;
+                if ($split) {
+                    $span = max(self::MIN_WINDOW_SECONDS, intdiv($span, 2));
+                }
+            } while ($split);
+
+            $page = 1;
+            while ($outcome !== null) {
+                foreach ($outcome->messages as $message) {
+                    $report['listed']++;
+                    $report['new'] += $this->record($message) ? 1 : 0;
+                }
+                $outcome = $page < $outcome->pages ? $this->page($cui, $start, $windowEnd, ++$page) : null;
+            }
+            $this->state->set($cursor, $windowEnd->format('Y-m-d H:i:s'));
+            $start = $windowEnd;
+        }
+    }
+
+    /**
+     * One page of the list; null when the window has no messages.
+     */
+    private function page(string $cui, DateTimeImmutable $start, DateTimeImmutable $end, int $page): ?Outcome
+    {
+        $outcome = ResponseParser::messages($this->api->listMessagesPaged($cui, $start->getTimestamp() * 1000, $end->getTimestamp() * 1000, $page));
+        if ($outcome->kind === Outcome::EMPTY) {
+            return null;
+        }
+        if ($outcome->kind !== Outcome::MESSAGES) {
+            throw new RuntimeException($outcome->message !== '' ? $outcome->message : 'listaMesajePaginatieFactura: ' . $outcome->kind);
         }
 
-        $listed = 0;
-        $new = 0;
-        $page = 1;
-        do {
-            $outcome = ResponseParser::messages($this->api->listMessagesPaged($cui, $start->getTimestamp() * 1000, $end->getTimestamp() * 1000, $page));
-            if ($outcome->kind === Outcome::EMPTY) {
-                break;
-            }
-            if ($outcome->kind !== Outcome::MESSAGES) {
-                throw new RuntimeException($outcome->message !== '' ? $outcome->message : 'listaMesajePaginatieFactura: ' . $outcome->kind);
-            }
-            foreach ($outcome->messages as $message) {
-                $listed++;
-                $new += $this->record($message) ? 1 : 0;
-            }
-        } while ($page++ < min($outcome->pages, self::MAX_PAGES));
-        $this->state->set(self::UNTIL, $end->format('Y-m-d H:i:s'));
-
-        return [$listed, $new];
+        return $outcome;
     }
 
     /**

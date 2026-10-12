@@ -84,6 +84,23 @@ $uploaded = static function (AnafSimulator $anaf): object {
 
 $supplierInvoice = static fn (): string => (string) file_get_contents(dirname(__DIR__) . '/fixtures/ubl/b2b-ron-paid.xml');
 
+/**
+ * The queries of the list calls a simulator received, in order.
+ *
+ * @return list<array<string, string>>
+ */
+$listCalls = static function (AnafSimulator $anaf): array {
+    $calls = [];
+    foreach ($anaf->requests as $request) {
+        if (basename((string) parse_url($request->url, PHP_URL_PATH)) === 'listaMesajePaginatieFactura') {
+            parse_str((string) parse_url($request->url, PHP_URL_QUERY), $query);
+            $calls[] = $query;
+        }
+    }
+
+    return $calls;
+};
+
 $clean = static function (callable $body): void {
     try {
         $body();
@@ -214,7 +231,7 @@ return [
         Assert::true(str_contains($page, htmlspecialchars((string) $document->number)), 'the document it is about');
         Assert::true(str_contains($render(['view' => 'message', 'id' => '999999']), Lang::get('inbox_message_missing')));
     }),
-    'the cron reads the inbox at most every half hour' =>static fn () => $clean(static function () use ($setup, $inbox): void {
+    'the cron reads the inbox at most every half hour' => static fn () => $clean(static function () use ($setup, $inbox): void {
         $setup();
         $anaf = new AnafSimulator();
         $sync = $inbox($anaf);
@@ -223,5 +240,63 @@ return [
         Assert::false($sync->due());
         Clock::freeze(Clock::now()->modify('+31 minutes'));
         Assert::true($sync->due());
+    }),
+    'the list is read on from where it stopped, per environment and CUI' => static fn () => $clean(static function () use ($setup, $inbox, $supplierInvoice, $listCalls): void {
+        $setup();
+        $now = new DateTimeImmutable('2026-10-12 12:00:00');
+        Clock::freeze($now);
+        $test = new AnafSimulator();
+        $test->addReceivedInvoice($supplierInvoice(), '12345674');
+        $inbox($test)->run();
+        Clock::freeze($now->modify('+31 minutes'));
+        $inbox($test)->run();
+        $ms = static fn (DateTimeImmutable $moment): string => (string) ($moment->getTimestamp() * 1000);
+        Assert::same([$ms($now->modify('-59 days')), $ms($now->modify('-60 seconds')->modify('-5 minutes'))], array_column($listCalls($test), 'startTime'), 'test');
+
+        // The same installation moves to production: its first read covers the last 59 days.
+        $prod = new AnafSimulator();
+        (new InboxSync(new ApiClient($prod, new Connection(new OAuthClient(new FakeTransport())), Settings::ENV_PROD), new RuntimeState()))->run();
+        Assert::same([$ms($now->modify('+31 minutes')->modify('-59 days'))], array_column($listCalls($prod), 'startTime'), 'production');
+
+        Settings::save(['company_cui' => '87654329']);
+        $other = new AnafSimulator();
+        $inbox($other)->run();
+        Assert::same([['87654329', $ms($now->modify('+31 minutes')->modify('-59 days'))]],
+            array_map(static fn (array $query): array => [$query['cif'], $query['startTime']], $listCalls($other)), 'another CUI');
+    }),
+    'a list with more pages than a run reads is split, and nothing is skipped' => static fn () => $clean(static function () use ($setup, $inbox, $supplierInvoice, $listCalls): void {
+        $setup();
+        $now = new DateTimeImmutable('2026-10-12 12:00:00');
+        Clock::freeze($now);
+        $anaf = new AnafSimulator();
+        // 25 pages of one message over the 59 days, more than the 20 of a window.
+        $anaf->pageSize = 1;
+        for ($i = 0; $i < 25; $i++) {
+            $anaf->addReceivedInvoice($supplierInvoice(), '12345674', $now->modify('-' . (2 * $i + 1) . ' days'));
+        }
+        // Time for one window only.
+        $calls = 0;
+        $report = $inbox($anaf)->run(static function () use (&$calls): bool {
+            return $calls++ < 1;
+        });
+        Assert::same([10, 0], [$report['listed'], $report['downloaded']], 'the older half');
+        $until = (string) (new RuntimeState())->get('inbox_synced_until:test:12345674', '');
+        Assert::true($until !== '' && Clock::parse($until) < $now->modify('-29 days'), 'the cursor stops at the end of what was read: ' . $until);
+
+        Clock::freeze($now->modify('+30 minutes'));
+        $report = $inbox($anaf)->run();
+        Assert::same([15, 25], [$report['listed'], $report['downloaded']], 'the rest, at the next run');
+        Assert::same(25, Capsule::table(InboxSync::TABLE)->where('kind', InboxSync::RECEIVED)->whereNotNull('archive_id')->count());
+        Assert::true(max(array_map('intval', array_column($listCalls($anaf), 'pagina'))) <= 20, 'never past page 20');
+
+        // At once, with time enough: every window in one run.
+        $fresh = new AnafSimulator();
+        $fresh->pageSize = 1;
+        for ($i = 0; $i < 25; $i++) {
+            $fresh->addReceivedInvoice($supplierInvoice(), '12345674', $now->modify('-' . (2 * $i + 1) . ' days'));
+        }
+        Capsule::table(InboxSync::TABLE)->where('environment', 'test')->delete();
+        Capsule::table(RuntimeState::TABLE)->delete();
+        Assert::same(25, $inbox($fresh)->run()['listed']);
     }),
 ];

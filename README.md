@@ -107,8 +107,11 @@ addonului au lista documentelor și istoricul fiecăruia.
 ## SPV inbox
 
 Every 30 minutes, after the queue, the cron reads the e-Factura messages of
-the company CUI from ANAF (at most 30 seconds per run; the first time, the
-last 59 days, since ANAF keeps the messages 60 days):
+the company CUI from ANAF (at most 30 seconds per run). It goes on from where
+it stopped for that ANAF environment and CUI; the first time, after a switch
+from the test environment to production or to another CUI, it reads the last
+59 days, since ANAF keeps the messages 60 days. A long list is read in parts
+over several runs, without skipping any message:
 
 - **invoices received** from suppliers: downloaded, archived as the signed
   ZIP of ANAF and shown with the supplier, number, date, total and lines;
@@ -132,7 +135,10 @@ e-Factura ale CUI-ului firmei: facturile primite de la furnizori (descărcate,
 arhivate, afișate cu furnizor, număr, total și linii), mesajele
 cumpărătorilor despre facturile trimise (legate de documentul fiscal,
 afișate pe pagina facturii și trimise pe e-mail administratorilor) și
-răspunsurile la propriile încărcări. Pagina „Inbox SPV” are filtre,
+răspunsurile la propriile încărcări. Citirea continuă de unde a rămas,
+separat pentru fiecare mediu ANAF și CUI: prima dată, inclusiv după trecerea
+de la mediul de test la producție, citește ultimele 59 de zile; o listă lungă
+se citește în mai multe rulări, fără să sară mesaje. Pagina „Inbox SPV” are filtre,
 mesajele nedeschise și marcajul „procesat”. Mesajele generale din SPV (în
 afara e-Factura) nu sunt citite: ANAF le servește doar cu certificatul
 calificat, nu prin OAuth.

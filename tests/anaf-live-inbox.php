@@ -53,7 +53,7 @@ if (in_array('--cleanup', $args, true)) {
     $ids = Capsule::table(InboxSync::TABLE)->where('environment', 'test')->pluck('id')->all();
     Capsule::table('mod_efactura_archive')->where('kind', 'inbox_zip')->whereIn('message_id', $ids)->delete();
     Capsule::table(InboxSync::TABLE)->whereIn('id', $ids)->delete();
-    Capsule::table(RuntimeState::TABLE)->whereIn('name', ['inbox_synced_until', 'inbox_last_run'])->delete();
+    Capsule::table(RuntimeState::TABLE)->where('name', 'like', 'inbox_synced_until%')->orWhere('name', 'inbox_last_run')->delete();
     echo 'Forgot ' . count($ids) . " messages of the test environment.\n";
     exit(0);
 }
