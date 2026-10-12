@@ -31,6 +31,8 @@ final class Invoice
      * @param list<Line> $lines
      * @param list<TaxSubtotal> $taxSubtotals
      * @param list<string> $notes BT-22
+     * @param array<string, string> $references BT-11, BT-12, BT-13, BT-15, BT-19
+     *        and BT-46 (Fiscal\References), keyed by business term
      */
     public function __construct(
         /** BT-1 */
@@ -57,6 +59,7 @@ final class Invoice
         public readonly ?string $precedingNumber = null,
         /** BT-26 */
         public readonly ?DateTimeImmutable $precedingDate = null,
+        public readonly array $references = [],
     ) {
     }
 

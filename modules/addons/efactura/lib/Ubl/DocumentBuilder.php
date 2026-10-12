@@ -21,6 +21,7 @@ use WHMCS\Module\Addon\Efactura\Exchange\BnrRates;
 use WHMCS\Module\Addon\Efactura\Exchange\ExchangeRate;
 use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
+use WHMCS\Module\Addon\Efactura\Fiscal\References;
 use WHMCS\Module\Addon\Efactura\Fiscal\ReportingPolicy;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
@@ -130,6 +131,8 @@ final class DocumentBuilder
         }
 
         $notes = $this->notes($document, $original, $invoiceRow, $subtotals, $exchangeRate, $taxRon, $currency);
+        // A storno carries the references of the invoice it corrects.
+        $references = $original !== null ? References::frozen($original) : References::resolve((int) $invoiceRow->id, $clientId);
 
         $invoice = new Invoice(
             number: (string) $document->number,
@@ -147,6 +150,7 @@ final class DocumentBuilder
             paymentMeans: $paymentMeans,
             precedingNumber: $original !== null ? (string) $original->number : null,
             precedingDate: $original !== null ? Clock::parse((string) $original->issue_date) : null,
+            references: $references,
         );
 
         array_push($this->issues, ...(new Validator())->validate($invoice));

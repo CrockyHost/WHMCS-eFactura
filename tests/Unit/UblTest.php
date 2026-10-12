@@ -16,6 +16,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/UblScenarios.php';
 
 use WHMCS\Module\Addon\Efactura\Exchange\ExchangeRate;
+use WHMCS\Module\Addon\Efactura\Fiscal\References;
 use WHMCS\Module\Addon\Efactura\Romania\Cnp;
 use WHMCS\Module\Addon\Efactura\Romania\Counties;
 use WHMCS\Module\Addon\Efactura\Support\Money;
@@ -46,7 +47,7 @@ $variant = static function (array $changes): Invoice {
         'number' => $base->number, 'issueDate' => $base->issueDate, 'currency' => $base->currency, 'seller' => $base->seller,
         'buyer' => $base->buyer, 'lines' => $base->lines, 'taxSubtotals' => $base->taxSubtotals, 'taxTotalCents' => $base->taxTotalCents,
         'prepaidCents' => $base->prepaidCents, 'dueDate' => $base->dueDate, 'taxTotalRonCents' => $base->taxTotalRonCents,
-        'notes' => $base->notes, 'paymentMeans' => $base->paymentMeans,
+        'notes' => $base->notes, 'paymentMeans' => $base->paymentMeans, 'references' => $base->references,
     ];
 
     return new Invoice(...array_merge($arguments, $changes));
@@ -198,5 +199,56 @@ return [
         Assert::true(in_array('BR-RO-030', $rules($variant(['currency' => 'EUR'])), true));
         Assert::true(in_array('BR-61', $rules($variant(['paymentMeans' => new PaymentMeans('30')])), true));
         Assert::same([], $rules($variant(['paymentMeans' => new PaymentMeans('42')])), 'code 42 does not require an IBAN');
+    },
+    'the references go where the UBL schema puts them' => static function (): void {
+        $dom = new DOMDocument();
+        $dom->loadXML((new UblWriter())->write(UblScenarios::all()['storno-b2g-references']));
+        $names = [];
+        foreach ($dom->documentElement->childNodes as $node) {
+            if ($node instanceof DOMElement) {
+                $names[] = $node->localName;
+            }
+        }
+        $from = array_search('AccountingCost', $names, true);
+        Assert::same(['AccountingCost', 'OrderReference', 'BillingReference', 'ReceiptDocumentReference', 'ContractDocumentReference', 'ProjectReference', 'AccountingSupplierParty', 'AccountingCustomerParty'], array_slice($names, (int) $from, 8));
+        Assert::same('DocumentCurrencyCode', $names[(int) $from - 1]);
+
+        $xpath = new DOMXPath($dom);
+        $xpath->registerNamespace('cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
+        $xpath->registerNamespace('cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+        $value = static fn (string $path): string => (string) $xpath->evaluate('string(' . $path . ')');
+        Assert::same('PRJ-2026-07 Digitalizare', $value('/*/cac:ProjectReference/cbc:ID'));
+        Assert::same('Contract 77/12.01.2026', $value('/*/cac:ContractDocumentReference/cbc:ID'));
+        Assert::same('CMD-4521', $value('/*/cac:OrderReference/cbc:ID'));
+        Assert::same('NIR 318/05.10.2026', $value('/*/cac:ReceiptDocumentReference/cbc:ID'));
+        Assert::same('20.01.30 Servicii IT', $value('/*/cbc:AccountingCost'));
+        $party = $xpath->query('/*/cac:AccountingCustomerParty/cac:Party')->item(0);
+        Assert::same('PartyIdentification', $party->firstElementChild->localName, 'first in the buyer party');
+        Assert::same('CLIENT-0042', $value('/*/cac:AccountingCustomerParty/cac:Party/cac:PartyIdentification/cbc:ID'));
+        Assert::false($xpath->query('//cac:PartyIdentification/cbc:ID[@schemeID]')->length > 0, 'no scheme identifier');
+        Assert::same(0, $xpath->query('/*/cac:AccountingSupplierParty//cac:PartyIdentification')->length, 'not for the seller');
+
+        $plain = (new UblWriter())->write(UblScenarios::all()['b2b-ron-paid']);
+        foreach (['AccountingCost', 'OrderReference', 'ReceiptDocumentReference', 'ContractDocumentReference', 'ProjectReference', 'PartyIdentification'] as $element) {
+            Assert::false(str_contains($plain, ':' . $element . '>'), $element . ' only when there is a value');
+        }
+    },
+    'the lengths of the references follow CIUS-RO' => static function () use ($variant, $rules): void {
+        $with = static fn (array $references): array => $rules($variant(['references' => $references]));
+        Assert::same([], $with(['BT-19' => str_repeat('x', 100), 'BT-12' => str_repeat('x', 200), 'BT-13' => str_repeat('x', 200), 'BT-15' => str_repeat('x', 200)]));
+        Assert::same(['BR-RO-L100'], $with(['BT-19' => str_repeat('x', 101)]));
+        Assert::same(['BR-RO-L200', 'BR-RO-L200', 'BR-RO-L200'], $with(['BT-12' => str_repeat('x', 201), 'BT-13' => str_repeat('x', 201), 'BT-15' => str_repeat('ă', 201)]));
+        // CIUS-RO sets no length for the project reference and the buyer identifier.
+        Assert::same([], $with(['BT-11' => str_repeat('x', 300), 'BT-46' => str_repeat('x', 300)]));
+    },
+    'references typed by an admin: one line each, known terms only' => static function (): void {
+        Assert::same(
+            ['BT-12' => 'Contract 77 / 2026', 'BT-46' => 'CLIENT-0042'],
+            References::normalize(['BT-46' => ' CLIENT-0042 ', 'BT-12' => "Contract\t77\r\n/ 2026", 'BT-13' => '   ', 'BT-99' => 'x', 'BT-15' => ['x'], 'bt11' => 'y'])
+        );
+        Assert::same(['BT-19'], References::tooLong(['BT-19' => str_repeat('x', 101), 'BT-12' => str_repeat('x', 200)]));
+        Assert::same(['BT-11', 'BT-46'], References::tooLong(['BT-11' => str_repeat('x', 201), 'BT-46' => str_repeat('x', 201)]), 'the limit of the addon');
+        Assert::same(null, References::encode([]));
+        Assert::same('{"BT-12":"C/1 & 2 ă"}', References::encode(['BT-12' => 'C/1 & 2 ă']));
     },
 ];

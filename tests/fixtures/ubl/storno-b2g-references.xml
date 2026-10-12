@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:efactura.mfinante.ro:CIUS-RO:1.0.1</cbc:CustomizationID>
+  <cbc:ID>FX-0009</cbc:ID>
+  <cbc:IssueDate>2026-10-07</cbc:IssueDate>
+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:Note>Stornare totală a facturii FX-0008 din 05.10.2026 (factură anulată)</cbc:Note>
+  <cbc:DocumentCurrencyCode>RON</cbc:DocumentCurrencyCode>
+  <cbc:AccountingCost>20.01.30 Servicii IT</cbc:AccountingCost>
+  <cac:OrderReference>
+    <cbc:ID>CMD-4521</cbc:ID>
+  </cac:OrderReference>
+  <cac:BillingReference>
+    <cac:InvoiceDocumentReference>
+      <cbc:ID>FX-0008</cbc:ID>
+      <cbc:IssueDate>2026-10-05</cbc:IssueDate>
+    </cac:InvoiceDocumentReference>
+  </cac:BillingReference>
+  <cac:ReceiptDocumentReference>
+    <cbc:ID>NIR 318/05.10.2026</cbc:ID>
+  </cac:ReceiptDocumentReference>
+  <cac:ContractDocumentReference>
+    <cbc:ID>Contract 77/12.01.2026</cbc:ID>
+  </cac:ContractDocumentReference>
+  <cac:ProjectReference>
+    <cbc:ID>PRJ-2026-07 Digitalizare</cbc:ID>
+  </cac:ProjectReference>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyName>
+        <cbc:Name>Exemplu Hosting</cbc:Name>
+      </cac:PartyName>
+      <cac:PostalAddress>
+        <cbc:StreetName>Strada Exemplului nr. 10, et. 2</cbc:StreetName>
+        <cbc:CityName>SECTOR3</cbc:CityName>
+        <cbc:PostalZone>030000</cbc:PostalZone>
+        <cbc:CountrySubentity>RO-B</cbc:CountrySubentity>
+        <cac:Country>
+          <cbc:IdentificationCode>RO</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>RO12345674</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>EXEMPLU HOSTING S.R.L.</cbc:RegistrationName>
+        <cbc:CompanyID>J40/1234/2020</cbc:CompanyID>
+        <cbc:CompanyLegalForm>Capital social: 200 RON</cbc:CompanyLegalForm>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Name>Departament facturare</cbc:Name>
+        <cbc:Telephone>+40 700 000 000</cbc:Telephone>
+        <cbc:ElectronicMail>facturare@exemplu-hosting.invalid</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cac:PartyIdentification>
+        <cbc:ID>CLIENT-0042</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PostalAddress>
+        <cbc:StreetName>Strada Principală nr. 1</cbc:StreetName>
+        <cbc:CityName>Exemplu</cbc:CityName>
+        <cbc:PostalZone>200001</cbc:PostalZone>
+        <cbc:CountrySubentity>RO-DJ</cbc:CountrySubentity>
+        <cac:Country>
+          <cbc:IdentificationCode>RO</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>PRIMĂRIA COMUNEI EXEMPLU</cbc:RegistrationName>
+        <cbc:CompanyID>87654329</cbc:CompanyID>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:ElectronicMail>achizitii@primaria-exemplu.invalid</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="RON">-105.00</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="RON">-500.00</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="RON">-105.00</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>21</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="RON">-500.00</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="RON">-500.00</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="RON">-605.00</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="RON">-605.00</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">-1</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="RON">-500.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Găzduire Business - primaria-exemplu.ro (05/10/2026 - 04/10/2027)</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>21</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="RON">500.00</cbc:PriceAmount>
+    </cac:Price>
+  </cac:InvoiceLine>
+</Invoice>

@@ -18,6 +18,7 @@ namespace WHMCS\Module\Addon\Efactura\Admin;
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
+use WHMCS\Module\Addon\Efactura\Fiscal\References;
 use WHMCS\Module\Addon\Efactura\Fiscal\ReportingPolicy;
 use WHMCS\Module\Addon\Efactura\Fiscal\Stornos;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
@@ -27,7 +28,8 @@ use WHMCS\Module\Addon\Efactura\Support\Money;
 /**
  * The e-Factura panel on the admin invoice page (AdminInvoicesControlsOutput):
  * the fiscal document of the invoice and its stornos, their files and the
- * actions allowed, the early issue of a proforma and the manual storno.
+ * actions allowed, the early issue of a proforma, the manual storno and the
+ * references of the invoice (BT-11, BT-12, BT-13, BT-15, BT-19, BT-46).
  */
 final class InvoicePanel
 {
@@ -60,6 +62,7 @@ final class InvoicePanel
             'canIssueEarly' => false,
             'notFiscal' => '',
             'noDocument' => false,
+            'references' => $invoice !== null ? self::references($invoiceId, (int) $invoice->userid, $document) : null,
         ];
 
         if ($fiscal) {
@@ -100,5 +103,42 @@ final class InvoicePanel
             'environment' => Settings::environment(),
             'enabled' => Settings::bool('enabled'),
         ];
+    }
+
+    /**
+     * The references of the invoice: a form while they can change (the
+     * client defaults as placeholders), then the values sent. Null when the
+     * invoice is not reported to RO e-Factura.
+     *
+     * @return array{editable: bool, open: bool, count: int, fields: list<array<string, mixed>>}|null
+     */
+    private static function references(int $invoiceId, int $clientId, ?object $document): ?array
+    {
+        if (References::editable($invoiceId, $document)) {
+            $own = References::ofInvoice($invoiceId);
+            $defaults = References::defaults($clientId);
+            $fields = [];
+            foreach (References::TERMS as $term => $max) {
+                $fields[] = [
+                    'term' => $term,
+                    'id' => 'efactura-' . str_replace('_', '-', References::langKey($term)),
+                    'label' => Lang::get(References::langKey($term)),
+                    'value' => $own[$term] ?? '',
+                    'placeholder' => $defaults[$term] ?? '',
+                    'max' => $max,
+                ];
+            }
+
+            return ['editable' => true, 'open' => $own !== [], 'count' => count($own + $defaults), 'fields' => $fields];
+        }
+        if ($document === null || $document->kind !== Document::KIND_INVOICE || $document->state === Document::STATE_EXCLUDED) {
+            return null;
+        }
+        $fields = [];
+        foreach (References::frozen($document) as $term => $value) {
+            $fields[] = ['term' => $term, 'label' => Lang::get(References::langKey($term)), 'value' => $value];
+        }
+
+        return ['editable' => false, 'open' => false, 'count' => count($fields), 'fields' => $fields];
     }
 }

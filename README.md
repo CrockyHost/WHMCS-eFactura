@@ -194,6 +194,17 @@ credit WHMCS); anularea unei proforme nu emite nimic. Opțional,
   it, checks it against the current client data, sends a rejected one again
   after correcting the data, issues a proforma as a fiscal invoice before
   payment, or issues a storno of the whole invoice or of a part.
+- **Invoice references:** in the same panel, for buyers that ask for them
+  (public institutions): project (BT-11), contract (BT-12), purchase order
+  (BT-13), receiving advice (BT-15), buyer accounting reference (BT-19) and
+  buyer identifier (BT-46). An empty field takes the default from the client
+  profile (shown in grey), read when the XML is built. They can be changed
+  until the invoice is sent to ANAF; the values sent then stay with the
+  document, and a storno carries those of the invoice it corrects. A document
+  rejected by ANAF can be corrected, references included, before it is sent
+  again. CIUS-RO limits BT-12, BT-13 and BT-15 to 200 characters and BT-19 to
+  100. They are not in the Options tab of the invoice because WHMCS locks that
+  tab once the invoice is paid, which is when it becomes fiscal.
 - **Credit note page:** the storno issued from the credit note.
 - **Addon pages** (Addons > WHMCS-eFactura): the configuration checks and the
   state of the queue, the list of documents with filters, and the page of
@@ -204,7 +215,12 @@ The panels follow the addon access set in Configuration > Addon Modules.
 **Română:** pe pagina facturii apare un panou e-Factura (stare, termen,
 index ANAF, erori, fișiere, stornări) cu acțiunile: trimite acum, ține pe
 loc, verifică datele, retrimite după corectare, emite fiscal acum,
-stornare. Pagina notei de credit arată stornarea emisă din ea, iar paginile
+stornare. Tot acolo se completează referințele facturii cerute de instituții
+(proiect BT-11, contract BT-12, comandă BT-13, aviz de recepție BT-15,
+referința contabilă a cumpărătorului BT-19, identificatorul cumpărătorului
+BT-46): câmpul gol ia valoarea implicită din profilul clientului. Se pot
+schimba până la trimiterea facturii la ANAF, apoi rămân cu documentul;
+stornarea le preia de la factura pe care o corectează. Pagina notei de credit arată stornarea emisă din ea, iar paginile
 addonului au lista documentelor și istoricul fiecăruia.
 
 ## SPV inbox

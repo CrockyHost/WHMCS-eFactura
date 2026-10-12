@@ -55,15 +55,21 @@ final class UblWriter
         }
         $this->cbc($root, 'DocumentCurrencyCode', $invoice->currency);
         $this->cbc($root, 'TaxCurrencyCode', $invoice->taxCurrency());
+        $references = $invoice->references;
+        $this->cbc($root, 'AccountingCost', $references['BT-19'] ?? null);
+        $this->reference($root, 'OrderReference', $references['BT-13'] ?? null);
 
         if ($invoice->precedingNumber !== null) {
             $reference = $this->cac($this->cac($root, 'BillingReference'), 'InvoiceDocumentReference');
             $this->cbc($reference, 'ID', $invoice->precedingNumber);
             $this->cbc($reference, 'IssueDate', $invoice->precedingDate?->format('Y-m-d'));
         }
+        $this->reference($root, 'ReceiptDocumentReference', $references['BT-15'] ?? null);
+        $this->reference($root, 'ContractDocumentReference', $references['BT-12'] ?? null);
+        $this->reference($root, 'ProjectReference', $references['BT-11'] ?? null);
 
         $this->party($this->cac($root, 'AccountingSupplierParty'), $invoice->seller, true);
-        $this->party($this->cac($root, 'AccountingCustomerParty'), $invoice->buyer, false);
+        $this->party($this->cac($root, 'AccountingCustomerParty'), $invoice->buyer, false, $references['BT-46'] ?? null);
 
         if ($invoice->paymentMeans !== null) {
             $means = $this->cac($root, 'PaymentMeans');
@@ -112,9 +118,14 @@ final class UblWriter
         return (string) $this->dom->saveXML();
     }
 
-    private function party(DOMElement $parent, Party $party, bool $seller): void
+    private function party(DOMElement $parent, Party $party, bool $seller, ?string $identifier = null): void
     {
         $element = $this->cac($parent, 'Party');
+        if ($identifier !== null && $identifier !== '') {
+            // BT-46 without its optional scheme (BT-46-1), which would have
+            // to come from the ISO 6523 ICD list (BR-CL-10).
+            $this->cbc($this->cac($element, 'PartyIdentification'), 'ID', $identifier);
+        }
         if ($party->tradeName !== null && $party->tradeName !== '') {
             $this->cbc($this->cac($element, 'PartyName'), 'Name', $party->tradeName);
         }
@@ -174,6 +185,16 @@ final class UblWriter
         $this->cbc($this->cac($category, 'TaxScheme'), 'ID', 'VAT');
 
         $this->amount($this->cac($element, 'Price'), 'PriceAmount', $line->priceCents());
+    }
+
+    /**
+     * A document reference that has only an ID (BT-11, BT-12, BT-13, BT-15).
+     */
+    private function reference(DOMElement $root, string $name, ?string $id): void
+    {
+        if ($id !== null && $id !== '') {
+            $this->cbc($this->cac($root, $name), 'ID', $id);
+        }
     }
 
     private function cac(DOMElement $parent, string $name): DOMElement

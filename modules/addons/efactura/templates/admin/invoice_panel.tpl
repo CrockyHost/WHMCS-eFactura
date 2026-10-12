@@ -33,6 +33,7 @@
 
         {if $document}
             {include file="_document.tpl" doc=$document main=true showLink=true}
+            {if $references}{include file="_references.tpl"}{/if}
 
             {if $buyerMessages}
                 <h4 class="efactura-subtitle">{$lang.panel_buyer_messages}</h4>
@@ -89,6 +90,7 @@
                     <button type="submit" class="btn btn-default"><i class="fas fa-stamp"></i> {$lang.btn_issue_early}</button>
                 </form>
             {/if}
+            {if $references}{include file="_references.tpl"}{/if}
         {elseif $notFiscal}
             <p class="efactura-muted"><i class="fas fa-info-circle"></i> {$lang.panel_not_fiscal} {$notFiscal}</p>
         {elseif $noDocument}

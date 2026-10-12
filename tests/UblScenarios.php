@@ -186,6 +186,54 @@ final class UblScenarios
             paymentMeans: new PaymentMeans('68'),
         );
 
+        // A public institution that asks for the references on its invoices,
+        // and the storno of that invoice, which carries the same references.
+        $institution = new Party(
+            name: 'PRIMĂRIA COMUNEI EXEMPLU',
+            street: 'Strada Principală nr. 1',
+            city: 'Exemplu',
+            country: 'RO',
+            county: 'RO-DJ',
+            postcode: '200001',
+            legalId: '87654329',
+            email: 'achizitii@primaria-exemplu.invalid',
+        );
+        $references = [
+            'BT-11' => 'PRJ-2026-07 Digitalizare',
+            'BT-12' => 'Contract 77/12.01.2026',
+            'BT-13' => 'CMD-4521',
+            'BT-15' => 'NIR 318/05.10.2026',
+            'BT-19' => '20.01.30 Servicii IT',
+            'BT-46' => 'CLIENT-0042',
+        ];
+        $b2g = new Invoice(
+            number: 'FX-0008',
+            issueDate: $issued,
+            currency: 'RON',
+            seller: $seller,
+            buyer: $institution,
+            lines: [new Line('1', 'Găzduire Business - primaria-exemplu.ro (05/10/2026 - 04/10/2027)', 50000, 'S', '21')],
+            taxSubtotals: [new TaxSubtotal('S', '21', 50000, 10500)],
+            taxTotalCents: 10500,
+            dueDate: new DateTimeImmutable('2026-11-04'),
+            paymentMeans: new PaymentMeans('30', 'RO49AAAA1B31007593840000', 'EXEMPLU HOSTING S.R.L.'),
+            references: $references,
+        );
+        $b2gStorno = new Invoice(
+            number: 'FX-0009',
+            issueDate: new DateTimeImmutable('2026-10-07'),
+            currency: 'RON',
+            seller: $seller,
+            buyer: $institution,
+            lines: [new Line('1', $b2g->lines[0]->name, -50000, 'S', '21', quantity: -1)],
+            taxSubtotals: [new TaxSubtotal('S', '21', -50000, -10500)],
+            taxTotalCents: -10500,
+            notes: ['Stornare totală a facturii FX-0008 din 05.10.2026 (factură anulată)'],
+            precedingNumber: 'FX-0008',
+            precedingDate: $issued,
+            references: $references,
+        );
+
         return [
             'b2b-ron-paid' => $b2b,
             'b2c-bucharest-no-cnp' => $b2c,
@@ -194,6 +242,8 @@ final class UblScenarios
             'storno-partial' => $partial,
             'non-eu-exempt' => $nonEu,
             'eu-reverse-charge-eur' => $eu,
+            'b2g-references' => $b2g,
+            'storno-b2g-references' => $b2gStorno,
         ];
     }
 }

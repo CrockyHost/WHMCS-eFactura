@@ -403,3 +403,30 @@
 .efactura-notes {
     padding-left: 18px;
 }
+
+/* References of the invoice (BT-11, BT-12, BT-13, BT-15, BT-19, BT-46). */
+
+.efactura-references {
+    margin-top: 16px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.efactura-references .badge {
+    margin-left: 4px;
+}
+
+.efactura-references form,
+.efactura-references-sent {
+    margin-top: 10px;
+}
+
+.efactura-references-sent th {
+    width: 45%;
+    font-weight: normal;
+    color: #6b7280;
+}
+
+.efactura-references-sent td {
+    word-break: break-word;
+}

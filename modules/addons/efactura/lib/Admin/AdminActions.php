@@ -20,6 +20,7 @@ use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
+use WHMCS\Module\Addon\Efactura\Fiscal\References;
 use WHMCS\Module\Addon\Efactura\Fiscal\StornoException;
 use WHMCS\Module\Addon\Efactura\Inbox\InboxSync;
 use WHMCS\Module\Addon\Efactura\Numbering\EarlyIssueException;
@@ -34,7 +35,7 @@ use WHMCS\Module\Addon\Efactura\Support\Money;
  */
 final class AdminActions
 {
-    public const ACTIONS = ['send_now', 'hold', 'release', 'issue_early', 'storno', 'check', 'inbox_sync', 'message_processed', 'message_unprocessed'];
+    public const ACTIONS = ['send_now', 'hold', 'release', 'issue_early', 'storno', 'check', 'inbox_sync', 'message_processed', 'message_unprocessed', 'references'];
 
     /**
      * @param array<string, mixed> $input the submitted form
@@ -50,6 +51,7 @@ final class AdminActions
                 'check' => $this->check((int) ($input['document'] ?? 0)),
                 'inbox_sync' => $this->inboxSync(),
                 'message_processed', 'message_unprocessed' => $this->messageProcessed((int) ($input['message'] ?? 0), $action === 'message_processed', $adminId),
+                'references' => $this->references((int) ($input['invoice'] ?? 0), $input['references'] ?? [], $adminId),
                 default => self::result('danger', Lang::get('action_unknown')),
             };
         } catch (Throwable $e) {
@@ -104,6 +106,26 @@ final class AdminActions
         }
 
         return self::result('success', Lang::get('action_done_storno', (string) Addon::documents()->find($id)?->number));
+    }
+
+    /**
+     * The references typed on an invoice (BT-11, BT-12, BT-13, BT-15, BT-19, BT-46).
+     */
+    private function references(int $invoiceId, mixed $input, ?int $adminId): array
+    {
+        $values = References::normalize(is_array($input) ? $input : []);
+        $tooLong = References::tooLong($values);
+        if ($tooLong !== []) {
+            return self::result('warning', Lang::get('references_error_length'), array_map(
+                static fn (string $term): string => Lang::get('references_too_long', Lang::get(References::langKey($term)), References::TERMS[$term]),
+                $tooLong
+            ));
+        }
+        $error = References::save($invoiceId, $values, $adminId);
+
+        return $error === null
+            ? self::result('success', Lang::get('action_done_references'))
+            : self::result('warning', Lang::get('references_error_' . $error));
     }
 
     /**

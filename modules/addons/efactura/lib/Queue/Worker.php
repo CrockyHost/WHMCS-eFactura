@@ -30,6 +30,7 @@ use WHMCS\Module\Addon\Efactura\Database\Lock;
 use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
 use WHMCS\Module\Addon\Efactura\Fiscal\DocumentRepository;
+use WHMCS\Module\Addon\Efactura\Fiscal\References;
 use WHMCS\Module\Addon\Efactura\Romania\Cui;
 use WHMCS\Module\Addon\Efactura\Romania\Text;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
@@ -254,6 +255,7 @@ final class Worker
             'xml' => $xml,
             'xml_sha256' => hash('sha256', $xml),
             'xml_generated_at' => $now->format('Y-m-d H:i:s'),
+            'refs' => References::encode($result->invoice->references ?? []),
             'buyer_type' => $result->buyerType,
             'upload_endpoint' => $result->buyerType === BuyerMapper::TYPE_B2C ? 'uploadb2c' : 'upload',
             'upload_extern' => $result->invoice !== null && $result->invoice->buyer->country !== 'RO' ? 1 : 0,

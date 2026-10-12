@@ -54,7 +54,7 @@ final class DocumentActions
         ];
         if ($document->state === Document::STATE_REJECTED) {
             // A rejected invoice is corrected and sent again with the same number.
-            $fields += ['xml' => null, 'xml_sha256' => null, 'upload_index' => null, 'download_id' => null, 'archive_id' => null, 'anaf_state' => null, 'errors' => null];
+            $fields += ['xml' => null, 'xml_sha256' => null, 'refs' => null, 'upload_index' => null, 'download_id' => null, 'archive_id' => null, 'anaf_state' => null, 'errors' => null];
         }
 
         return $this->documents->transition($document, Document::STATE_SCHEDULED, $fields, 'send_now', '', [], $adminId);

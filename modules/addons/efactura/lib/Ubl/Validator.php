@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 namespace WHMCS\Module\Addon\Efactura\Ubl;
 
+use WHMCS\Module\Addon\Efactura\Fiscal\References;
 use WHMCS\Module\Addon\Efactura\Romania\Cnp;
 use WHMCS\Module\Addon\Efactura\Romania\Counties;
 use WHMCS\Module\Addon\Efactura\Romania\Cui;
@@ -31,6 +32,14 @@ use WHMCS\Module\Addon\Efactura\Support\Money;
  */
 final class Validator
 {
+    /** CIUS-RO lengths of the references (none for BT-11 and BT-46). */
+    private const REFERENCE_LIMITS = [
+        'BT-12' => [200, 'BR-RO-L200'],
+        'BT-13' => [200, 'BR-RO-L200'],
+        'BT-15' => [200, 'BR-RO-L200'],
+        'BT-19' => [100, 'BR-RO-L100'],
+    ];
+
     /** @var list<array{rule: string, message: string}> */
     private array $issues = [];
 
@@ -54,6 +63,9 @@ final class Validator
         }
         foreach ($invoice->notes as $note) {
             $this->length(Lang::get('ubl_field_note'), $note, 300, 'BR-RO-L300');
+        }
+        foreach (self::REFERENCE_LIMITS as $term => [$max, $rule]) {
+            $this->length(Lang::get(References::langKey($term)), $invoice->references[$term] ?? null, $max, $rule);
         }
 
         $this->lines($invoice);
