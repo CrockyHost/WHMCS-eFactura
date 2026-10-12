@@ -78,6 +78,8 @@ $uploaded = static function (AnafSimulator $anaf): object {
     $connection = new Connection(new OAuthClient(new FakeTransport()));
     (new Worker(new ApiClient($anaf, $connection, 'test'), $connection, Addon::documentBuilder(), Addon::documents(), new RuntimeState(), null, null, static function (): void {
     }))->run(30, [(int) $document->id]);
+    // ANAF lists a message about a minute after the upload.
+    Clock::freeze(Clock::now()->modify('+2 minutes'));
 
     return Addon::documents()->find((int) $document->id);
 };
@@ -298,5 +300,24 @@ return [
         Capsule::table(InboxSync::TABLE)->where('environment', 'test')->delete();
         Capsule::table(RuntimeState::TABLE)->delete();
         Assert::same(25, $inbox($fresh)->run()['listed']);
+    }),
+    'after a busy day the windows grow again' => static fn () => $clean(static function () use ($setup, $inbox, $supplierInvoice, $listCalls): void {
+        $setup();
+        $now = new DateTimeImmutable('2026-10-12 12:00:00');
+        Clock::freeze($now);
+        $anaf = new AnafSimulator();
+        $anaf->pageSize = 1;
+        // 30 messages in one day 50 days ago, then one every four days.
+        for ($i = 0; $i < 30; $i++) {
+            $anaf->addReceivedInvoice($supplierInvoice(), '12345674', $now->modify('-50 days')->modify('+' . (40 * $i) . ' minutes'));
+        }
+        for ($day = 46; $day >= 2; $day -= 4) {
+            $anaf->addReceivedInvoice($supplierInvoice(), '12345674', $now->modify('-' . $day . ' days'));
+        }
+        Assert::same(42, $inbox($anaf)->run()['listed']);
+        // One request per page (one message each), and few for the windows.
+        $calls = $listCalls($anaf);
+        Assert::true(count($calls) - 42 <= 15, sprintf('%d requests for 42 messages (145 when the windows stay small)', count($calls)));
+        Assert::true(max(array_map('intval', array_column($calls, 'pagina'))) <= 20, 'never past page 20');
     }),
 ];

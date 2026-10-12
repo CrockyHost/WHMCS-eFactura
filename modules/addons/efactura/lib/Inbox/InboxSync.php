@@ -21,6 +21,7 @@ use RuntimeException;
 use Throwable;
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Anaf\ApiClient;
+use WHMCS\Module\Addon\Efactura\Anaf\MessageList;
 use WHMCS\Module\Addon\Efactura\Anaf\Outcome;
 use WHMCS\Module\Addon\Efactura\Anaf\ResponseParser;
 use WHMCS\Module\Addon\Efactura\Anaf\ResponseZip;
@@ -62,9 +63,6 @@ final class InboxSync
     private const FIRST_DAYS = 59;
     private const WINDOW_BEFORE_MINUTES = 5;
     private const WINDOW_END_SECONDS = 60;
-    /** Pages of one window; a window with more is split. */
-    private const MAX_PAGES = 20;
-    private const MIN_WINDOW_SECONDS = 60;
     private const MAX_DOWNLOADS = 30;
     private const MAX_ATTEMPTS = 8;
 
@@ -136,14 +134,12 @@ final class InboxSync
     }
 
     /**
-     * Reads the list of $cui from where the last run stopped to a minute ago,
-     * one window at a time. A window with more pages than MAX_PAGES is halved
-     * until it fits (a minute is read whole), and the cursor moves to the end
-     * of each window read in full: what the budget leaves is read by the next
-     * run, never skipped.
-     * The cursor is kept per environment and CUI, so that a switch from the
-     * test environment to production, or another CUI, starts with the last
-     * 59 days.
+     * Reads the list of $cui from where the last run stopped to a minute ago
+     * (MessageList). The cursor moves to the end of each window read in
+     * full: what the budget leaves is read by the next run, never skipped.
+     * It is kept per environment and CUI, so that a switch from the test
+     * environment to production, or another CUI, starts with the last 59
+     * days.
      *
      * @param Closure(): bool $hasBudget
      * @param array{listed: int, new: int, downloaded: int, error: string} $report
@@ -155,46 +151,16 @@ final class InboxSync
         $until = (string) $this->state->get($cursor, '');
         $start = $until !== '' ? max(Clock::parse($until)->modify('-' . self::WINDOW_BEFORE_MINUTES . ' minutes'), $oldest) : $oldest;
         $end = $now->modify('-' . self::WINDOW_END_SECONDS . ' seconds');
-        $span = max(1, $end->getTimestamp() - $start->getTimestamp());
 
-        while ($start < $end && $hasBudget()) {
-            // The first page tells how many pages the window has.
-            do {
-                $windowEnd = min($start->modify('+' . $span . ' seconds'), $end);
-                $outcome = $this->page($cui, $start, $windowEnd, 1);
-                $split = $outcome !== null && $outcome->pages > self::MAX_PAGES && $span > self::MIN_WINDOW_SECONDS;
-                if ($split) {
-                    $span = max(self::MIN_WINDOW_SECONDS, intdiv($span, 2));
-                }
-            } while ($split);
-
-            $page = 1;
-            while ($outcome !== null) {
-                foreach ($outcome->messages as $message) {
-                    $report['listed']++;
-                    $report['new'] += $this->record($message) ? 1 : 0;
-                }
-                $outcome = $page < $outcome->pages ? $this->page($cui, $start, $windowEnd, ++$page) : null;
+        (new MessageList($this->api))->read($cui, $start, $end, null, $hasBudget,
+            function (array $message) use (&$report): void {
+                $report['listed']++;
+                $report['new'] += $this->record($message) ? 1 : 0;
+            },
+            function (DateTimeImmutable $read) use ($cursor): void {
+                $this->state->set($cursor, $read->format('Y-m-d H:i:s'));
             }
-            $this->state->set($cursor, $windowEnd->format('Y-m-d H:i:s'));
-            $start = $windowEnd;
-        }
-    }
-
-    /**
-     * One page of the list; null when the window has no messages.
-     */
-    private function page(string $cui, DateTimeImmutable $start, DateTimeImmutable $end, int $page): ?Outcome
-    {
-        $outcome = ResponseParser::messages($this->api->listMessagesPaged($cui, $start->getTimestamp() * 1000, $end->getTimestamp() * 1000, $page));
-        if ($outcome->kind === Outcome::EMPTY) {
-            return null;
-        }
-        if ($outcome->kind !== Outcome::MESSAGES) {
-            throw new RuntimeException($outcome->message !== '' ? $outcome->message : 'listaMesajePaginatieFactura: ' . $outcome->kind);
-        }
-
-        return $outcome;
+        );
     }
 
     /**

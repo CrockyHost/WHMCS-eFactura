@@ -19,6 +19,7 @@ use DateTimeImmutable;
 use RuntimeException;
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Anaf\ApiClient;
+use WHMCS\Module\Addon\Efactura\Anaf\MessageList;
 use WHMCS\Module\Addon\Efactura\Anaf\OAuth\OAuthException;
 use WHMCS\Module\Addon\Efactura\Anaf\Outcome;
 use WHMCS\Module\Addon\Efactura\Anaf\ResponseParser;
@@ -40,9 +41,11 @@ use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
  * known locally is downloaded once and matched with the document by the
  * SHA-256 of the invoice XML (ANAF returns the bytes sent, verified on the
  * test environment) or by number, issue date, seller and total. When nothing
- * matches for some hours, the same
- * bytes are uploaded again; if the first upload did arrive, ANAF answers with
- * a duplicate that names the original index, which the worker follows.
+ * matches for some hours, the same bytes are uploaded again; if the first
+ * upload did arrive, ANAF answers with a duplicate that names the original
+ * index, which the worker follows. A document is never uploaded again on an
+ * incomplete look: when a run could not read the whole list, or left some
+ * of its invoices unread, the documents not found wait for the next run.
  *
  * Rejected uploads (filter E) cannot be matched: the error file does not
  * contain the invoice number. The second upload then gets the same errors.
@@ -63,7 +66,6 @@ final class Reconciler
     /** Margins against the ANAF clock: before the upload, and before now. */
     private const WINDOW_BEFORE_MINUTES = 5;
     private const WINDOW_END_SECONDS = 60;
-    private const MAX_PAGES = 20;
     private const BATCH = 20;
     /** ZIPs downloaded per run to read their key; the others wait for the next run. */
     private const MAX_DOWNLOADS = 50;
@@ -99,7 +101,7 @@ final class Reconciler
 
         $start = Clock::parse((string) $due->min('upload_started_at'))->modify('-' . self::WINDOW_BEFORE_MINUTES . ' minutes');
         try {
-            $sent = $this->sentInvoices($worker, $start, $now, $due->all());
+            [$sent, $complete] = $this->sentInvoices($worker, $start, $now, $due->all());
         } catch (OAuthException | RuntimeException $e) {
             foreach ($due as $document) {
                 $this->documents->update((int) $document->id, [
@@ -124,7 +126,7 @@ final class Reconciler
                 $this->adopt($document, (string) $match, $sent[$match]);
                 unset($sent[$match]);
                 $done++;
-            } elseif (Clock::parse((string) $document->upload_started_at) <= $now->modify('-' . self::resendAfterHours($document) . ' hours')) {
+            } elseif ($complete && Clock::parse((string) $document->upload_started_at) <= $now->modify('-' . self::resendAfterHours($document) . ' hours')) {
                 if (!$worker->canUpload()) {
                     break;
                 }
@@ -197,9 +199,12 @@ final class Reconciler
      * The invoices sent for the seller CUI since $start that are not linked to
      * a document yet, with the key read from their ZIP. A ZIP is kept in
      * memory only when it matches one of the documents due, for the archive.
+     * The look is complete when the whole list was read and every invoice not
+     * linked was downloaded (a ZIP that cannot be read is not one of ours:
+     * ANAF returns the bytes sent).
      *
      * @param list<object> $due
-     * @return array<string, array{number: string, date: string, seller: string, total: string, sha256: string, download_id: string, zip: string|null}>
+     * @return array{0: array<string, array{number: string, date: string, seller: string, total: string, sha256: string, download_id: string, zip: string|null}>, 1: bool} the invoices, whether the look is complete
      */
     private function sentInvoices(Worker $worker, DateTimeImmutable $start, DateTimeImmutable $now, array $due): array
     {
@@ -207,25 +212,17 @@ final class Reconciler
         $start = max($start, $now->modify('-59 days'));
         $end = $now->modify('-' . self::WINDOW_END_SECONDS . ' seconds');
         if ($end <= $start) {
-            return [];
+            return [[], false];
         }
 
         $messages = [];
-        $page = 1;
-        do {
-            $outcome = ResponseParser::messages($this->api->listMessagesPaged($cui, $start->getTimestamp() * 1000, $end->getTimestamp() * 1000, $page, 'T'));
-            if ($outcome->kind === Outcome::EMPTY) {
-                break;
-            }
-            if ($outcome->kind !== Outcome::MESSAGES) {
-                throw new RuntimeException($outcome->message !== '' ? $outcome->message : 'listaMesajePaginatieFactura: ' . $outcome->kind);
-            }
-            foreach ($outcome->messages as $message) {
+        $complete = (new MessageList($this->api))->read($cui, $start, $end, 'T', static fn (): bool => $worker->hasBudget(),
+            static function (array $message) use (&$messages): void {
                 if (($message['id_solicitare'] ?? '') !== '' && ($message['id'] ?? '') !== '') {
                     $messages[$message['id_solicitare']] = $message['id'];
                 }
             }
-        } while ($page++ < min($outcome->pages, self::MAX_PAGES));
+        );
 
         $known = array_merge(
             Capsule::table(Document::TABLE)->whereIn('upload_index', array_map('strval', array_keys($messages)))->pluck('upload_index')->all(),
@@ -244,11 +241,13 @@ final class Reconciler
                 continue;
             }
             if ($downloads >= self::MAX_DOWNLOADS || !$worker->hasBudget()) {
+                $complete = false;
                 continue;
             }
             $downloads++;
             $download = ResponseParser::download($this->api->download($downloadId));
             if ($download->kind !== Outcome::ZIP) {
+                $complete = false;
                 continue;
             }
             try {
@@ -265,7 +264,7 @@ final class Reconciler
         }
         $this->state->set(self::SEEN, $seen);
 
-        return $sent;
+        return [$sent, $complete];
     }
 
     /**

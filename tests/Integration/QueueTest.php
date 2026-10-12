@@ -377,6 +377,56 @@ return [
         Assert::same(Document::STATE_PROCESSING, $reload($doc)->state, 'accepted at the third upload');
         Assert::same(3, (int) $reload($doc)->attempts);
     }),
+    'a lost upload after page 20 of the sent invoices is found, not sent again' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload, $travel): void {
+        $setup();
+        $anaf = new AnafSimulator();
+        $anaf->pageSize = 1;
+        $doc = $document();
+        Clock::freeze(Clock::now());
+        // 25 invoices of other software in the minutes before ours, one page each.
+        $other = (string) file_get_contents(dirname(__DIR__) . '/fixtures/ubl/b2b-ron-paid.xml');
+        for ($i = 0; $i < 25; $i++) {
+            $travel('+10 seconds');
+            $anaf->send(new Request('POST', ApiClient::baseUrl('test') . 'upload?standard=UBL&cif=12345674', [], $other));
+        }
+        $travel('+10 seconds');
+        $anaf->uploadModes = ['lost'];
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        $index = (string) array_key_last($anaf->uploads);
+
+        $travel('+21 minutes');
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        $doc = $reload($doc);
+        Assert::same([Document::STATE_VALIDATED, $index], [$doc->state, $doc->upload_index], 'found on page 26');
+        $travel('+6 hours');
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        Assert::same(26, count(array_keys($anaf->calls(), 'upload', true)), 'ours uploaded once');
+    }),
+    'a document is not sent again while some sent invoices are still unread' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload, $travel): void {
+        $setup();
+        $anaf = new AnafSimulator();
+        $doc = $document();
+        Clock::freeze(Clock::now());
+        // More invoices of other software than a run downloads (50).
+        $other = (string) file_get_contents(dirname(__DIR__) . '/fixtures/ubl/b2b-ron-paid.xml');
+        for ($i = 0; $i < 55; $i++) {
+            $travel('+1 second');
+            $anaf->send(new Request('POST', ApiClient::baseUrl('test') . 'upload?standard=UBL&cif=12345674', [], $other));
+        }
+        $travel('+1 second');
+        $anaf->uploadModes = ['dropped'];
+        $worker($anaf)->run(30, [(int) $doc->id]);
+
+        $travel('+361 minutes');
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        Assert::same(Document::STATE_UNKNOWN, $reload($doc)->state);
+        Assert::same([56, 50], [count(array_keys($anaf->calls(), 'upload', true)), count(array_keys($anaf->calls(), 'descarcare', true))], 'not sent again: 5 invoices unread');
+
+        $travel('+31 minutes');
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        Assert::same(Document::STATE_PROCESSING, $reload($doc)->state, 'sent again once every invoice was read');
+        Assert::same([57, 55], [count(array_keys($anaf->calls(), 'upload', true)), count(array_keys($anaf->calls(), 'descarcare', true))]);
+    }),
     'a document left in sending by a stopped worker is reconciled, not resent' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload): void {
         $setup();
         $anaf = new AnafSimulator();
@@ -385,6 +435,8 @@ return [
         $worker($anaf)->run(30, [(int) $doc->id]);
         $started = Clock::now()->modify('-20 minutes')->format('Y-m-d H:i:s');
         Capsule::table(Document::TABLE)->where('id', $doc->id)->update(['state' => Document::STATE_SENDING, 'upload_started_at' => $started, 'lock_token' => 'crashed', 'locked_at' => $started]);
+        // The upload reached ANAF when the stopped worker made it.
+        $anaf->uploads[array_key_last($anaf->uploads)]['created'] = Clock::parse($started);
 
         $worker($anaf)->run(30, [(int) $doc->id]);
         $doc = $reload($doc);

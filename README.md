@@ -128,6 +128,12 @@ signed answer of ANAF, resolves uploads whose answer was lost and emails the
 administrators when a document gets close to the legal deadline (5 working
 days from issue).
 
+An upload whose answer was lost is looked for among the invoices sent for
+the company CUI before it is sent again. It is sent again only after the
+whole list of those invoices was read and each one not known to the addon
+was downloaded and compared; until then it waits, so that ANAF never gets
+the same invoice twice because of a list read in part.
+
 Cancelling or refunding a fiscal invoice issues a storno, a new invoice in
 the same fiscal series with negative quantities that points to the original
 (BT-25/26):
@@ -157,7 +163,9 @@ php -q /path/to/whmcs/modules/addons/efactura/cron/worker.php
 **Română:** documentele sunt trimise de cron-ul WHMCS: după fiecare rulare,
 addonul procesează coada (trimitere, verificarea stării, descărcarea și
 arhivarea răspunsului semnat, reconcilierea încărcărilor fără răspuns și
-alertele de termen). Anularea sau rambursarea unei facturi fiscale emite o
+alertele de termen). O încărcare fără răspuns se retrimite doar după ce
+lista facturilor trimise a fost citită toată și fiecare factură necunoscută
+a fost descărcată și comparată. Anularea sau rambursarea unei facturi fiscale emite o
 stornare în aceeași serie (totală, a restului sau parțială, după nota de
 credit WHMCS); anularea unei proforme nu emite nimic. Opțional,
 `cron/worker.php` poate rula separat, de exemplu la fiecare minut.

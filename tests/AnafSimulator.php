@@ -29,7 +29,7 @@ final class AnafSimulator implements Transport
     /** @var list<Request> */
     public array $requests = [];
 
-    /** @var array<string, array{xml: string, endpoint: string, query: array<string, string>, final: string}> by index */
+    /** @var array<string, array{xml: string, endpoint: string, query: array<string, string>, final: string, created: DateTimeImmutable}> by index */
     public array $uploads = [];
 
     /**
@@ -162,7 +162,7 @@ final class AnafSimulator implements Transport
         $index = (string) $this->nextIndex++;
         $script = array_shift($this->stateScripts) ?? ['in prelucrare', 'ok'];
         $this->states[$index] = $script;
-        $this->uploads[$index] = ['xml' => $request->body, 'endpoint' => $endpoint, 'query' => $query, 'final' => end($script) ?: 'ok'];
+        $this->uploads[$index] = ['xml' => $request->body, 'endpoint' => $endpoint, 'query' => $query, 'final' => end($script) ?: 'ok', 'created' => Clock::now()];
         if ($mode === 'lost') {
             return new Response(0, [], '', 28, 'Operation timed out after 120000 milliseconds', true);
         }
@@ -222,14 +222,18 @@ final class AnafSimulator implements Transport
      */
     private function listMessages(array $query): Response
     {
-        $messages = [];
+        // The messages created in the interval, oldest first.
+        $start = (int) ($query['startTime'] ?? 0);
+        $end = (int) ($query['endTime'] ?? PHP_INT_MAX);
+        $inInterval = static fn (DateTimeImmutable $created): bool => $created->getTimestamp() * 1000 >= $start && $created->getTimestamp() * 1000 <= $end;
+        $listed = [];
         foreach ($this->uploads as $index => $upload) {
             $type = $upload['final'] === 'nok' ? 'E' : 'T';
-            if (isset($query['filtru']) && $query['filtru'] !== $type) {
+            if ((isset($query['filtru']) && $query['filtru'] !== $type) || !$inInterval($upload['created'])) {
                 continue;
             }
-            $messages[] = [
-                'data_creare' => '202610091201',
+            $listed[] = [$upload['created'], [
+                'data_creare' => $upload['created']->format('YmdHi'),
                 'cif' => '12345674',
                 'id_solicitare' => (string) $index,
                 'detalii' => $type === 'T'
@@ -237,26 +241,23 @@ final class AnafSimulator implements Transport
                     : 'Erori de validare identificate la factura primita cu id_incarcare=' . $index,
                 'tip' => $type === 'T' ? 'FACTURA TRIMISA' : 'ERORI FACTURA',
                 'id' => self::downloadId((string) $index),
-            ];
+            ]];
         }
         foreach ($this->inbox as $id => $message) {
-            if (isset($query['filtru']) && $query['filtru'] !== $message['filter']) {
+            if ((isset($query['filtru']) && $query['filtru'] !== $message['filter']) || !$inInterval($message['created'])) {
                 continue;
             }
-            // Only the inbox messages are kept to the interval; the uploads are always listed.
-            $created = $message['created']->getTimestamp() * 1000;
-            if ($created < (int) ($query['startTime'] ?? 0) || $created > (int) ($query['endTime'] ?? PHP_INT_MAX)) {
-                continue;
-            }
-            $messages[] = [
+            $listed[] = [$message['created'], [
                 'data_creare' => $message['created']->format('YmdHi'),
                 'cif' => '12345674',
                 'id_solicitare' => $message['request'],
                 'detalii' => $message['details'],
                 'tip' => $message['tip'],
                 'id' => (string) $id,
-            ];
+            ]];
         }
+        usort($listed, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
+        $messages = array_column($listed, 1);
         if ($messages === []) {
             return new Response(200, [], json_encode(['eroare' => 'Nu exista mesaje in intervalul selectat', 'titlu' => 'Lista Mesaje']));
         }
