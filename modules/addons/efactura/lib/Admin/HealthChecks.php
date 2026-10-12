@@ -202,12 +202,6 @@ final class HealthChecks
     }
 
     /**
-     * WHMCS dates invoices with the PHP time zone; at payment that date
-     * becomes the fiscal invoice date, so a wrong zone blocks processing.
-     *
-     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
-     */
-    /**
      * Store Client Data Snapshot keeps the client details of each invoice for
      * its PDF; the addon refreshes that copy up to the sending, so the PDF
      * and the XML show the same buyer. Without it, the PDF of an invoice
@@ -222,6 +216,12 @@ final class HealthChecks
             : self::check('check_snapshot', self::WARNING, Lang::get('check_snapshot_off'));
     }
 
+    /**
+     * WHMCS dates invoices with the PHP time zone; at payment that date
+     * becomes the fiscal invoice date, so a wrong zone blocks processing.
+     *
+     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
+     */
     private function timezone(): array
     {
         $zone = date_default_timezone_get();

@@ -215,9 +215,6 @@ final class SettingsPage
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    /**
      * A telephone: WHMCS adds its country code picker to it (any input named
      * "...phone"); the picker starts on Romania and finds the country of a
      * number saved with its prefix.
@@ -229,6 +226,9 @@ final class SettingsPage
         return ['type' => 'phone'] + $this->text($name, $maxLength);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function text(string $name, int $maxLength, ?string $value = null): array
     {
         return $this->base('text', $name) + [

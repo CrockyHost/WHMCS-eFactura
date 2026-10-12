@@ -223,9 +223,6 @@ final class SettingsForm
     }
 
     /**
-     * "Sector 3", "sectorul 3" or "S3" become SECTOR3 for Bucharest addresses.
-     */
-    /**
      * The number with the country code the WHMCS picker sends apart
      * ("+40 750265179"); the 0 of the national number is dropped.
      */
@@ -241,6 +238,9 @@ final class SettingsForm
         return $national === '' ? '' : '+' . $code . ' ' . $national;
     }
 
+    /**
+     * "Sector 3", "sectorul 3" or "S3" become SECTOR3 for Bucharest addresses.
+     */
     private static function normalizeSector(string $city, string $county): string
     {
         if ($county === Counties::BUCHAREST
