@@ -72,6 +72,26 @@ $proformaThenCompany = static function (): array {
     return [$clientId, $invoiceId];
 };
 
+/**
+ * A proforma for a company with the addon CUI field and the WHMCS VAT
+ * number given, as WHMCS copies it when it creates the invoice.
+ *
+ * @return array{0: int, 1: int} client and invoice IDs
+ */
+$companyProforma = static function (string $taxId, string $cui): array {
+    $clientId = (int) localAPI('AddClient', [
+        'firstname' => 'Ion', 'lastname' => 'Firma', 'companyname' => 'FIRMA PDF SRL', 'tax_id' => $taxId,
+        'email' => 'efactura-snapshot-' . uniqid() . '@example.invalid', 'address1' => 'Strada Test 1', 'city' => 'Craiova', 'state' => 'Dolj',
+        'postcode' => '200000', 'country' => 'RO', 'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)),
+        'currency' => efactura_ron_currency(), 'noemail' => true, 'skipvalidation' => true,
+    ])['clientid'];
+    Capsule::table('tblcustomfieldsvalues')->insert(['fieldid' => ClientFields::id('cui'), 'relid' => $clientId, 'value' => $cui]);
+    $invoiceId = (int) localAPI('CreateInvoice', ['userid' => $clientId, 'status' => 'Unpaid', 'sendinvoice' => false, 'paymentmethod' => 'banktransfer',
+        'itemdescription1' => 'Găzduire', 'itemamount1' => 100, 'itemtaxed1' => true])['invoiceid'];
+
+    return [$clientId, $invoiceId];
+};
+
 $snapshot = static function (int $invoiceId): array {
     $row = Capsule::table('mod_invoicedata')->where('invoiceid', $invoiceId)->first();
 
@@ -155,6 +175,39 @@ return [
         Clock::freeze(Clock::now()->modify('+5 minutes'));
         $worker->run(30, [(int) $document->id]);
         Assert::same('FIRMA CORECTATA SRL', $snapshot($invoiceId)['details']['companyname'], 'not touched after sending');
+    }),
+    'a VAT payer shows the CUI once, as the VAT number; a company that is not one keeps its CUI' => static fn () => $clean(static function () use ($setup, $companyProforma, $snapshot, $pdfText): void {
+        $setup();
+        $cuiField = ClientFields::id('cui');
+        [, $payer] = $companyProforma('RO87654329', '87654329');
+        Assert::same([], array_values(array_filter($snapshot($payer)['fields'], static fn (array $field): bool => (int) $field['id'] === $cuiField)), 'the proforma copy, taken at creation');
+        $pdf = $pdfText($payer);
+        Assert::same(1, substr_count($pdf, '87654329'), 'once in the proforma PDF');
+        Assert::true(str_contains($pdf, 'RO87654329'), 'as the VAT number');
+
+        localAPI('AddInvoicePayment', ['invoiceid' => $payer, 'transid' => 'SN-' . uniqid(), 'gateway' => 'banktransfer', 'amount' => 121.00]);
+        Assert::true(Addon::documents()->forInvoice($payer) !== null, 'fiscal');
+        Assert::same(1, substr_count($pdfText($payer), '87654329'), 'once in the fiscal invoice PDF too');
+
+        [, $other] = $companyProforma('', '87654329');
+        Assert::same(['87654329'], array_column(array_values(array_filter($snapshot($other)['fields'], static fn (array $field): bool => (int) $field['id'] === $cuiField)), 'value'));
+        $pdf = $pdfText($other);
+        Assert::true(str_contains($pdf, '87654329') && !str_contains($pdf, 'RO87654329'), 'the CUI stays when there is no VAT number');
+
+        $fields = [['id' => $cuiField, 'fieldname' => 'CUI', 'value' => '87654329'], ['id' => ClientFields::id('regcom'), 'fieldname' => 'Reg', 'value' => 'J16/1/2020']];
+        Assert::same(1, count(InvoiceSnapshot::withoutRepeatedCui($fields, 'ro 87 654 329')), 'written another way');
+        Assert::same(1, count(InvoiceSnapshot::withoutRepeatedCui([['id' => $cuiField, 'fieldname' => 'CUI', 'value' => 'RO87654329'], $fields[1]], 'RO87654329')), 'the CUI typed with RO');
+        Assert::same(2, count(InvoiceSnapshot::withoutRepeatedCui($fields, 'RO12345674')), 'another code');
+        Assert::same(2, count(InvoiceSnapshot::withoutRepeatedCui($fields, '87654329')), 'a VAT number without RO');
+    }),
+    'with the copy off, nothing changes' => static fn () => $clean(static function () use ($setup, $companyProforma, $pdfText): void {
+        $setup();
+        Setting::setValue(InvoiceSnapshot::SETTING, '');
+        [, $invoiceId] = $companyProforma('RO87654329', '87654329');
+        Assert::false(Capsule::table('mod_invoicedata')->where('invoiceid', $invoiceId)->exists(), 'WHMCS kept no copy');
+        Assert::false(InvoiceSnapshot::tidy($invoiceId));
+        Assert::same(2, substr_count($pdfText($invoiceId), '87654329'), 'the PDF of the profile: VAT number and CUI');
+        Setting::setValue(InvoiceSnapshot::SETTING, 'on');
     }),
     'the dashboard warns when WHMCS keeps no copy' => static fn () => $clean(static function () use ($setup): void {
         $setup();

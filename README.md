@@ -88,7 +88,10 @@ the "Client fields" section of the settings shows their state. The county
 is always the WHMCS State/Region field, and the VAT number the WHMCS Tax ID
 field. Two settings (on by default) decide whether the CUI and the trade
 register number appear on the invoice PDF ("Show on Invoice"). The CNP never
-appears there.
+appears there. For a VAT payer whose Tax ID is RO + the same CUI, the PDF
+shows the code once, as the VAT number: with Store Client Data Snapshot on,
+the addon leaves the CUI out of the client details WHMCS keeps for the
+invoice, from the proforma on.
 
 The addon also creates admin-only client fields for the default invoice
 references of a client: project (BT-11), contract (BT-12), purchase order
@@ -124,7 +127,9 @@ sunt doar pentru citire (implicit).
 
 Addonul își creează propriile câmpuri CUI, Nr. Reg. Com. și CNP și le
 recreează dacă sunt șterse. Două setări decid dacă CUI-ul și Nr. Reg. Com.
-apar pe factură; CNP-ul nu apare niciodată. Tot el creează, doar pentru
+apar pe factură; CNP-ul nu apare niciodată. La plătitorii de TVA cu Tax ID
+= RO + același CUI, PDF-ul arată codul o singură dată, ca „Cod TVA”, de la
+proformă încolo (cu Store Client Data Snapshot pornit). Tot el creează, doar pentru
 admin, câmpurile cu referințele implicite pe factură ale clientului
 (BT-11, BT-12, BT-13, BT-15, BT-19, BT-46). În spatele Cloudflare sau al
 altui proxy, setați în WHMCS Proxy IP Header și Trusted Proxies, ca limita

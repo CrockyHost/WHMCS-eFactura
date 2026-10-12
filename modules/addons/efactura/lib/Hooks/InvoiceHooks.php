@@ -25,11 +25,12 @@ use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\AdminContext;
 use WHMCS\Module\Addon\Efactura\Support\AdminNotifier;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
+use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceSnapshot;
 
 /**
- * Invoice hooks. Each one does nothing while processing is disabled, and an
- * error is logged and reported but never interrupts WHMCS (a payment must
- * always go through).
+ * Invoice hooks. Each one does nothing while processing is disabled (except
+ * the tidying of the client details of the PDF), and an error is logged and
+ * reported but never interrupts WHMCS (a payment must always go through).
  */
 final class InvoiceHooks
 {
@@ -67,13 +68,15 @@ final class InvoiceHooks
     }
 
     /**
-     * InvoiceCreationPreEmail and InvoiceCreated: issue the fiscal invoice at
-     * once for the clients chosen in the settings.
+     * InvoiceCreationPreEmail and InvoiceCreated: tidy the client details of
+     * the PDF, then issue the fiscal invoice at once for the clients chosen in
+     * the settings.
      *
      * @param array<string, mixed> $vars
      */
     public static function invoiceCreated(array $vars): void
     {
+        self::tidySnapshot($vars);
         self::guard('InvoiceCreated', $vars, static function (int $invoiceId): void {
             $clientId = (int) Capsule::table('tblinvoices')->where('id', $invoiceId)->value('userid');
             if ($clientId <= 0 || !EarlyIssue::appliesToClient($clientId) || Addon::documents()->forInvoice($invoiceId) !== null) {
@@ -141,6 +144,25 @@ final class InvoiceHooks
                 $stornos->process(NumberingLock::paymentTimeout(), [$invoiceId]);
             }
         });
+    }
+
+    /**
+     * The copy of the client details WHMCS took for the PDF, without the CUI
+     * repeated by the VAT number. Also when the e-Factura processing is off:
+     * it concerns only the PDF.
+     *
+     * @param array<string, mixed> $vars
+     */
+    private static function tidySnapshot(array $vars): void
+    {
+        $invoiceId = (int) ($vars['invoiceid'] ?? 0);
+        try {
+            if ($invoiceId > 0) {
+                InvoiceSnapshot::tidy($invoiceId);
+            }
+        } catch (Throwable $e) {
+            logActivity(Addon::NAME . ": tidying the client details of invoice #{$invoiceId} failed: " . $e->getMessage());
+        }
     }
 
     /**

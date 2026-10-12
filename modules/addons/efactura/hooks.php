@@ -40,7 +40,8 @@ add_hook('InvoicePaid', 1000, static function (array $vars): void {
     InvoiceHooks::invoicePaid($vars);
 });
 
-// Fiscal invoice before payment for the clients chosen in the settings.
+// The client details of the PDF (the CUI once for VAT payers), and the fiscal
+// invoice before payment for the clients chosen in the settings.
 add_hook('InvoiceCreationPreEmail', 10, static function (array $vars): void {
     InvoiceHooks::invoiceCreated($vars);
 });

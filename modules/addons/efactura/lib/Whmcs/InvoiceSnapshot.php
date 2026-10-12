@@ -18,6 +18,8 @@ namespace WHMCS\Module\Addon\Efactura\Whmcs;
 use WHMCS\Billing\Invoice\Snapshot;
 use WHMCS\Config\Setting;
 use WHMCS\Database\Capsule;
+use WHMCS\Module\Addon\Efactura\ClientData\FieldMap;
+use WHMCS\Module\Addon\Efactura\Romania\Cui;
 
 /**
  * The client details WHMCS keeps for an invoice (Store Client Data
@@ -28,6 +30,11 @@ use WHMCS\Database\Capsule;
  * sent, so the copy is refreshed from the profile when the invoice becomes
  * fiscal and every time its XML is built for sending: the PDF and the XML
  * then show the same buyer. Once sent, the copy is not touched again.
+ *
+ * For a VAT payer whose WHMCS VAT number (tax_id) is RO + the CUI of the
+ * addon client field, the copy leaves the CUI field out: the PDF shows the
+ * code once, as the VAT number. The copy WHMCS takes when it creates the
+ * invoice is tidied the same way, so a proforma shows it once too.
  */
 final class InvoiceSnapshot
 {
@@ -62,10 +69,55 @@ final class InvoiceSnapshot
         $snapshot = Snapshot::where('invoiceid', $invoiceId)->first() ?? new Snapshot();
         $snapshot->invoiceId = $invoiceId;
         $snapshot->clientsDetails = $details;
-        $snapshot->customFields = self::customFields($userId);
+        $snapshot->customFields = self::withoutRepeatedCui(self::customFields($userId), (string) ($details['tax_id'] ?? ''));
         $snapshot->save();
 
         return true;
+    }
+
+    /**
+     * Leaves the CUI field out of the copy WHMCS took when it created the
+     * invoice, when the VAT number shows the same code. Returns whether the
+     * copy changed.
+     */
+    public static function tidy(int $invoiceId): bool
+    {
+        if (!self::enabled()) {
+            return false;
+        }
+        $snapshot = Snapshot::where('invoiceid', $invoiceId)->first();
+        if ($snapshot === null) {
+            return false;
+        }
+        $fields = is_array($snapshot->customFields) ? $snapshot->customFields : [];
+        $details = is_array($snapshot->clientsDetails) ? $snapshot->clientsDetails : [];
+        $tidy = self::withoutRepeatedCui($fields, (string) ($details['tax_id'] ?? ''));
+        if (count($tidy) === count($fields)) {
+            return false;
+        }
+        $snapshot->customFields = $tidy;
+        $snapshot->save();
+
+        return true;
+    }
+
+    /**
+     * The fields without the addon CUI when the VAT number (tax_id) is RO +
+     * the same CUI; a client that is not a VAT payer keeps its CUI.
+     *
+     * @param list<array<string, mixed>> $fields as in the copy: id, fieldname, value
+     * @return list<array<string, mixed>>
+     */
+    public static function withoutRepeatedCui(array $fields, string $taxId): array
+    {
+        $cuiField = FieldMap::load()->id('cui');
+        $taxId = strtoupper(preg_replace('/[\s.\-]+/', '', FieldMap::text($taxId)) ?? '');
+        if ($cuiField === null || !str_starts_with($taxId, 'RO')) {
+            return $fields;
+        }
+
+        return array_values(array_filter($fields, static fn (array $field): bool => (int) ($field['id'] ?? 0) !== $cuiField
+            || Cui::normalize(FieldMap::text($field['value'] ?? '')) !== Cui::normalize($taxId)));
     }
 
     /**
