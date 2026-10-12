@@ -3,8 +3,6 @@
 Open-source WHMCS addon for the Romanian **RO e-Factura** system. It generates
 UBL 2.1 / CIUS-RO invoices and sends them to ANAF.
 
-> Work in progress. Not ready for production use yet.
-
 **Română:** addon open-source pentru WHMCS care generează facturile în format
 UBL 2.1 / CIUS-RO și le trimite în sistemul RO e-Factura al ANAF.
 
@@ -38,6 +36,79 @@ UBL 2.1 / CIUS-RO și le trimite în sistemul RO e-Factura al ANAF.
 `configuration.php` (acoperă și paginile web, și cron-ul). În plus,
 `date.timezone = Europe/Bucharest` în `php.ini` / `.user.ini` (cPanel:
 MultiPHP INI Editor), care singur acoperă doar paginile web.
+
+## Installation
+
+1. **Copy:** from the release archive, copy the `modules` folder into the
+   WHMCS root folder; the addon lands in `modules/addons/efactura`.
+2. **Activate:** Configuration > System Settings > Addon Modules >
+   WHMCS-eFactura > Activate. The addon creates its database tables
+   (`mod_efactura_*`) and its client custom fields.
+3. **Access:** in the same place, Configure > Access Control: tick the admin
+   role groups that may use the addon. The e-Factura panels of the invoice
+   and credit note pages follow the same access.
+4. **Cron:** the WHMCS system cron must run every 5 minutes (the command is
+   in Configuration > System Settings > Automation Settings); the addon sends
+   the documents after each run. See [Sending to ANAF](#sending-to-anaf) for
+   an optional separate worker.
+5. **WHMCS invoicing:** in Configuration > System Settings > Tax
+   Configuration > VAT Settings:
+   - turn on **Enable Proforma Invoicing**, **Sequential Paid Invoice
+     Numbering** and **Set Invoice Date on Payment**: unpaid invoices stay
+     proformas and get the fiscal number and date at payment;
+   - **Sequential Invoice Number Format** is the fiscal series, with the
+     `{NUMBER}` tag (for example `CRK-{NUMBER}`), and **Next Paid Invoice
+     Number** must be higher than the last fiscal number issued;
+   - optionally, **Custom Invoice Numbering** numbers the proformas in their
+     own series, with another prefix (for example `CRP-{NUMBER}`).
+
+   Also see [Requirements](#requirements) (Store Client Data Snapshot, time
+   zone). The dashboard of the addon (Addons > WHMCS-eFactura) checks all
+   of these; the processing cannot be turned on while one of them fails.
+6. **Seller details:** Addons > WHMCS-eFactura > Settings: the company as
+   registered at ANAF (name, CUI, VAT, address), the IBANs, the delay before
+   sending and the clients whose invoices are issued before payment.
+7. **ANAF OAuth application:** each WHMCS uses its own application,
+   registered on the ANAF developer account of the company. The ANAF
+   connection page of the addon lists the steps and shows the callback URL
+   to register: `https://<WHMCS System URL>/modules/addons/efactura/oauth_callback.php`
+   (ANAF accepts only https). An ANAF application cannot be edited later,
+   so add from the start the callback URL of every WHMCS that will use it.
+   Enter the Client ID and Client Secret on the same page; they stay in
+   WHMCS, the secret encrypted.
+8. **Connect to ANAF:** "Connect to ANAF" opens ANAF in the browser, where a
+   person with SPV rights for the company chooses the qualified certificate
+   (USB token); "Link for another person" sends that step to someone who
+   does not use this WHMCS. "Test connection" checks the SPV rights for the
+   company CUI. The authorization has to be renewed with the certificate
+   once a year; the dashboard warns 30 days before.
+9. **From test to production:** the addon starts on the ANAF test
+   environment (`api.anaf.ro/test`), where documents have no legal value.
+   Try it on a copy of WHMCS with fictive clients: on the live WHMCS, every
+   number the addon issues is a real fiscal invoice. On the live WHMCS,
+   choose **ANAF production** in Settings before turning on the processing.
+   The same OAuth application and authorization are used for both
+   environments. Documents already sent to the test environment are not
+   sent to production automatically, and the SPV inbox starts over with the
+   last 59 days of production messages.
+10. **Turn on the processing** in Settings once the dashboard shows no
+    blocking problem.
+
+**Română:** copiați folderul `modules` din arhivă în folderul principal
+WHMCS, activați addonul (Configuration > System Settings > Addon Modules),
+dați acces grupurilor de admini (Access Control) și verificați că rulează
+cron-ul WHMCS la 5 minute. În Tax Configuration > VAT Settings porniți
+Enable Proforma Invoicing, Sequential Paid Invoice Numbering și Set Invoice
+Date on Payment; seria fiscală e Sequential Invoice Number Format (cu
+`{NUMBER}`, de exemplu `CRK-{NUMBER}`), iar proformele pot avea o serie
+proprie cu alt prefix (Custom Invoice Numbering, de exemplu `CRP-{NUMBER}`).
+Completați datele firmei în setări, înregistrați aplicația OAuth pe contul
+de dezvoltator ANAF al firmei (cu URL-ul de callback din pagina „Conectare
+ANAF”, doar https) și conectați-vă cu certificatul calificat al unei
+persoane cu drepturi SPV. Încercați totul pe o copie WHMCS, cu mediul de
+test ANAF și clienți fictivi; pe WHMCS-ul real alegeți „ANAF producție”
+înainte să porniți procesarea, fiindcă fiecare număr emis acolo e o factură
+fiscală reală.
 
 ## Client data
 
