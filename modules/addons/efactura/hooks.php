@@ -23,9 +23,11 @@ use WHMCS\Module\Addon\Efactura\ClientData\ClientDataHooks;
 use WHMCS\Module\Addon\Efactura\Hooks\AdminHooks;
 use WHMCS\Module\Addon\Efactura\Hooks\CronHooks;
 use WHMCS\Module\Addon\Efactura\Hooks\InvoiceHooks;
+use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceTitle;
 
-// Hook registration only. WHMCS loads this file on every page, so each hook
-// is a one-line delegation to a class in lib/Hooks.
+// Hook registration only (and the function a theme may call for the PDF
+// title, at the end). WHMCS loads this file on every page, so each hook is a
+// one-line delegation to a class in lib/Hooks.
 
 // Fiscal numbering at payment. The early priority makes the addon restore a
 // fiscal number before other hooks read it; InvoicePaid releases the lock
@@ -47,6 +49,17 @@ add_hook('InvoiceCreationPreEmail', 10, static function (array $vars): void {
 });
 add_hook('InvoiceCreated', 10, static function (array $vars): void {
     InvoiceHooks::invoiceCreated($vars);
+});
+
+// The title of an invoice that has a fiscal invoice (issued before payment,
+// cancelled or refunded), which WHMCS would title as a proforma: in the PDF
+// (a hook point WHMCS calls for every invoice PDF, missing from its hook
+// reference) and on the invoice page of the client area.
+add_hook('InvoicePdfTemplateVars', 10, static function (array $vars): array {
+    return InvoiceHooks::pdfTemplateVars($vars);
+});
+add_hook('ClientAreaPageViewInvoice', 10, static function (array $vars): array {
+    return InvoiceHooks::viewInvoicePage($vars);
 });
 
 // Stornos of fiscal invoices: cancellation and refunds.
@@ -81,3 +94,19 @@ add_hook('AdminAreaFooterOutput', 10, static function (array $vars): string {
 // Client forms for Romanian clients (county, sector): registration, checkout,
 // profile, contacts and the client pages of the admin area.
 ClientDataHooks::register();
+
+if (!function_exists('efactura_invoice_title')) {
+    /**
+     * The same PDF title for a theme whose invoicepdf.tpl calls it (see
+     * InvoiceTitle::TEMPLATE_LINE), should WHMCS stop calling
+     * InvoicePdfTemplateVars. Defined only while the addon is active.
+     */
+    function efactura_invoice_title(mixed $invoiceId, mixed $pagetitle): string
+    {
+        try {
+            return InvoiceTitle::fiscal((int) $invoiceId) ?? (string) $pagetitle;
+        } catch (Throwable) {
+            return (string) $pagetitle;
+        }
+    }
+}

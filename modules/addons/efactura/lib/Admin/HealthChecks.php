@@ -21,6 +21,7 @@ use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceSnapshot;
+use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceTitle;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
 
 /**
@@ -57,6 +58,7 @@ final class HealthChecks
             $this->clientFields(),
             ...$this->whmcsNumbering(),
             $this->invoiceSnapshot(),
+            $this->invoiceTitle(),
             $this->timezone(),
             $this->extensions(),
         ];
@@ -214,6 +216,29 @@ final class HealthChecks
         return InvoiceSnapshot::enabled()
             ? self::check('check_snapshot', self::OK, Lang::get('check_snapshot_on'))
             : self::check('check_snapshot', self::WARNING, Lang::get('check_snapshot_off'));
+    }
+
+    /**
+     * The PDF title of an invoice that has a fiscal invoice and is not paid
+     * comes from a WHMCS hook point missing from the WHMCS hook reference, so
+     * each WHMCS version has to confirm it by rendering one invoice PDF. The
+     * line in invoicepdf.tpl of the theme sets the title without it.
+     *
+     * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
+     */
+    private function invoiceTitle(): array
+    {
+        $template = InvoiceTitle::templateFile();
+        if (InvoiceTitle::confirmed()) {
+            return self::check('check_invoice_title', self::OK, Lang::get('check_invoice_title_ok', InvoiceTitle::whmcsVersion()));
+        }
+        if (InvoiceTitle::templateHasLine()) {
+            return self::check('check_invoice_title', self::OK, Lang::get('check_invoice_title_template', $template));
+        }
+
+        return self::check('check_invoice_title', self::WARNING, Lang::get('check_invoice_title_unconfirmed', InvoiceTitle::whmcsVersion()), [
+            ['text' => Lang::get('check_invoice_title_step', $template), 'code' => InvoiceTitle::TEMPLATE_LINE],
+        ]);
     }
 
     /**

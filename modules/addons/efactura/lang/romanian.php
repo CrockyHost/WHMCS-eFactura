@@ -528,6 +528,11 @@ $_ADDONLANG['alert_masspay_partly_paid_body'] = "Factura Mass Pay #%d a fost ram
 $_ADDONLANG['check_snapshot'] = 'WHMCS: Store Client Data Snapshot';
 $_ADDONLANG['check_snapshot_on'] = 'Activat: PDF-ul facturii păstrează datele clientului trimise în SPV.';
 $_ADDONLANG['check_snapshot_off'] = 'Oprit: PDF-ul unei facturi deja trimise în SPV se schimbă odată cu profilul clientului. Activați-l din Configuration > System Settings > General Settings (Store Client Data Snapshot).';
+$_ADDONLANG['check_invoice_title'] = 'Titlul facturilor fiscale neplătite';
+$_ADDONLANG['check_invoice_title_ok'] = 'Confirmat pe WHMCS %s: o factură emisă înainte de plată, anulată sau rambursată are în PDF și pe pagina ei titlul unei facturi plătite, nu al unei proforme.';
+$_ADDONLANG['check_invoice_title_template'] = 'Pus de linia din %s.';
+$_ADDONLANG['check_invoice_title_unconfirmed'] = 'Neconfirmat încă pe WHMCS %s. Deschideți PDF-ul oricărei facturi, apoi reîncărcați această pagină. Dacă avertismentul rămâne, WHMCS nu mai permite addonului să pună titlul PDF-ului, iar o factură emisă înainte de plată, anulată sau rambursată apare în PDF cu titlul unei proforme:';
+$_ADDONLANG['check_invoice_title_step'] = 'Adăugați această linie la începutul fișierului %s, imediat după <?php. Nu face nimic dacă addonul lipsește sau e dezactivat.';
 
 // Inboxul SPV
 $_ADDONLANG['nav_inbox'] = 'Inbox SPV';

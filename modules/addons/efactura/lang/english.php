@@ -528,6 +528,11 @@ $_ADDONLANG['alert_masspay_partly_paid_body'] = "Mass Pay invoice #%d was refund
 $_ADDONLANG['check_snapshot'] = 'WHMCS: Store Client Data Snapshot';
 $_ADDONLANG['check_snapshot_on'] = 'On: the PDF of an invoice keeps the client details sent to SPV.';
 $_ADDONLANG['check_snapshot_off'] = 'Off: the PDF of an invoice already sent to SPV changes with the client profile. Turn it on in Configuration > System Settings > General Settings (Store Client Data Snapshot).';
+$_ADDONLANG['check_invoice_title'] = 'Title of fiscal invoices that are not paid';
+$_ADDONLANG['check_invoice_title_ok'] = 'Confirmed on WHMCS %s: an invoice issued before payment, cancelled or refunded has the title of a paid invoice in its PDF and on its page, not that of a proforma.';
+$_ADDONLANG['check_invoice_title_template'] = 'Set by the line in %s.';
+$_ADDONLANG['check_invoice_title_unconfirmed'] = 'Not confirmed yet on WHMCS %s. Open the PDF of any invoice, then reload this page. If this warning stays, WHMCS no longer lets the addon set the PDF title, so an invoice issued before payment, cancelled or refunded shows the title of a proforma in its PDF:';
+$_ADDONLANG['check_invoice_title_step'] = 'Add this line at the beginning of %s, right after <?php. It does nothing when the addon is missing or deactivated.';
 
 // SPV inbox
 $_ADDONLANG['nav_inbox'] = 'SPV inbox';

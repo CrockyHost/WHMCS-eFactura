@@ -228,6 +228,44 @@ schimba până la trimiterea facturii la ANAF, apoi rămân cu documentul;
 stornarea le preia de la factura pe care o corectează. Pagina notei de credit arată stornarea emisă din ea, iar paginile
 addonului au lista documentelor și istoricul fiecăruia.
 
+## Invoice title
+
+With proforma invoicing, WHMCS titles every invoice that is not Paid as a
+proforma: also an invoice issued as a fiscal invoice before payment, and a
+fiscal invoice cancelled or refunded later. The addon gives such an invoice
+the title of a paid one ("Invoice #CRK-0096", the `invoicenumber` text of the
+language), in the PDF and on the invoice page of the client area. Proformas
+keep their title. The theme is not changed:
+
+- the invoice page: the `ClientAreaPageViewInvoice` hook (tested with
+  Twenty-One and Lagom 2);
+- the PDF: `InvoicePdfTemplateVars`, a hook point WHMCS 9.0 calls for every
+  invoice PDF (download, e-mail attachment, admin area) but does not list in
+  its hook reference.
+
+Since that hook point is not documented, the dashboard check "Title of
+fiscal invoices that are not paid" confirms it on each WHMCS version: after
+an update, open the PDF of any invoice. If the warning stays, WHMCS no longer
+calls it; add this line at the beginning of `invoicepdf.tpl` in the active
+theme (`templates/<theme>/invoicepdf.tpl`), right after `<?php`:
+
+```php
+if (function_exists('efactura_invoice_title')) { $pagetitle = efactura_invoice_title($invoiceid, $pagetitle); }
+```
+
+The line does nothing when the addon is missing or deactivated. A theme
+update may replace the file, so check it again after one.
+
+**Română:** WHMCS dă titlul de proformă oricărei facturi neplătite, inclusiv
+celei emise fiscal înainte de plată și unei facturi fiscale anulate sau
+rambursate. Addonul îi dă titlul unei facturi plătite („Factura nr.
+CRK-0096”), în PDF și pe pagina facturii din zona clientului, fără să
+modifice tema; proformele rămân proforme. Pentru PDF folosește un hook pe care
+WHMCS îl apelează, dar nu îl documentează, așa că verificarea din panou îl
+confirmă la fiecare versiune WHMCS (după o actualizare, deschideți PDF-ul
+oricărei facturi). Dacă avertismentul rămâne, puneți linia de mai sus la
+începutul fișierului `invoicepdf.tpl` al temei active.
+
 ## SPV inbox
 
 Every 30 minutes, after the queue, the cron reads the e-Factura messages of

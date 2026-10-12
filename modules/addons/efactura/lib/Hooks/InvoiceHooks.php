@@ -26,11 +26,13 @@ use WHMCS\Module\Addon\Efactura\Support\AdminContext;
 use WHMCS\Module\Addon\Efactura\Support\AdminNotifier;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceSnapshot;
+use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceTitle;
 
 /**
  * Invoice hooks. Each one does nothing while processing is disabled (except
- * the tidying of the client details of the PDF), and an error is logged and
- * reported but never interrupts WHMCS (a payment must always go through).
+ * those of the PDF and the invoice page: the client details and the title),
+ * and an error is logged and reported but never interrupts WHMCS (a payment
+ * must always go through).
  */
 final class InvoiceHooks
 {
@@ -144,6 +146,49 @@ final class InvoiceHooks
                 $stornos->process(NumberingLock::paymentTimeout(), [$invoiceId]);
             }
         });
+    }
+
+    /**
+     * InvoicePdfTemplateVars: the PDF of an invoice that has a fiscal invoice
+     * gets the title of a paid one. Also when the processing is off: the
+     * fiscal invoices stay.
+     *
+     * @param array<string, mixed> $vars invoiceid and templatevars
+     * @return array<string, mixed> merged by WHMCS into $vars
+     */
+    public static function pdfTemplateVars(array $vars): array
+    {
+        $invoiceId = (int) ($vars['invoiceid'] ?? 0);
+        try {
+            InvoiceTitle::confirm();
+            $title = InvoiceTitle::fiscal($invoiceId);
+
+            return $title === null ? [] : ['templatevars' => ['pagetitle' => $title]];
+        } catch (Throwable $e) {
+            logActivity(Addon::NAME . ": the PDF title of invoice #{$invoiceId} failed: " . $e->getMessage());
+
+            return [];
+        }
+    }
+
+    /**
+     * ClientAreaPageViewInvoice: the same title on the invoice page.
+     *
+     * @param array<string, mixed> $vars
+     * @return array<string, mixed> template variables
+     */
+    public static function viewInvoicePage(array $vars): array
+    {
+        $invoiceId = (int) ($vars['invoiceid'] ?? 0);
+        try {
+            $title = InvoiceTitle::fiscal($invoiceId);
+
+            return $title === null ? [] : ['pagetitle' => $title];
+        } catch (Throwable $e) {
+            logActivity(Addon::NAME . ": the page title of invoice #{$invoiceId} failed: " . $e->getMessage());
+
+            return [];
+        }
     }
 
     /**

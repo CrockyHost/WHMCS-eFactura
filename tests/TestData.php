@@ -28,3 +28,22 @@ function efactura_ron_currency(): int
 
     return $id;
 }
+
+/**
+ * The text of the WHMCS PDF of an invoice (pdftotext), or a skip when the
+ * tool is not installed.
+ */
+function efactura_pdf_text(int $invoiceId): string
+{
+    $tool = getenv('EFACTURA_PDFTOTEXT') ?: 'C:/Program Files/Git/mingw64/bin/pdftotext.exe';
+    if (!is_file($tool)) {
+        throw new SkipTest('pdftotext not found (set EFACTURA_PDFTOTEXT)');
+    }
+    require_once ROOTDIR . '/includes/invoicefunctions.php';
+    $pdf = tempnam(sys_get_temp_dir(), 'efp');
+    file_put_contents($pdf, pdfInvoice($invoiceId));
+    $text = (string) shell_exec(escapeshellarg($tool) . ' -enc UTF-8 ' . escapeshellarg($pdf) . ' -');
+    @unlink($pdf);
+
+    return $text;
+}
