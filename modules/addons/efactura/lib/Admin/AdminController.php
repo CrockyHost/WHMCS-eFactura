@@ -43,9 +43,7 @@ final class AdminController
     public function handle(): void
     {
         try {
-            if (Addon::migrator()->pending() !== []) {
-                Addon::migrator()->migrate();
-            }
+            Addon::migratePending();
         } catch (Throwable $e) {
             echo '<div class="alert alert-danger">WHMCS-eFactura: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES) . '</div>';
 

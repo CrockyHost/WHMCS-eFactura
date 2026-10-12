@@ -46,7 +46,7 @@ final class Addon
 {
     public const MODULE = 'efactura';
     public const NAME = 'WHMCS-eFactura';
-    public const VERSION = '0.8.0';
+    public const VERSION = '0.8.1';
     public const SOURCE_URL = 'https://github.com/CrockyHost/WHMCS-eFactura';
 
     /**
@@ -131,6 +131,18 @@ final class Addon
         $base = dirname(__DIR__);
 
         return $relative === '' ? $base : $base . '/' . ltrim($relative, '/');
+    }
+
+    /**
+     * Applies the migrations a code update brought, before an admin opens
+     * the addon: the cron must not run on the old schema.
+     */
+    public static function migratePending(): void
+    {
+        $migrator = self::migrator();
+        if ($migrator->pending() !== []) {
+            $migrator->migrate();
+        }
     }
 
     public static function migrator(): Migrator

@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Addon;
+use WHMCS\Module\Addon\Efactura\Admin\InvoicePanel;
 use WHMCS\Module\Addon\Efactura\Anaf\ApiClient;
 use WHMCS\Module\Addon\Efactura\Anaf\OAuth\Connection;
 use WHMCS\Module\Addon\Efactura\Anaf\OAuth\OAuthClient;
@@ -421,11 +422,58 @@ return [
         $worker($anaf)->run(30, [(int) $doc->id]);
         Assert::same(Document::STATE_UNKNOWN, $reload($doc)->state);
         Assert::same([56, 50], [count(array_keys($anaf->calls(), 'upload', true)), count(array_keys($anaf->calls(), 'descarcare', true))], 'not sent again: 5 invoices unread');
+        Assert::same(Lang::get('reconcile_unread', 5), $reload($doc)->wait_reason, 'the document says why');
 
         $travel('+31 minutes');
         $worker($anaf)->run(30, [(int) $doc->id]);
         Assert::same(Document::STATE_PROCESSING, $reload($doc)->state, 'sent again once every invoice was read');
         Assert::same([57, 55], [count(array_keys($anaf->calls(), 'upload', true)), count(array_keys($anaf->calls(), 'descarcare', true))]);
+        Assert::same(null, $reload($doc)->wait_reason);
+    }),
+    'a sent invoice whose ZIP cannot be read is downloaded once and does not hold the document back' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload, $travel): void {
+        $setup();
+        $anaf = new AnafSimulator();
+        $doc = $document();
+        Clock::freeze(Clock::now());
+        $anaf->uploadModes = ['dropped'];
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        // Listed among the invoices sent, its ZIP holds no invoice.
+        $anaf->addSentWithoutInvoice();
+        for ($run = 0; $run < 12; $run++) {
+            $travel('+31 minutes');
+            $worker($anaf)->run(30, [(int) $doc->id]);
+        }
+        Assert::same(1, count(array_keys($anaf->calls(), 'descarcare', true)), 'downloaded once in 12 runs');
+        Assert::same(Document::STATE_PROCESSING, $reload($doc)->state, 'sent again after 6 hours');
+        Assert::same(2, count(array_keys($anaf->calls(), 'upload', true)));
+    }),
+    'a download refused for the daily limit is tried again the next day, and the document says why it waits' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload): void {
+        $setup();
+        $anaf = new AnafSimulator();
+        $doc = $document();
+        Clock::freeze(Clock::now());
+        // An invoice of other software, sent just before ours.
+        $anaf->send(new Request('POST', ApiClient::baseUrl('test') . 'upload?standard=UBL&cif=12345674', [], (string) file_get_contents(dirname(__DIR__) . '/fixtures/ubl/b2b-ron-paid.xml')));
+        $anaf->uploadModes = ['dropped'];
+        $worker($anaf)->run(30, [(int) $doc->id]);
+
+        // The next morning, past the 6 hours: its ZIP was already downloaded 10 times today.
+        $anaf->downloadModes = ['limit'];
+        Clock::freeze(Clock::now()->modify('tomorrow 08:00'));
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        Assert::same(Document::STATE_UNKNOWN, $reload($doc)->state, 'not sent again');
+        Assert::same(Lang::get('reconcile_unread', 1), $reload($doc)->wait_reason);
+        Assert::true(str_contains((new InvoicePanel())->render((int) $doc->invoice_id), Lang::get('reconcile_unread', 1)), 'shown on the invoice');
+
+        Clock::freeze(Clock::now()->modify('+31 minutes'));
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        Assert::same([2, 1], [count(array_keys($anaf->calls(), 'upload', true)), count(array_keys($anaf->calls(), 'descarcare', true))], 'not tried again the same day');
+
+        Clock::freeze(Clock::now()->modify('tomorrow 08:00'));
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        Assert::same([3, 2], [count(array_keys($anaf->calls(), 'upload', true)), count(array_keys($anaf->calls(), 'descarcare', true))], 'read, then sent again');
+        Assert::same(Document::STATE_PROCESSING, $reload($doc)->state);
+        Assert::same(null, $reload($doc)->wait_reason);
     }),
     'a document left in sending by a stopped worker is reconciled, not resent' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload): void {
         $setup();

@@ -42,5 +42,6 @@ use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 
+Addon::migratePending();
 Lang::boot(Settings::string('ui_language'));
 echo json_encode(Addon::worker()->run($budget, $only)) . "\n";

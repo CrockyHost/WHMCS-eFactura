@@ -83,6 +83,7 @@ final class DocumentPresenter
             'nextAttempt' => in_array($state, [Document::STATE_RETRY, Document::STATE_UNKNOWN, Document::STATE_INVALID, Document::STATE_PROCESSING], true) ? self::dateTime((string) $document->next_attempt_at) : '',
             'lastError' => in_array($state, [Document::STATE_VALIDATED, Document::STATE_EXCLUDED], true) ? '' : (string) ($document->last_error ?? ''),
             'errors' => self::errors((string) ($document->errors ?? '')),
+            'waiting' => $state === Document::STATE_UNKNOWN ? (string) ($document->wait_reason ?? '') : '',
             'review' => $state === Document::STATE_HELD && $document->review_reason !== null ? Lang::get('review_' . $document->review_reason) : '',
             'held' => $state === Document::STATE_HELD && $document->held_at !== null
                 ? Lang::get('panel_held_by', AdminContext::name($document->held_by !== null ? (int) $document->held_by : null), self::dateTime((string) $document->held_at)) : '',

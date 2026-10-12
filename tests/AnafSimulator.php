@@ -120,6 +120,17 @@ final class AnafSimulator implements Transport
     }
 
     /**
+     * An invoice sent for the seller whose ZIP holds only the signature, as a
+     * damaged answer would.
+     */
+    public function addSentWithoutInvoice(?DateTimeImmutable $created = null): string
+    {
+        $index = (string) $this->nextIndex++;
+
+        return $this->addInbox('FACTURA TRIMISA', 'T', $index, 'Factura cu id_incarcare=' . $index . ' emisa de cif_emitent=12345674', [], $created);
+    }
+
+    /**
      * @param array<string, string> $files
      * @param DateTimeImmutable|null $created when ANAF created the message; by default two minutes ago
      */

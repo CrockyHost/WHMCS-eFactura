@@ -132,7 +132,10 @@ An upload whose answer was lost is looked for among the invoices sent for
 the company CUI before it is sent again. It is sent again only after the
 whole list of those invoices was read and each one not known to the addon
 was downloaded and compared; until then it waits, so that ANAF never gets
-the same invoice twice because of a list read in part.
+the same invoice twice because of a list read in part. The e-Factura panel
+of the invoice then says why it waits. A ZIP that cannot be read is not one
+of the addon's (ANAF returns the bytes sent) and is downloaded once; a
+download refused for the daily limit of ANAF is tried again the next day.
 
 Cancelling or refunding a fiscal invoice issues a storno, a new invoice in
 the same fiscal series with negative quantities that points to the original
@@ -165,7 +168,8 @@ addonul procesează coada (trimitere, verificarea stării, descărcarea și
 arhivarea răspunsului semnat, reconcilierea încărcărilor fără răspuns și
 alertele de termen). O încărcare fără răspuns se retrimite doar după ce
 lista facturilor trimise a fost citită toată și fiecare factură necunoscută
-a fost descărcată și comparată. Anularea sau rambursarea unei facturi fiscale emite o
+a fost descărcată și comparată; până atunci, panoul e-Factura al facturii
+arată de ce așteaptă. Anularea sau rambursarea unei facturi fiscale emite o
 stornare în aceeași serie (totală, a restului sau parțială, după nota de
 credit WHMCS); anularea unei proforme nu emite nimic. Opțional,
 `cron/worker.php` poate rula separat, de exemplu la fiecare minut.

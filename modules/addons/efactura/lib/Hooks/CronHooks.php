@@ -41,6 +41,13 @@ final class CronHooks
     public static function afterCron(): void
     {
         try {
+            Addon::migratePending();
+        } catch (Throwable $e) {
+            logActivity(Addon::NAME . ': the database migrations failed: ' . $e->getMessage());
+
+            return;
+        }
+        try {
             Lang::boot(Settings::string('ui_language'));
             if (Settings::bool('enabled')) {
                 // Stornos still waiting for the numbering lock or a credit note.

@@ -162,6 +162,7 @@ final class DeadlineMonitor
     {
         $reason = match (true) {
             $document->state === Document::STATE_HELD && $document->review_reason !== null => Lang::get('review_' . $document->review_reason),
+            $document->state === Document::STATE_UNKNOWN && (string) ($document->wait_reason ?? '') !== '' => (string) $document->wait_reason,
             $document->last_error !== null && $document->last_error !== '' => (string) $document->last_error,
             default => '',
         };

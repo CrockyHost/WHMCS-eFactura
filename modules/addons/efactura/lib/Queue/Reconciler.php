@@ -30,6 +30,7 @@ use WHMCS\Module\Addon\Efactura\Fiscal\DocumentRepository;
 use WHMCS\Module\Addon\Efactura\Romania\Cui;
 use WHMCS\Module\Addon\Efactura\Romania\Text;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Support\Money;
 use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
 
@@ -45,7 +46,8 @@ use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
  * upload did arrive, ANAF answers with a duplicate that names the original
  * index, which the worker follows. A document is never uploaded again on an
  * incomplete look: when a run could not read the whole list, or left some
- * of its invoices unread, the documents not found wait for the next run.
+ * of its invoices unread, the documents not found wait for the next run,
+ * with the reason in wait_reason.
  *
  * Rejected uploads (filter E) cannot be matched: the error file does not
  * contain the invoice number. The second upload then gets the same errors.
@@ -71,6 +73,8 @@ final class Reconciler
     private const MAX_DOWNLOADS = 50;
     /** Messages already downloaded and their invoice key, by upload index. */
     private const SEEN = 'reconcile_seen';
+    /** Messages whose download hit the daily limit of ANAF, by upload index: not tried again that day. */
+    private const LIMITED = 'reconcile_limited';
 
     public function __construct(
         private readonly ApiClient $api,
@@ -101,11 +105,12 @@ final class Reconciler
 
         $start = Clock::parse((string) $due->min('upload_started_at'))->modify('-' . self::WINDOW_BEFORE_MINUTES . ' minutes');
         try {
-            [$sent, $complete] = $this->sentInvoices($worker, $start, $now, $due->all());
+            ['sent' => $sent, 'listed' => $listed, 'unread' => $unread] = $this->sentInvoices($worker, $start, $now, $due->all());
         } catch (OAuthException | RuntimeException $e) {
             foreach ($due as $document) {
+                // last_error keeps the answer to the upload, which sets the waiting time.
                 $this->documents->update((int) $document->id, [
-                    'last_error' => $e->getMessage(),
+                    'wait_reason' => Lang::get('reconcile_list_failed', $e->getMessage()),
                     'next_attempt_at' => $now->modify('+' . self::CHECK_EVERY_MINUTES . ' minutes')->format('Y-m-d H:i:s'),
                 ]);
             }
@@ -113,6 +118,12 @@ final class Reconciler
             return 0;
         }
 
+        $complete = $listed && $unread === 0;
+        $reason = match (true) {
+            !$listed => Lang::get('reconcile_list_partial'),
+            $unread > 0 => Lang::get('reconcile_unread', $unread),
+            default => null,
+        };
         $done = 0;
         foreach ($due as $document) {
             $match = null;
@@ -126,15 +137,21 @@ final class Reconciler
                 $this->adopt($document, (string) $match, $sent[$match]);
                 unset($sent[$match]);
                 $done++;
-            } elseif ($complete && Clock::parse((string) $document->upload_started_at) <= $now->modify('-' . self::resendAfterHours($document) . ' hours')) {
+                continue;
+            }
+            $resendDue = Clock::parse((string) $document->upload_started_at) <= $now->modify('-' . self::resendAfterHours($document) . ' hours');
+            if ($resendDue && $complete) {
                 if (!$worker->canUpload()) {
                     break;
                 }
+                $this->documents->update((int) $document->id, ['wait_reason' => null]);
                 // The same frozen bytes; a duplicate answer leads to the original.
                 $worker->upload($document);
                 $done++;
             } else {
                 $this->documents->update((int) $document->id, [
+                    // Why it is not sent again although its time has come.
+                    'wait_reason' => $resendDue ? $reason : null,
                     'next_attempt_at' => $now->modify('+' . self::CHECK_EVERY_MINUTES . ' minutes')->format('Y-m-d H:i:s'),
                 ]);
             }
@@ -200,11 +217,13 @@ final class Reconciler
      * a document yet, with the key read from their ZIP. A ZIP is kept in
      * memory only when it matches one of the documents due, for the archive.
      * The look is complete when the whole list was read and every invoice not
-     * linked was downloaded (a ZIP that cannot be read is not one of ours:
-     * ANAF returns the bytes sent).
+     * linked was downloaded. A ZIP that cannot be read is not one of ours
+     * (ANAF returns the bytes sent): it is remembered and never downloaded
+     * again. A download refused for the daily limit waits for the next day.
      *
      * @param list<object> $due
-     * @return array{0: array<string, array{number: string, date: string, seller: string, total: string, sha256: string, download_id: string, zip: string|null}>, 1: bool} the invoices, whether the look is complete
+     * @return array{sent: array<string, array{number: string, date: string, seller: string, total: string, sha256: string, download_id: string, zip: string|null}>, listed: bool, unread: int}
+     *     the invoices, whether the whole list was read, the invoices not linked still unread
      */
     private function sentInvoices(Worker $worker, DateTimeImmutable $start, DateTimeImmutable $now, array $due): array
     {
@@ -212,11 +231,11 @@ final class Reconciler
         $start = max($start, $now->modify('-59 days'));
         $end = $now->modify('-' . self::WINDOW_END_SECONDS . ' seconds');
         if ($end <= $start) {
-            return [[], false];
+            return ['sent' => [], 'listed' => false, 'unread' => 0];
         }
 
         $messages = [];
-        $complete = (new MessageList($this->api))->read($cui, $start, $end, 'T', static fn (): bool => $worker->hasBudget(),
+        $listed = (new MessageList($this->api))->read($cui, $start, $end, 'T', static fn (): bool => $worker->hasBudget(),
             static function (array $message) use (&$messages): void {
                 if (($message['id_solicitare'] ?? '') !== '' && ($message['id'] ?? '') !== '') {
                     $messages[$message['id_solicitare']] = $message['id'];
@@ -228,8 +247,11 @@ final class Reconciler
             Capsule::table(Document::TABLE)->whereIn('upload_index', array_map('strval', array_keys($messages)))->pluck('upload_index')->all(),
             Capsule::table('mod_efactura_archive')->whereIn('upload_index', array_map('strval', array_keys($messages)))->pluck('upload_index')->all()
         );
+        $today = $now->format('Y-m-d');
         $seen = $this->seen($now);
+        $limited = array_filter((array) $this->state->get(self::LIMITED, []), static fn ($day): bool => $day === $today);
         $sent = [];
+        $unread = 0;
         $downloads = 0;
         foreach ($messages as $index => $downloadId) {
             $index = (string) $index;
@@ -237,34 +259,41 @@ final class Reconciler
                 continue;
             }
             if (isset($seen[$index])) {
-                $sent[$index] = $seen[$index] + ['download_id' => $downloadId, 'zip' => null];
+                if (!isset($seen[$index]['unreadable'])) {
+                    $sent[$index] = $seen[$index] + ['download_id' => $downloadId, 'zip' => null];
+                }
                 continue;
             }
-            if ($downloads >= self::MAX_DOWNLOADS || !$worker->hasBudget()) {
-                $complete = false;
+            if (isset($limited[$index]) || $downloads >= self::MAX_DOWNLOADS || !$worker->hasBudget()) {
+                $unread++;
                 continue;
             }
             $downloads++;
             $download = ResponseParser::download($this->api->download($downloadId));
             if ($download->kind !== Outcome::ZIP) {
-                $complete = false;
+                if ($download->kind === Outcome::LIMIT) {
+                    $limited[$index] = $today;
+                }
+                $unread++;
                 continue;
             }
             try {
                 $key = ResponseZip::read($download->body)->invoiceKey();
             } catch (RuntimeException) {
-                continue;
+                $key = null;
             }
             if ($key === null) {
+                $seen[$index] = ['unreadable' => true, 'at' => $today];
                 continue;
             }
-            $seen[$index] = $key + ['at' => $now->format('Y-m-d')];
+            $seen[$index] = $key + ['at' => $today];
             $wanted = array_filter($due, static fn (object $document): bool => self::matches($key, $document)) !== [];
             $sent[$index] = $key + ['download_id' => $downloadId, 'zip' => $wanted ? $download->body : null];
         }
         $this->state->set(self::SEEN, $seen);
+        $this->state->set(self::LIMITED, $limited);
 
-        return [$sent, $complete];
+        return ['sent' => $sent, 'listed' => $listed, 'unread' => $unread];
     }
 
     /**
@@ -281,6 +310,7 @@ final class Reconciler
             'validated_at' => $now,
             'next_attempt_at' => $now,
             'last_error' => null,
+            'wait_reason' => null,
         ], 'reconciled', $index);
         if (!$adopted) {
             return;
@@ -296,7 +326,7 @@ final class Reconciler
     }
 
     /**
-     * @return array<string, array{number: string, date: string, seller: string, total: string, sha256: string, at: string}>
+     * @return array<string, array{number: string, date: string, seller: string, total: string, sha256: string, at: string}|array{unreadable: true, at: string}>
      */
     private function seen(DateTimeImmutable $now): array
     {

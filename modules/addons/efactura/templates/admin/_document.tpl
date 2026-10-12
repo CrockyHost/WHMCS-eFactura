@@ -55,6 +55,9 @@
     {elseif $doc.lastError}
         <div class="efactura-note efactura-note-danger"><strong>{$lang.panel_last_error}</strong> {$doc.lastError}</div>
     {/if}
+    {if $doc.waiting}
+        <div class="efactura-note efactura-note-info"><i class="fas fa-hourglass-half"></i> <strong>{$lang.panel_waiting}</strong> {$doc.waiting}</div>
+    {/if}
     {if $doc.archiveLost}
         <div class="efactura-note efactura-note-warning"><i class="fas fa-exclamation-triangle"></i> {$lang.file_archive_lost}</div>
     {/if}
