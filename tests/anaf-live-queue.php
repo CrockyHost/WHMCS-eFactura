@@ -23,7 +23,10 @@ declare(strict_types=1);
  * runs the worker on them until ANAF validates them (upload and uploadb2c,
  * stareMesaj, descarcare). Then refunds part of the company invoice and
  * cancels the other one, and runs the worker until ANAF validates the two
- * stornos. Checks the archived answers and the paged message list, deletes
+ * stornos. The company invoice carries the references of an institution
+ * (BT-11, BT-12, BT-13, BT-15, BT-19, BT-46), some typed on the invoice and
+ * some taken from the client defaults, and its storno carries them too.
+ * Checks the archived answers and the paged message list, deletes
  * everything it created and puts the WHMCS series and counters back. It
  * refuses to run unless the addon is set to the ANAF test environment.
  *
@@ -55,8 +58,10 @@ use WHMCS\Module\Addon\Efactura\Anaf\ApiClient;
 use WHMCS\Module\Addon\Efactura\Anaf\Outcome;
 use WHMCS\Module\Addon\Efactura\Anaf\ResponseParser;
 use WHMCS\Module\Addon\Efactura\Anaf\ResponseZip;
+use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
+use WHMCS\Module\Addon\Efactura\Fiscal\References;
 use WHMCS\Module\Addon\Efactura\Romania\Cui;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
@@ -85,6 +90,8 @@ function live_cleanup(array $run, RuntimeState $state): void
     Capsule::table('mod_efactura_archive')->whereIn('document_id', $documentIds)->delete();
     Capsule::table(Document::TABLE)->whereIn('id', $documentIds)->delete();
     Capsule::table('mod_efactura_audit')->whereIn('invoice_id', $run['invoices'])->delete();
+    Capsule::table(References::TABLE)->whereIn('invoice_id', $run['invoices'])->delete();
+    Capsule::table('tblcustomfieldsvalues')->whereIn('relid', $run['clients'])->whereIn('fieldid', array_values(ClientFields::referenceIds()))->delete();
     foreach ($run['clients'] as $clientId) {
         localAPI('DeleteClient', ['clientid' => $clientId, 'deleteusers' => true, 'deletetransactions' => true]);
     }
@@ -176,6 +183,7 @@ try {
         'company' => ['TEST mediul de test ANAF, linia 1 - fara valoare, nu se plateste', 'TEST mediul de test ANAF, linia 2 - fara valoare, nu se plateste'],
         'individual' => ['TEST mediul de test ANAF - fara valoare, nu se plateste'],
     ];
+    $references = ['BT-11' => 'TEST-PROIECT-1', 'BT-12' => 'TEST-CONTRACT 1/2026', 'BT-13' => 'TEST-COMANDA-1', 'BT-15' => 'TEST-NIR-1', 'BT-19' => 'TEST-CONT-1', 'BT-46' => 'TEST-CLIENT-1'];
     $payments = [];
     foreach ($clients as $kind => $data) {
         $clientId = (int) localAPI('AddClient', $data + [
@@ -192,6 +200,14 @@ try {
         $invoiceId = (int) localAPI('CreateInvoice', $items + ['userid' => $clientId, 'status' => 'Unpaid', 'sendinvoice' => false, 'paymentmethod' => 'banktransfer'])['invoiceid'];
         $run['invoices'][] = $invoiceId;
         $state->set(LIVE_STATE, $run);
+        if ($kind === 'company') {
+            // References: two defaults of the client, four typed on the invoice.
+            foreach (['bt13' => $references['BT-13'], 'bt46' => $references['BT-46']] as $role => $value) {
+                Capsule::table('tblcustomfieldsvalues')->insert(['fieldid' => ClientFields::id($role), 'relid' => $clientId, 'value' => $value]);
+            }
+            $saved = References::save($invoiceId, array_diff_key($references, ['BT-13' => 1, 'BT-46' => 1]), null);
+            $check($saved === null, 'company: references typed on the proforma');
+        }
         localAPI('AddInvoicePayment', ['invoiceid' => $invoiceId, 'transid' => 'LIVE-' . uniqid(), 'gateway' => 'banktransfer',
             'amount' => (float) Capsule::table('tblinvoices')->where('id', $invoiceId)->value('total')]);
         $payments[$kind] = (int) Capsule::table('tblaccounts')->where('invoiceid', $invoiceId)->where('amountin', '>', 0)->value('id');
@@ -260,6 +276,12 @@ try {
         if ($row->kind === Document::KIND_STORNO) {
             $original = Addon::documents()->find((int) $row->original_document_id);
             $check(str_contains((string) $zip?->invoiceXml, '<cbc:ID>' . $original->number . '</cbc:ID>'), "{$kind}: points to {$original->number}");
+        }
+        if (str_starts_with($kind, 'company')) {
+            $check(References::frozen($row) === $references, "{$kind}: the six references sent");
+            $xml = (string) $zip?->invoiceXml;
+            $check(str_contains($xml, '<cac:ProjectReference>') && str_contains($xml, 'TEST-PROIECT-1') && str_contains($xml, '<cbc:AccountingCost>TEST-CONT-1</cbc:AccountingCost>')
+                && str_contains($xml, 'TEST-CLIENT-1') && str_contains($xml, 'TEST-COMANDA-1'), "{$kind}: the references in the XML ANAF validated");
         }
     }
 
