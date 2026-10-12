@@ -246,6 +246,19 @@ return [
         $worker($anaf)->run(30, [(int) $doc->id]);
         Assert::same(Document::STATE_PROCESSING, $reload($doc)->state);
     }),
+    'an invalid document is not left claimed: corrected and sent now, it goes at once' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload): void {
+        $setup();
+        $anaf = new AnafSimulator();
+        $doc = $document(['state' => 'Romania']);
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        $doc = $reload($doc);
+        Assert::same(Document::STATE_INVALID, $doc->state);
+        Assert::same(null, $doc->lock_token, 'the claim is released');
+        Capsule::table('tblclients')->where('id', $doc->client_id)->update(['state' => 'Dolj']);
+        Assert::true((new DocumentActions(Addon::documents()))->sendNow((int) $doc->id, 1));
+        $worker($anaf)->run(30, [(int) $doc->id]);
+        Assert::same(Document::STATE_PROCESSING, $reload($doc)->state);
+    }),
     'daily ANAF limits are respected per message' => static fn () => $clean(static function () use ($setup, $worker, $document, $reload, $travel): void {
         $setup();
         $anaf = new AnafSimulator();
@@ -501,7 +514,9 @@ return [
         Capsule::table(Document::TABLE)->whereIn('id', [$doc->id, $validated->id])->update(['deadline_date' => WorkingDays::add($today, 2)->format('Y-m-d')]);
         Capsule::table(Document::TABLE)->where('id', $validated->id)->update(['state' => Document::STATE_VALIDATED]);
         $monitor = new DeadlineMonitor();
-        $alerts = static fn (): array => Capsule::table('tblactivitylog')->where('description', 'like', Addon::NAME . ':%' . $doc->number . '%')->orderBy('id')->pluck('description')->all();
+        // Only this run: the log may hold older entries with the same number.
+        $since = (int) Capsule::table('tblactivitylog')->max('id');
+        $alerts = static fn (): array => Capsule::table('tblactivitylog')->where('id', '>', $since)->where('description', 'like', Addon::NAME . ':%' . $doc->number . '%')->orderBy('id')->pluck('description')->all();
 
         Assert::same(1, $monitor->run([(int) $doc->id, (int) $validated->id]));
         Assert::same(1, (int) $reload($doc)->deadline_alert);

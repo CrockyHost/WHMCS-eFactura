@@ -22,7 +22,9 @@ declare(strict_types=1);
  *   php tests/run.php integration Queue   only the files whose name contains "Queue"
  *
  * Integration tests boot the WHMCS installation this repository lives in and
- * run every test inside a database transaction that is rolled back.
+ * run every test inside a database transaction that is rolled back. Pending
+ * migrations are applied first: a DDL statement would commit the transaction
+ * of the test running it, and the run stops if that happens anyway.
  * Each test file returns an array of "description" => closure.
  */
 
@@ -54,6 +56,7 @@ foreach ($suites as $name) {
         // WHMCS expects to be booted from the global scope.
         require_once dirname(__DIR__) . '/init.php';
         efactura_suite_lock();
+        \WHMCS\Module\Addon\Efactura\Addon::migratePending();
     }
 
     foreach ($files as $file) {
@@ -76,6 +79,10 @@ foreach ($suites as $name) {
                 $failed[] = $label . "\n    " . get_class($e) . ': ' . $e->getMessage() . "\n    at " . $e->getFile() . ':' . $e->getLine();
                 echo 'F';
             } finally {
+                if ($connection !== null && !$connection->getPdo()->inTransaction()) {
+                    echo "\n\nSTOP " . $label . ": its transaction was committed (a DDL statement?), so what it wrote stayed in the database.\n";
+                    exit(2);
+                }
                 $connection?->rollBack();
                 if ($name === 'Integration') {
                     \WHMCS\Module\Addon\Efactura\Settings\Settings::reset();

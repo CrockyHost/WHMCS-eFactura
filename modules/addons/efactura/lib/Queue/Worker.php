@@ -134,6 +134,8 @@ final class Worker
         if ($document === null) {
             return;
         }
+        // $document becomes null when the XML cannot be built.
+        $id = (int) $document->id;
         try {
             if ($document->xml === null) {
                 $document = $this->generate($document);
@@ -167,7 +169,7 @@ final class Worker
             $this->afterUpload($document, $outcome);
             ($this->pause)();
         } finally {
-            $this->documents->releaseClaim((int) $document->id);
+            $this->documents->releaseClaim($id);
         }
     }
 
