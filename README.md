@@ -39,6 +39,86 @@ UBL 2.1 / CIUS-RO și le trimite în sistemul RO e-Factura al ANAF.
 `date.timezone = Europe/Bucharest` în `php.ini` / `.user.ini` (cPanel:
 MultiPHP INI Editor), care singur acoperă doar paginile web.
 
+## Client data
+
+With **Extend the client forms** on (the default), the addon adds its own
+script and stylesheet to the client forms of the client area (registration,
+checkout, profile, contacts) and to the client pages of the admin area. The
+theme files are not changed; the forms were tested with the Twenty-One and
+Nexus themes and with Lagom 2.
+
+- **County and sector:** for Romania, State/Region becomes the list of the
+  counties. For an address in Bucharest, a sector list appears and the
+  sector is saved in the City field ("Sector 2").
+- **Billing details** (registration, checkout, profile): the client chooses
+  Individual or Legal entity.
+  - A legal entity gives the company name and the CUI (its check digit is
+    verified).
+  - Optionally, it also gives the trade register number, in the old format
+    (J40/1234/2020) or the new one (J2024012345008).
+  - It ticks whether it is VAT registered. Only then the WHMCS Tax ID field
+    holds the VAT number, RO followed by the CUI.
+  - An individual may give the CNP (verified); without it, the e-Factura
+    XML carries 13 zeros.
+- **Fetch from ANAF**, next to the CUI: fills in the company name, the
+  trade register number, the address and the VAT number from the ANAF VAT
+  payer service (PlatitorTvaRest v9). It also shows whether the company is
+  VAT registered, applies VAT on collection, is fiscally inactive or
+  deregistered, and is in the RO e-Factura registry. A field already filled
+  in with another value is replaced only if the client ticks it.
+- **Validation on the server:** the same rules are checked when the form is
+  saved, either strictly (invalid data cannot be saved) or as warnings only.
+  This is set separately for new clients (registration, checkout) and for
+  the profile and contacts. A Romanian company without CUI is always
+  refused. The admin area and the API are not validated.
+- **Read-only billing details in the profile** (on by default): the client
+  sees the customer type, company name, CUI, trade register number, CNP and
+  VAT number without being able to change them, with a link to open a
+  ticket. A company can still update its address from ANAF.
+- **Admin area:** the client profile, new client and contacts pages have the
+  same county list, and the profile and new client pages also have the ANAF
+  button next to the CUI. The client summary shows the CUI and the trade
+  register number of a company, or the CNP of an individual who gave one.
+
+The addon creates its own client custom fields: CUI, trade register number
+and CNP, with Romanian translations. A deleted field is created again, and
+the "Client fields" section of the settings shows their state. The county
+is always the WHMCS State/Region field, and the VAT number the WHMCS Tax ID
+field. Two settings (on by default) decide whether the CUI and the trade
+register number appear on the invoice PDF ("Show on Invoice"). The CNP never
+appears there.
+
+The ANAF lookup runs on the server and needs the WHMCS session token. It is
+limited per IP address (20 lookups per 10 minutes), per session (10) and
+per admin (120). The answers are kept for one day, or for one hour when ANAF
+does not know the CUI, and ANAF is called at most once per second.
+
+Behind Cloudflare or another reverse proxy, set **Proxy IP Header** and
+**Trusted Proxies** (Configuration > System Settings > General Settings >
+Security), so that WHMCS sees the visitor's IP address. Otherwise all
+visitors share the address of the proxy, and with it one lookup limit.
+
+**Română:** cu „Extinde formularele clienților” pornit (implicit), județul
+se alege dintr-o listă, iar pentru București și sectorul (salvat în câmpul
+oraș). La înregistrare, comandă și în profil clientul alege persoană fizică
+sau juridică:
+- firma completează denumirea și CUI-ul (cu cifra de control), opțional
+  Nr. Reg. Com. și dacă e plătitoare de TVA (doar atunci Tax ID = RO + CUI);
+- persoana fizică poate completa CNP-ul.
+
+Butonul „Preia datele de la ANAF” completează datele firmei pe server, cu
+limite pe IP, pe sesiune și pe admin, cache și cel mult o cerere pe secundă.
+
+Serverul verifică aceleași reguli, strict sau doar cu avertizare. O firmă
+din România fără CUI nu este acceptată niciodată. În profil, datele de
+facturare sunt doar pentru citire (implicit).
+
+Addonul își creează propriile câmpuri CUI, Nr. Reg. Com. și CNP și le
+recreează dacă sunt șterse. Două setări decid dacă CUI-ul și Nr. Reg. Com.
+apar pe factură; CNP-ul nu apare niciodată. În spatele Cloudflare sau al
+altui proxy, setați în WHMCS Proxy IP Header și Trusted Proxies, ca limita
+pe IP să vadă adresa reală a vizitatorului.
+
 ## Sending to ANAF
 
 The documents are sent by the WHMCS system cron: the addon runs its queue
