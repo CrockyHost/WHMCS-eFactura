@@ -46,6 +46,9 @@ final class Addon
 {
     public const MODULE = 'efactura';
     public const NAME = 'WHMCS-eFactura';
+    /** The name in the Addons menu and the Addon Modules list; NAME stays the product name. */
+    public const MENU_NAME = 'eFactura';
+    public const AUTHOR = '<a href="https://crocky.host" target="_blank" rel="noopener">CROCKY SRL</a>';
     public const VERSION = '1.0.0';
     public const SOURCE_URL = 'https://github.com/CrockyHost/WHMCS-eFactura';
 
@@ -61,9 +64,9 @@ final class Addon
     public static function config(): array
     {
         return [
-            'name' => self::NAME,
+            'name' => self::MENU_NAME,
             'description' => 'RO e-Factura (ANAF) for WHMCS: UBL 2.1 / CIUS-RO invoices and stornos sent to the Romanian SPV, with an SPV inbox.',
-            'author' => 'CrockyHost',
+            'author' => self::AUTHOR,
             'language' => 'english',
             'version' => self::VERSION,
             'fields' => [],
@@ -87,7 +90,7 @@ final class Addon
                 'WHMCS-eFactura %s activated (%d database migrations applied). Open Addons > %s to configure it.',
                 self::VERSION,
                 count($applied),
-                self::NAME
+                self::MENU_NAME
             ),
         ];
     }

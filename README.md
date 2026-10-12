@@ -42,7 +42,7 @@ MultiPHP INI Editor), care singur acoperă doar paginile web.
 1. **Copy:** from the release archive, copy the `modules` folder into the
    WHMCS root folder; the addon lands in `modules/addons/efactura`.
 2. **Activate:** Configuration > System Settings > Addon Modules >
-   WHMCS-eFactura > Activate. The addon creates its database tables
+   eFactura > Activate. The addon creates its database tables
    (`mod_efactura_*`) and its client custom fields.
 3. **Access:** in the same place, Configure > Access Control: tick the admin
    role groups that may use the addon. The e-Factura panels of the invoice
@@ -63,9 +63,9 @@ MultiPHP INI Editor), care singur acoperă doar paginile web.
      own series, with another prefix (for example `CRP-{NUMBER}`).
 
    Also see [Requirements](#requirements) (Store Client Data Snapshot, time
-   zone). The dashboard of the addon (Addons > WHMCS-eFactura) checks all
+   zone). The dashboard of the addon (Addons > eFactura) checks all
    of these; the processing cannot be turned on while one of them fails.
-6. **Seller details:** Addons > WHMCS-eFactura > Settings: the company as
+6. **Seller details:** Addons > eFactura > Settings: the company as
    registered at ANAF (name, CUI, VAT, address), the IBANs, the delay before
    sending and the clients whose invoices are issued before payment.
 7. **ANAF OAuth application:** each WHMCS uses its own application,
@@ -282,7 +282,7 @@ credit WHMCS); anularea unei proforme nu emite nimic. Opțional,
   100. They are not in the Options tab of the invoice because WHMCS locks that
   tab once the invoice is paid, which is when it becomes fiscal.
 - **Credit note page:** the storno issued from the credit note.
-- **Addon pages** (Addons > WHMCS-eFactura): the configuration checks and the
+- **Addon pages** (Addons > eFactura): the configuration checks and the
   state of the queue, the list of documents with filters, and the page of
   each document with its history.
 
@@ -354,7 +354,7 @@ over several runs, without skipping any message:
 - the answers to the addon's own uploads (sent, errors): listed and linked to
   their documents; the queue already archives their files.
 
-The inbox page (Addons > WHMCS-eFactura > SPV inbox) has filters, the
+The inbox page (Addons > eFactura > SPV inbox) has filters, the
 messages not opened yet (also counted in the menu and on the dashboard) and a
 "processed" mark for the invoices booked. A file ANAF no longer keeps is
 marked as lost with the answer of ANAF.

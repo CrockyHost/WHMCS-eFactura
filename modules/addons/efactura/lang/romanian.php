@@ -236,7 +236,7 @@ $_ADDONLANG['alert_reauth_now_body'] = "Conexiunea WHMCS la ANAF e-Factura nu ma
 
 $_ADDONLANG['callback_title'] = 'e-Factura: autorizare ANAF';
 $_ADDONLANG['callback_success'] = 'Conexiunea la ANAF a fost salvată. Puteți închide această fereastră.';
-$_ADDONLANG['callback_invalid_state'] = 'Acest link de autorizare este invalid, expirat sau deja folosit. Generați unul nou din WHMCS (Addons > WHMCS-eFactura > Conectare ANAF).';
+$_ADDONLANG['callback_invalid_state'] = 'Acest link de autorizare este invalid, expirat sau deja folosit. Generați unul nou din WHMCS (Addons > eFactura > Conectare ANAF).';
 $_ADDONLANG['callback_denied'] = 'ANAF nu a autorizat accesul (%s). Verificați că certificatul calificat este conectat și înrolat în SPV pentru firmă, apoi încercați din nou.';
 $_ADDONLANG['callback_failed'] = 'Autorizarea nu a putut fi finalizată: %s';
 
