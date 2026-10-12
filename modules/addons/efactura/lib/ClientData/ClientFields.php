@@ -22,8 +22,9 @@ use WHMCS\Module\Addon\Efactura\Settings\Settings;
 
 /**
  * The client custom fields the addon owns: CUI, trade register number and
- * CNP. The addon creates them with fixed names (translated to Romanian with
- * the WHMCS dynamic translations), remembers their ids in
+ * CNP on the client forms, and the admin-only defaults of the invoice
+ * references. The addon creates them with fixed names (translated to
+ * Romanian with the WHMCS dynamic translations), remembers their ids in
  * mod_efactura_client_fields and creates them again when one is missing.
  * There is no admin mapping.
  */
@@ -31,12 +32,16 @@ final class ClientFields
 {
     public const TABLE = 'mod_efactura_client_fields';
 
+    /** The billing identity fields of the client forms. */
     public const ROLES = ['cui', 'regcom', 'cnp'];
+
+    /** Admin-only defaults of the invoice references (see InvoiceReferences). */
+    public const REFERENCE_ROLES = ['bt11', 'bt12', 'bt13', 'bt15', 'bt19', 'bt46'];
 
     /**
      * role => name, description (English, the base WHMCS values), the same
      * in Romanian, shown on invoices (for the CUI and the trade register
-     * number a setting decides, see INVOICE_SETTINGS).
+     * number a setting decides, see INVOICE_SETTINGS) and admin only.
      */
     public const DEFINITIONS = [
         'cui' => [
@@ -60,38 +65,108 @@ final class ClientFields
             'description_ro' => 'Codul numeric personal, opțional.',
             'invoice' => false,
         ],
+        'bt11' => [
+            'name' => 'e-Factura: project reference (BT-11)',
+            'description' => self::REFERENCE_NOTE,
+            'name_ro' => 'e-Factura: referința proiectului (BT-11)',
+            'description_ro' => self::REFERENCE_NOTE_RO,
+            'invoice' => false,
+            'admin' => true,
+        ],
+        'bt12' => [
+            'name' => 'e-Factura: contract reference (BT-12)',
+            'description' => self::REFERENCE_NOTE,
+            'name_ro' => 'e-Factura: referința contractului (BT-12)',
+            'description_ro' => self::REFERENCE_NOTE_RO,
+            'invoice' => false,
+            'admin' => true,
+        ],
+        'bt13' => [
+            'name' => 'e-Factura: purchase order reference (BT-13)',
+            'description' => self::REFERENCE_NOTE,
+            'name_ro' => 'e-Factura: referința comenzii (BT-13)',
+            'description_ro' => self::REFERENCE_NOTE_RO,
+            'invoice' => false,
+            'admin' => true,
+        ],
+        'bt15' => [
+            'name' => 'e-Factura: receiving advice reference (BT-15)',
+            'description' => self::REFERENCE_NOTE,
+            'name_ro' => 'e-Factura: referința avizului de recepție (BT-15)',
+            'description_ro' => self::REFERENCE_NOTE_RO,
+            'invoice' => false,
+            'admin' => true,
+        ],
+        'bt19' => [
+            'name' => 'e-Factura: buyer accounting reference (BT-19)',
+            'description' => self::REFERENCE_NOTE,
+            'name_ro' => 'e-Factura: referința contabilă a cumpărătorului (BT-19)',
+            'description_ro' => self::REFERENCE_NOTE_RO,
+            'invoice' => false,
+            'admin' => true,
+        ],
+        'bt46' => [
+            'name' => 'e-Factura: buyer identifier (BT-46)',
+            'description' => self::REFERENCE_NOTE,
+            'name_ro' => 'e-Factura: identificatorul cumpărătorului (BT-46)',
+            'description_ro' => self::REFERENCE_NOTE_RO,
+            'invoice' => false,
+            'admin' => true,
+        ],
     ];
+
+    private const REFERENCE_NOTE = 'Default for the e-Factura invoices of this client. Admin only, not printed on the invoice.';
+    private const REFERENCE_NOTE_RO = 'Valoarea implicită pe facturile e-Factura ale clientului. Doar pentru admin, nu se tipărește pe factură.';
 
     /** role => setting that decides "Show on Invoice" for that field */
     public const INVOICE_SETTINGS = ['cui' => 'client_cui_on_invoice', 'regcom' => 'client_regcom_on_invoice'];
 
     private const LOCK = 'client_fields';
 
-    /** @var array<string, int>|null field ids of this request */
+    /** @var array<string, int>|null field ids of this request, every role */
     private static ?array $ids = null;
 
     /**
-     * role => custom field id, creating the fields that are missing.
+     * role => custom field id of the billing identity fields, creating the
+     * fields that are missing.
      *
      * @return array<string, int>
      */
     public static function ids(): array
     {
-        if (self::$ids === null || count(self::$ids) !== count(self::ROLES)) {
-            self::$ids = self::ensure();
-        }
+        return array_intersect_key(self::all(), array_flip(self::ROLES));
+    }
 
-        return self::$ids;
+    /**
+     * role => custom field id of the invoice reference defaults.
+     *
+     * @return array<string, int>
+     */
+    public static function referenceIds(): array
+    {
+        return array_intersect_key(self::all(), array_flip(self::REFERENCE_ROLES));
     }
 
     public static function id(string $role): int
     {
-        $ids = self::ids();
+        $ids = self::all();
         if (!isset($ids[$role])) {
             throw new RuntimeException('Unknown client field role: ' . $role);
         }
 
         return $ids[$role];
+    }
+
+    /**
+     * @return array<string, int> role => custom field id, every role
+     */
+    private static function all(): array
+    {
+        if (self::$ids === null || count(self::$ids) !== count(self::DEFINITIONS)) {
+            self::$ids = self::ensure();
+        }
+
+        return self::$ids;
     }
 
     /**
@@ -110,7 +185,7 @@ final class ClientFields
     public static function ensure(): array
     {
         $ids = self::recorded();
-        if (count($ids) === count(self::ROLES)) {
+        if (count($ids) === count(self::DEFINITIONS)) {
             return $ids;
         }
 
@@ -120,7 +195,7 @@ final class ClientFields
         try {
             // Another request may have created them while this one waited.
             $ids = self::recorded();
-            foreach (self::ROLES as $role) {
+            foreach (array_keys(self::DEFINITIONS) as $role) {
                 if (!isset($ids[$role])) {
                     $ids[$role] = self::create($role);
                     self::record($role, $ids[$role]);
@@ -204,12 +279,12 @@ final class ClientFields
 
     /**
      * @param array<string, int> $ids
-     * @return array<string, int> the known roles, in the order of ROLES
+     * @return array<string, int> the known roles, in the order of DEFINITIONS
      */
     private static function ordered(array $ids): array
     {
         $ordered = [];
-        foreach (self::ROLES as $role) {
+        foreach (array_keys(self::DEFINITIONS) as $role) {
             if (isset($ids[$role])) {
                 $ordered[$role] = $ids[$role];
             }
@@ -231,6 +306,7 @@ final class ClientFields
     private static function create(string $role): int
     {
         $definition = self::DEFINITIONS[$role];
+        $adminOnly = (bool) ($definition['admin'] ?? false);
         $now = date('Y-m-d H:i:s');
         $order = (int) Capsule::table('tblcustomfields')->where('type', 'client')->max('sortorder');
         $id = (int) Capsule::table('tblcustomfields')->insertGetId([
@@ -241,9 +317,9 @@ final class ClientFields
             'description' => $definition['description'],
             'fieldoptions' => '',
             'regexpr' => '',
-            'adminonly' => '',
+            'adminonly' => $adminOnly ? 'on' : '',
             'required' => '',
-            'showorder' => 'on',
+            'showorder' => $adminOnly ? '' : 'on',
             'showinvoice' => self::onInvoice($role) ? 'on' : '',
             'sortorder' => $order + 1,
             'created_at' => $now,

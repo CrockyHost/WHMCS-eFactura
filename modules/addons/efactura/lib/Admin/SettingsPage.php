@@ -17,6 +17,7 @@ namespace WHMCS\Module\Addon\Efactura\Admin;
 
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
+use WHMCS\Module\Addon\Efactura\ClientData\InvoiceReferences;
 use WHMCS\Module\Addon\Efactura\Romania\Counties;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
@@ -121,8 +122,9 @@ final class SettingsPage
     }
 
     /**
-     * The client fields the addon owns, with their state, and whether the
-     * CUI is printed on invoices.
+     * The client fields the addon owns, with their state, whether the CUI
+     * and the trade register number are printed on invoices, and the
+     * admin-only fields of the invoice references.
      *
      * @return list<array<string, mixed>>
      */
@@ -143,6 +145,11 @@ final class SettingsPage
         }
         $rows[] = $this->checkbox('client_cui_on_invoice');
         $rows[] = $this->checkbox('client_regcom_on_invoice');
+        $references = [];
+        foreach (ClientFields::referenceIds() as $role => $id) {
+            $references[] = Lang::get('client_field_reference', InvoiceReferences::TERMS[$role], $id);
+        }
+        $rows[] = $this->note('client-field-references', Lang::get('client_field_references'), implode(', ', $references), Lang::get('client_field_references_help'));
 
         return $rows;
     }

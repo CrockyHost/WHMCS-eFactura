@@ -20,6 +20,7 @@ use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientSummary;
 use WHMCS\Module\Addon\Efactura\ClientData\FieldMap;
 use WHMCS\Module\Addon\Efactura\ClientData\FormContext;
+use WHMCS\Module\Addon\Efactura\ClientData\InvoiceReferences;
 use WHMCS\Module\Addon\Efactura\ClientData\PageAssets;
 use WHMCS\Module\Addon\Efactura\ClientData\Texts;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
@@ -225,6 +226,37 @@ return [
         ClientFields::reset();
         $form = new SettingsForm(new ClientDirectory());
         Assert::false($form->read([])['client_regcom_on_invoice']);
+    },
+    'the invoice reference defaults are admin-only client fields, read as text' => static function () use ($fakeClient): void {
+        $ids = ClientFields::referenceIds();
+        Assert::same(['bt11', 'bt12', 'bt13', 'bt15', 'bt19', 'bt46'], array_keys($ids));
+        Assert::same(array_keys(InvoiceReferences::TERMS), array_keys($ids));
+        foreach ($ids as $id) {
+            $field = Capsule::table('tblcustomfields')->where('id', $id)->first();
+            Assert::same(['on', '', ''], [(string) $field->adminonly, (string) $field->showorder, (string) $field->showinvoice]);
+        }
+        Assert::same('e-Factura: buyer identifier (BT-46)', ClientFields::label('bt46'));
+        Assert::same('e-Factura: referința contabilă a cumpărătorului (BT-19)', (string) Capsule::table('tbldynamic_translations')
+            ->where('related_type', 'custom_field.{id}.name')->where('related_id', $ids['bt19'])->where('language', 'romanian')->value('translation'));
+        // The client forms only know the billing identity fields.
+        Assert::same(['cui', 'regcom', 'cnp'], array_keys(ClientFields::ids()));
+        Assert::same(['cui', 'regcom', 'cnp'], array_keys(PageAssets::config(FormContext::REGISTER, Texts::for('english'))['fields']));
+
+        $clientId = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'TEST SRL']);
+        Assert::same([], InvoiceReferences::defaults($clientId));
+        // As WHMCS stores what the admin form saves: escaped.
+        foreach (['bt11' => 'P&amp;1 &quot;Nord&quot;', 'bt12' => '', 'bt13' => ' PO-77 ', 'bt46' => '   '] as $role => $value) {
+            Capsule::table('tblcustomfieldsvalues')->insert(['fieldid' => $ids[$role], 'relid' => $clientId, 'value' => $value]);
+        }
+        Assert::same(['BT-11' => 'P&1 "Nord"', 'BT-13' => 'PO-77'], InvoiceReferences::defaults($clientId));
+
+        // A deleted field comes back, still admin only.
+        Capsule::table('tblcustomfields')->where('id', $ids['bt15'])->delete();
+        ClientFields::reset();
+        $again = ClientFields::referenceIds();
+        Assert::true($again['bt15'] !== $ids['bt15']);
+        Assert::same('on', (string) Capsule::table('tblcustomfields')->where('id', $again['bt15'])->value('adminonly'));
+        ClientFields::reset();
     },
     'buyer mapping reads the VAT number from tax_id and old CNPs from the CUI field' => static function () use ($fakeClient, $mapFields, $setFields): void {
         $ids = $mapFields();
