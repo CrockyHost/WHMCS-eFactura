@@ -70,7 +70,9 @@ Nexus themes and with Lagom 2.
   saved, either strictly (invalid data cannot be saved) or as warnings only.
   This is set separately for new clients (registration, checkout) and for
   the profile and contacts. A Romanian company without CUI is always
-  refused. The admin area and the API are not validated.
+  refused, and so is a CNP together with a company name: a client with a
+  CNP is an individual. The admin client pages refuse only the latter; the
+  API is not validated.
 - **Read-only billing details in the profile** (on by default): the client
   sees the customer type, company name, CUI, trade register number, CNP and
   VAT number without being able to change them, with a link to open a
@@ -87,6 +89,12 @@ is always the WHMCS State/Region field, and the VAT number the WHMCS Tax ID
 field. Two settings (on by default) decide whether the CUI and the trade
 register number appear on the invoice PDF ("Show on Invoice"). The CNP never
 appears there.
+
+The addon also creates admin-only client fields for the default invoice
+references of a client: project (BT-11), contract (BT-12), purchase order
+(BT-13), receiving advice (BT-15), buyer accounting reference (BT-19) and
+buyer identifier (BT-46). An admin fills them in the client profile. They
+are not shown in the client area and not printed on the invoice.
 
 The ANAF lookup runs on the server and needs the WHMCS session token. It is
 limited per IP address (20 lookups per 10 minutes), per session (10) and
@@ -110,12 +118,15 @@ Butonul „Preia datele de la ANAF” completează datele firmei pe server, cu
 limite pe IP, pe sesiune și pe admin, cache și cel mult o cerere pe secundă.
 
 Serverul verifică aceleași reguli, strict sau doar cu avertizare. O firmă
-din România fără CUI nu este acceptată niciodată. În profil, datele de
-facturare sunt doar pentru citire (implicit).
+din România fără CUI nu este acceptată niciodată, nici un CNP împreună cu o
+denumire de firmă (refuzat și în admin). În profil, datele de facturare
+sunt doar pentru citire (implicit).
 
 Addonul își creează propriile câmpuri CUI, Nr. Reg. Com. și CNP și le
 recreează dacă sunt șterse. Două setări decid dacă CUI-ul și Nr. Reg. Com.
-apar pe factură; CNP-ul nu apare niciodată. În spatele Cloudflare sau al
+apar pe factură; CNP-ul nu apare niciodată. Tot el creează, doar pentru
+admin, câmpurile cu referințele implicite pe factură ale clientului
+(BT-11, BT-12, BT-13, BT-15, BT-19, BT-46). În spatele Cloudflare sau al
 altui proxy, setați în WHMCS Proxy IP Header și Trusted Proxies, ca limita
 pe IP să vadă adresa reală a vizitatorului.
 

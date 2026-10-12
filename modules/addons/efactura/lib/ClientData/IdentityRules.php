@@ -23,7 +23,7 @@ use WHMCS\Module\Addon\Efactura\Romania\Cui;
  * (company, PFA, II, institution: CUI required). The type is not stored on
  * its own; like the UBL buyer mapping, a client with a company name or a CUI
  * is a legal person, so the rules keep those fields consistent with the
- * chosen type.
+ * chosen type. A CNP and a company name exclude each other.
  */
 final class IdentityRules
 {
@@ -70,13 +70,18 @@ final class IdentityRules
         $editable = static fn (string $field): bool => !in_array($field, $locked, true);
 
         $issues = [];
+        // A client with a CNP is an individual: never accepted with a company name.
+        $cnpWithCompany = self::cnpWithCompany($data) && ($editable('cnp') || $editable('cui') || $editable('companyname'));
+        if ($cnpWithCompany) {
+            $issues[] = new Issue('cnp', 'cd_error_cnp_company', Issue::REQUIRED);
+        }
         if ($type === self::COMPANY) {
             if ($cui === '') {
                 // A Romanian company is never accepted without its CUI.
                 if ($editable('cui')) {
                     $issues[] = new Issue('cui', 'cd_error_cui_required', Issue::REQUIRED);
                 }
-            } elseif (!Cui::isValid($cui) && $editable('cui')) {
+            } elseif (!Cui::isValid($cui) && $editable('cui') && !($cnpWithCompany && Cnp::isValid($cui))) {
                 $issues[] = new Issue('cui', 'cd_error_cui_invalid');
             }
             if ($companyName === '' && $editable('companyname')) {
@@ -92,7 +97,7 @@ final class IdentityRules
             return $issues;
         }
 
-        if (($companyName !== '' && $editable('companyname')) || ($cui !== '' && !Cnp::isValid($cui) && $editable('cui'))) {
+        if (!$cnpWithCompany && (($companyName !== '' && $editable('companyname')) || ($cui !== '' && !Cnp::isValid($cui) && $editable('cui')))) {
             $issues[] = new Issue('companyname', 'cd_error_person_company');
         }
         if ($taxId !== '' && $editable('tax_id')) {
@@ -103,6 +108,21 @@ final class IdentityRules
         }
 
         return $issues;
+    }
+
+    /**
+     * Whether the data has both a company name and a CNP: in the CNP field
+     * (13 zeros mean no CNP) or typed into the CUI field. The two exclude
+     * each other.
+     *
+     * @param array<string, string> $data companyname, cui, cnp
+     */
+    public static function cnpWithCompany(array $data): bool
+    {
+        $cnp = trim($data['cnp'] ?? '');
+        $hasCnp = ($cnp !== '' && $cnp !== Cnp::UNKNOWN) || Cnp::isValid(trim($data['cui'] ?? ''));
+
+        return $hasCnp && trim($data['companyname'] ?? '') !== '';
     }
 
     /**

@@ -59,6 +59,7 @@ $_ADDONLANG['cd_error_cnp'] = 'The CNP is not valid.';
 $_ADDONLANG['cd_error_vat_mismatch'] = 'The VAT number must be RO followed by the company CUI.';
 $_ADDONLANG['cd_error_person_company'] = 'For an individual, leave the company name and the CUI empty.';
 $_ADDONLANG['cd_error_person_vat'] = 'An individual has no VAT number.';
+$_ADDONLANG['cd_error_cnp_company'] = 'A client with a CNP is an individual and cannot have a company name. Leave the company name empty, or remove the CNP for a company.';
 $_ADDONLANG['cd_error_locked'] = 'Billing details (customer type, CUI, trade register no., CNP, VAT number) cannot be changed from your account. Open a support ticket to change them.';
 
 // Settings

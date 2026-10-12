@@ -24,7 +24,7 @@ final class Issue
     /** Blocks the form in strict mode, only warns otherwise. */
     public const ERROR = 'error';
 
-    /** Always blocks, whatever the mode (a company without CUI). */
+    /** Always blocks, whatever the mode (a company without CUI, a CNP with a company name). */
     public const REQUIRED = 'required';
 
     /**

@@ -143,6 +143,27 @@ return [
         Assert::same(['cnp:cd_error_cnp'], $describe(IdentityRules::check($base + ['cnp' => '1960131410045'])));
         Assert::same(['companyname:cd_error_person_company', 'tax_id:cd_error_person_vat'], $describe(IdentityRules::check($base + ['companyname' => 'X SRL', 'tax_id' => 'RO50515950'])));
     },
+    'a CNP and a company name exclude each other, whatever the type and the mode' => static function () use ($describe): void {
+        $company = ['country' => 'RO', 'companyname' => 'X SRL', 'cui' => '50515950', 'cnp' => '1960131410041'];
+        foreach (['company', 'person', ''] as $type) {
+            $issues = IdentityRules::check(['type' => $type] + $company);
+            Assert::same(['cnp:cd_error_cnp_company'], $describe($issues), "type {$type}");
+            Assert::true($issues[0]->blocks(FormContext::WARN));
+        }
+        // An invalid CNP is still a CNP; a CNP typed into the CUI field too.
+        Assert::same(['cnp:cd_error_cnp_company'], $describe(IdentityRules::check(['cnp' => '123'] + $company)));
+        Assert::same(['cnp:cd_error_cnp_company'], $describe(IdentityRules::check(['country' => 'RO', 'type' => 'company', 'companyname' => 'X SRL', 'cui' => '1960131410041'])));
+        // Without a CUI, the company also needs one.
+        Assert::same(['cnp:cd_error_cnp_company', 'cui:cd_error_cui_required'], $describe(IdentityRules::check(['cui' => ''] + $company)));
+        // 13 zeros mean no CNP.
+        Assert::same([], $describe(IdentityRules::check(['cnp' => '0000000000000'] + $company)));
+        Assert::true(IdentityRules::cnpWithCompany(['companyname' => 'X', 'cnp' => '1960131410041']));
+        Assert::false(IdentityRules::cnpWithCompany(['companyname' => ' ', 'cnp' => '1960131410041']));
+        Assert::false(IdentityRules::cnpWithCompany(['companyname' => 'X', 'cui' => '50515950']));
+        // Stored data the client cannot change does not block.
+        Assert::same([], $describe(IdentityRules::check($company, ['type', 'companyname', 'tax_id', 'cui', 'regcom', 'cnp'])));
+        Assert::same(['cnp:cd_error_cnp_company'], $describe(IdentityRules::check($company, ['companyname'])));
+    },
     'identity rules skip other countries and fields the client cannot change' => static function () use ($describe): void {
         Assert::same([], $describe(IdentityRules::check(['country' => 'DE', 'type' => 'company', 'companyname' => 'X GmbH'])));
         $locked = ['type', 'companyname', 'tax_id', 'cui', 'regcom', 'cnp'];

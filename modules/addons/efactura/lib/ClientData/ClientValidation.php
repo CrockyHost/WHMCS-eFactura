@@ -17,13 +17,15 @@ namespace WHMCS\Module\Addon\Efactura\ClientData;
 
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Support\AdminContext;
 use WHMCS\Module\Addon\Efactura\Support\Input;
 
 /**
  * ClientDetailsValidation and ContactDetailsValidation for the client area
  * forms. In strict mode the problems block the form; in warning mode the
  * form is saved and the browser shows the same problems next to the fields.
- * A company without CUI is always refused.
+ * A company without CUI and a CNP with a company name are always refused;
+ * on the admin client pages only the latter.
  */
 final class ClientValidation
 {
@@ -42,6 +44,9 @@ final class ClientValidation
     public static function client(array $vars, ?string $context = null): array
     {
         $context ??= FormContext::current();
+        if ($context === FormContext::ADMIN) {
+            return self::admin($vars);
+        }
         if (!in_array($context, [FormContext::REGISTER, FormContext::CHECKOUT, FormContext::PROFILE], true)) {
             return [];
         }
@@ -88,6 +93,32 @@ final class ClientValidation
         }
 
         return self::messages($issues, $mode, $data, $errors);
+    }
+
+    /**
+     * The admin client pages (profile, new client) only refuse a CNP with a
+     * company name; the admin may keep other data the client forms refuse.
+     *
+     * @param array<string, mixed> $vars the submitted client details
+     * @return list<string> error messages
+     */
+    private static function admin(array $vars): array
+    {
+        if (!Settings::bool('client_forms')) {
+            return [];
+        }
+        $vars = Input::clean($vars);
+        $fields = FieldMap::load();
+        $data = [
+            'companyname' => is_scalar($vars['companyname'] ?? null) ? (string) $vars['companyname'] : '',
+            'cui' => $fields->submitted($vars, 'cui') ?? '',
+            'cnp' => $fields->submitted($vars, 'cnp') ?? '',
+        ];
+        if (strtoupper(trim((string) ($vars['country'] ?? ''))) !== 'RO' || !IdentityRules::cnpWithCompany($data)) {
+            return [];
+        }
+
+        return [Texts::admin(AdminContext::id())->get('cd_error_cnp_company')];
     }
 
     /**

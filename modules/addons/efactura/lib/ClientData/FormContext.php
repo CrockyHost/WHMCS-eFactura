@@ -20,8 +20,9 @@ use WHMCS\Module\Addon\Efactura\Support\Input;
 
 /**
  * Which client form a request comes from, how strictly it is validated and
- * which fields the client cannot change there. Only the client area forms
- * are validated; the admin area, the API and other modules are not.
+ * which fields the client cannot change there. The client area forms are
+ * validated, the admin client pages only for a CNP with a company name; the
+ * API and other modules are not.
  */
 final class FormContext
 {

@@ -24,6 +24,7 @@ use WHMCS\Module\Addon\Efactura\ClientData\InvoiceReferences;
 use WHMCS\Module\Addon\Efactura\ClientData\PageAssets;
 use WHMCS\Module\Addon\Efactura\ClientData\Texts;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Support\AdminContext;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Ubl\BuyerMapper;
 use WHMCS\Module\Addon\Efactura\Whmcs\ClientDirectory;
@@ -124,6 +125,11 @@ return [
         $person['customfield'][$ids['cnp']] = '1960131410041';
         Assert::same([], ClientValidation::client($person + [ClientValidation::TYPE_FIELD => 'person'], FormContext::CHECKOUT));
         Assert::same(
+            [$english->get('cd_error_cnp_company')],
+            ClientValidation::client(['companyname' => 'X SRL', ClientValidation::TYPE_FIELD => 'person'] + $person, FormContext::CHECKOUT)
+        );
+        $person['customfield'][$ids['cnp']] = '';
+        Assert::same(
             [$english->get('cd_error_person_company')],
             ClientValidation::client(['companyname' => 'X SRL', ClientValidation::TYPE_FIELD => 'person'] + $person, FormContext::CHECKOUT)
         );
@@ -154,6 +160,43 @@ return [
             $form['customfield'][$ids['cui']] = '50515950';
             Assert::same([], ClientValidation::client($form, FormContext::PROFILE));
         });
+    },
+    'a CNP with a company name is refused at registration, checkout, in the profile and in the admin area' => static function () use ($fakeClient, $mapFields, $setFields, $asClient, $english): void {
+        $ids = $mapFields();
+        Settings::save(['client_validation_new' => 'warn', 'client_validation_profile' => 'warn', 'client_profile_lock' => false]);
+        $form = ['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'X SRL', 'tax_id' => '',
+            'customfield' => [$ids['cui'] => '50515950', $ids['regcom'] => '', $ids['cnp'] => '1960131410041']];
+        foreach ([FormContext::REGISTER, FormContext::CHECKOUT] as $context) {
+            foreach (['company', 'person', ''] as $type) {
+                Assert::same([$english->get('cd_error_cnp_company')], ClientValidation::client($form + [ClientValidation::TYPE_FIELD => $type], $context), "{$context} {$type}");
+            }
+        }
+
+        $clientId = $fakeClient(['country' => 'RO', 'state' => 'Dolj', 'city' => 'Craiova', 'companyname' => 'X SRL', 'tax_id' => '']);
+        $setFields($clientId, $ids, ['cui' => '50515950', 'regcom' => '', 'cnp' => '']);
+        $asClient($clientId, 'country', static function () use ($form, $english): void {
+            Assert::same([$english->get('cd_error_cnp_company')], ClientValidation::client($form, FormContext::PROFILE));
+        });
+        // With the billing details read-only, the client cannot change them and they never block.
+        Settings::save(['client_profile_lock' => true]);
+        $setFields($clientId, $ids, ['cnp' => '1960131410041']);
+        $asClient($clientId, 'country', static function () use ($form): void {
+            Assert::same([], ClientValidation::client($form, FormContext::PROFILE));
+        });
+
+        // The admin client pages refuse only this combination.
+        $admin = Texts::admin(AdminContext::id());
+        Assert::same([$admin->get('cd_error_cnp_company')], ClientValidation::client($form, FormContext::ADMIN));
+        $cnpInCui = $form;
+        $cnpInCui['customfield'] = [$ids['cui'] => '1960131410041', $ids['cnp'] => ''];
+        Assert::same([$admin->get('cd_error_cnp_company')], ClientValidation::client($cnpInCui, FormContext::ADMIN));
+        $noCui = $form;
+        $noCui['customfield'] = [$ids['cui'] => '', $ids['cnp'] => ''];
+        Assert::same([], ClientValidation::client($noCui, FormContext::ADMIN));
+        Assert::same([], ClientValidation::client(['companyname' => ''] + $form, FormContext::ADMIN));
+        Assert::same([], ClientValidation::client(['country' => 'DE'] + $form, FormContext::ADMIN));
+        Settings::save(['client_forms' => false]);
+        Assert::same([], ClientValidation::client($form, FormContext::ADMIN));
     },
     'profile: text with "&" and quotes is compared as text, escaped or not' => static function () use ($fakeClient, $mapFields, $setFields, $asClient, $english): void {
         $ids = $mapFields();

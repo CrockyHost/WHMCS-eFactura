@@ -59,6 +59,7 @@ $_ADDONLANG['cd_error_cnp'] = 'CNP-ul nu este valid.';
 $_ADDONLANG['cd_error_vat_mismatch'] = 'Codul de TVA trebuie să fie RO urmat de CUI-ul firmei.';
 $_ADDONLANG['cd_error_person_company'] = 'Pentru o persoană fizică, lăsați goale denumirea firmei și CUI-ul.';
 $_ADDONLANG['cd_error_person_vat'] = 'O persoană fizică nu are cod de TVA.';
+$_ADDONLANG['cd_error_cnp_company'] = 'Un client cu CNP este persoană fizică și nu poate avea denumire de firmă. Lăsați goală denumirea firmei sau, pentru o firmă, ștergeți CNP-ul.';
 $_ADDONLANG['cd_error_locked'] = 'Datele de facturare (tip client, CUI, Nr. Reg. Com., CNP, cod de TVA) nu se pot modifica din cont. Pentru modificare, deschideți un tichet.';
 
 // Settings
