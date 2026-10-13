@@ -49,7 +49,7 @@ final class Addon
     /** The name in the Addons menu and the Addon Modules list; NAME stays the product name. */
     public const MENU_NAME = 'eFactura';
     public const AUTHOR = '<a href="https://crocky.host" target="_blank" rel="noopener">CROCKY SRL</a>';
-    public const VERSION = '1.0.0';
+    public const VERSION = '1.0.1';
     public const SOURCE_URL = 'https://github.com/CrockyHost/WHMCS-eFactura';
 
     /**
