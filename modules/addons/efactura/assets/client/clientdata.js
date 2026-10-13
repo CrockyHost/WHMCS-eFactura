@@ -890,9 +890,39 @@
             });
         }
 
+        guardChecks(state);
         setType(state, config.type || inferType(state));
 
         return state;
+    }
+
+    // Some themes set the checked state of every radio and checkbox inside a
+    // panel that is clicked anywhere (the new account panel of the Lagom order
+    // form selects itself this way), which would turn the client type back to
+    // company and tick the VAT box. Their state is taken when a click starts,
+    // after the browser applied the click itself, and put back when it ends;
+    // a type chosen during the click (iCheck themes) wins.
+    function guardChecks(state) {
+        var inputs = state.radios.concat(state.vatBox ? [state.vatBox] : []);
+        var taken = null;
+        document.addEventListener('click', function () {
+            taken = {
+                type: state.type,
+                checked: inputs.map(function (input) {
+                    return input.checked;
+                })
+            };
+        }, true);
+        document.addEventListener('click', function () {
+            if (taken === null) {
+                return;
+            }
+            inputs.forEach(function (input, index) {
+                var radio = state.radios.indexOf(input) !== -1;
+                input.checked = radio && state.type !== taken.type ? input.value === state.type : taken.checked[index];
+            });
+            taken = null;
+        });
     }
 
     // ANAF lookup: the server endpoint asks ANAF (cached, rate limited); empty
