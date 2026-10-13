@@ -10,6 +10,9 @@ UBL 2.1 / CIUS-RO și le trimite în sistemul RO e-Factura al ANAF.
 
 - WHMCS 9.0 with PHP 8.2 or newer and the curl, dom, openssl, zip and
   mbstring extensions.
+- For invoices in another currency than RON: outbound HTTPS to
+  `curs.bnr.ro`, where the cron downloads the BNR exchange rates (see
+  [Invoice PDF and page](#invoice-pdf-and-page)).
 - Recommended: **Store Client Data Snapshot** on (Configuration > System
   Settings > General Settings). WHMCS then keeps the client details of each
   invoice for its PDF; the addon refreshes that copy when the invoice
@@ -299,14 +302,10 @@ schimba până la trimiterea facturii la ANAF, apoi rămân cu documentul;
 stornarea le preia de la factura pe care o corectează. Pagina notei de credit arată stornarea emisă din ea, iar paginile
 addonului au lista documentelor și istoricul fiecăruia.
 
-## Invoice title
+## Invoice PDF and page
 
-With proforma invoicing, WHMCS titles every invoice that is not Paid as a
-proforma: also an invoice issued as a fiscal invoice before payment, and a
-fiscal invoice cancelled or refunded later. The addon gives such an invoice
-the title of a paid one ("Invoice #CRK-0096", the `invoicenumber` text of the
-language), in the PDF and on the invoice page of the client area. Proformas
-keep their title. The theme is not changed:
+The addon changes two things in the PDF of an invoice and on its page in the
+client area. The theme is not changed:
 
 - the invoice page: the `ClientAreaPageViewInvoice` hook (tested with
   Twenty-One and Lagom 2);
@@ -314,28 +313,68 @@ keep their title. The theme is not changed:
   invoice PDF (download, e-mail attachment, admin area) but does not list in
   its hook reference.
 
-Since that hook point is not documented, the dashboard check "Title of
-fiscal invoices that are not paid" confirms it on each WHMCS version: after
-an update, open the PDF of any invoice. If the warning stays, WHMCS no longer
+**Title.** With proforma invoicing, WHMCS titles every invoice that is not
+Paid as a proforma: also an invoice issued as a fiscal invoice before
+payment, and a fiscal invoice cancelled or refunded later. The addon gives
+such an invoice the title of a paid one ("Invoice #CRK-0096", the
+`invoicenumber` text of the language). Proformas keep their title.
+
+**BNR exchange rate.** A fiscal invoice in another currency than RON gets the
+BNR exchange rate and the VAT in RON (art. 319 alin. (23) of the Fiscal Code)
+in its notes, with the text of its e-Factura XML, in the language of the
+client:
+
+```
+Curs BNR 1 EUR = 5,0801 RON din 12.10.2026; TVA: 106,68 RON
+BNR exchange rate of 12.10.2026: 1 EUR = 5.0801 RON; VAT: 106.68 RON
+```
+
+The rate is the last one BNR published before the invoice date, the same one
+the XML uses (once the XML is built, the one saved with it). While the
+processing is on, the WHMCS cron downloads the rates from `curs.bnr.ro`
+every day after BNR publishes them (around 13:00); a payment never waits for
+BNR. When the rate of an invoice is not downloaded yet (right after the
+installation, or with a cron that stopped), its PDF goes out without it: the
+WHMCS activity log and the dashboard check "BNR exchange rates" list the
+invoice, so that it can be sent again once the rates are in. Proformas and
+invoices in RON get nothing. WHMCS 9.0 has no PDF for credit notes (their
+Print and Download buttons are "Coming Soon"), so a storno in another
+currency shows the rate only in its XML.
+
+Since the PDF hook point is not documented, the dashboard check "Invoice
+PDF: title and BNR exchange rate" confirms it on each WHMCS version: after an
+update, open the PDF of any invoice. If the warning stays, WHMCS no longer
 calls it; add this line at the beginning of `invoicepdf.tpl` in the active
 theme (`templates/<theme>/invoicepdf.tpl`), right after `<?php`:
 
 ```php
-if (function_exists('efactura_invoice_title')) { $pagetitle = efactura_invoice_title($invoiceid, $pagetitle); }
+if (function_exists('efactura_invoice_title')) { $pagetitle = efactura_invoice_title($invoiceid, $pagetitle); $notes = efactura_invoice_notes($invoiceid, $notes); }
 ```
 
 The line does nothing when the addon is missing or deactivated. A theme
-update may replace the file, so check it again after one.
+update may replace the file, so check it again after one. The line of
+version 1.0.0 set only the title: replace it with this one.
 
-**Română:** WHMCS dă titlul de proformă oricărei facturi neplătite, inclusiv
-celei emise fiscal înainte de plată și unei facturi fiscale anulate sau
-rambursate. Addonul îi dă titlul unei facturi plătite („Factura nr.
-CRK-0096”), în PDF și pe pagina facturii din zona clientului, fără să
-modifice tema; proformele rămân proforme. Pentru PDF folosește un hook pe care
-WHMCS îl apelează, dar nu îl documentează, așa că verificarea din panou îl
-confirmă la fiecare versiune WHMCS (după o actualizare, deschideți PDF-ul
-oricărei facturi). Dacă avertismentul rămâne, puneți linia de mai sus la
-începutul fișierului `invoicepdf.tpl` al temei active.
+**Română:** addonul modifică PDF-ul și pagina facturii din zona clientului
+fără să schimbe tema. WHMCS dă titlul de proformă oricărei facturi
+neplătite, inclusiv celei emise fiscal înainte de plată și unei facturi
+fiscale anulate sau rambursate; addonul îi dă titlul unei facturi plătite
+(„Factura nr. CRK-0096”), iar proformele rămân proforme. O factură fiscală
+în altă monedă decât RON primește în note cursul BNR și TVA-ul în lei (art.
+319 alin. (23) Cod fiscal), cu textul din XML-ul ei, în limba clientului.
+Cursul este ultimul publicat de BNR înainte de data facturii, același ca în
+XML. Cât timp procesarea e pornită, cron-ul WHMCS descarcă zilnic cursurile
+de pe `curs.bnr.ro`, după ce BNR le publică (în jurul orei 13:00), deci
+plata nu așteaptă după BNR. Dacă lipsește cursul unei facturi, PDF-ul ei
+iese fără mențiune, iar jurnalul de activitate WHMCS și verificarea „Cursuri
+BNR” din panou o arată, ca s-o puteți retrimite. WHMCS 9.0 nu are PDF pentru
+notele de credit, deci o stornare în valută are cursul doar în XML. Pentru
+PDF, addonul folosește un hook pe care WHMCS îl apelează, dar nu îl
+documentează, așa că verificarea din panou îl confirmă la fiecare versiune
+WHMCS (după o actualizare, deschideți PDF-ul oricărei facturi). Dacă
+avertismentul rămâne, puneți linia de mai sus la începutul fișierului
+`invoicepdf.tpl` al temei active; linia din versiunea 1.0.0 punea doar
+titlul și trebuie înlocuită.
 
 ## SPV inbox
 

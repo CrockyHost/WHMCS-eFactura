@@ -152,6 +152,9 @@ return [
         $file = tempnam(sys_get_temp_dir(), 'eft');
         file_put_contents($file, "<?php\n" . InvoiceTitle::TEMPLATE_LINE . "\n\n# Logo\n");
         Assert::true(InvoiceTitle::templateHasLine($file), 'the line');
+        // The line of 1.0.0 set only the title, not the BNR exchange rate of the notes.
+        file_put_contents($file, "<?php\nif (function_exists('efactura_invoice_title')) { \$pagetitle = efactura_invoice_title(\$invoiceid, \$pagetitle); }\n");
+        Assert::false(InvoiceTitle::templateHasLine($file), 'the line of 1.0.0');
         file_put_contents($file, "<?php\n\n# Logo\n");
         Assert::false(InvoiceTitle::templateHasLine($file), 'without the line');
         @unlink($file);
@@ -164,12 +167,16 @@ return [
         Addon::earlyIssue()->issue($early, 1, 1);
         // The template is PHP that WHMCS runs with the variables of the PDF.
         $template = static function (int $invoiceid, string $pagetitle): string {
+            $notes = 'Notes of the invoice';
             eval(InvoiceTitle::TEMPLATE_LINE);
+            // RON invoices: the notes stay as they are.
+            Assert::same('Notes of the invoice', $notes);
 
             return $pagetitle;
         };
         Assert::same(\Lang::trans('invoicenumber') . $number($early), $template($early, 'Proforma Invoice #' . $number($early)));
         Assert::same('Proforma Invoice #' . $number($kept), $template($kept, 'Proforma Invoice #' . $number($kept)));
         Assert::same('Proforma Invoice #X', efactura_invoice_title('not a number', 'Proforma Invoice #X'));
+        Assert::same('X', efactura_invoice_notes('not a number', 'X'));
     }),
 ];

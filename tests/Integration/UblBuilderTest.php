@@ -150,14 +150,8 @@ return [
     },
     'an EUR invoice issued early converts the VAT at the BNR rate of the previous banking day' => static function () use ($setup, $client, $invoice, $build, $sameAmounts, &$generated): void {
         $setup();
-        // Cached rates for the 10 days before today; the most recent one before today must be used.
-        for ($days = 10; $days >= 1; $days--) {
-            $date = Clock::today()->modify("-{$days} days");
-            if ((int) $date->format('N') < 6) {
-                Capsule::table(BnrRates::TABLE)->insertOrIgnore(['source' => 'BNR', 'currency' => 'EUR', 'rate_date' => $date->format('Y-m-d'),
-                    'value' => sprintf('5.08%02d', $days), 'multiplier' => 1, 'fetched_at' => date('Y-m-d H:i:s')]);
-            }
-        }
+        // The rates of the 10 days before today, downloaded; the most recent one before today must be used.
+        efactura_bnr_import(efactura_recent_eur_rates());
         $previous = Capsule::table(BnrRates::TABLE)->where('currency', 'EUR')->where('rate_date', '<', Clock::today()->format('Y-m-d'))->orderByDesc('rate_date')->first();
         $clientId = $client(['companyname' => 'CLIENT EUR SRL', 'tax_id' => '87654329', 'currency' => 1]);
         $id = $invoice($clientId, [['Server dedicat Pro - srv1.client-test.ro', 108.90]]);

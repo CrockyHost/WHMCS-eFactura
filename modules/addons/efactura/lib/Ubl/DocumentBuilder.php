@@ -19,6 +19,7 @@ use Throwable;
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Exchange\BnrRates;
 use WHMCS\Module\Addon\Efactura\Exchange\ExchangeRate;
+use WHMCS\Module\Addon\Efactura\Exchange\VatInRon;
 use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
 use WHMCS\Module\Addon\Efactura\Fiscal\References;
@@ -26,6 +27,7 @@ use WHMCS\Module\Addon\Efactura\Fiscal\ReportingPolicy;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Support\Money;
+use WHMCS\Module\Addon\Efactura\Whmcs\FiscalInvoice;
 
 /**
  * Builds the CIUS-RO XML of a fiscal document from the WHMCS data as it is
@@ -76,10 +78,7 @@ final class DocumentBuilder
         }
 
         $clientId = (int) $document->client_id;
-        $currency = strtoupper((string) Capsule::table('tblclients')
-            ->join('tblcurrencies', 'tblcurrencies.id', '=', 'tblclients.currency')
-            ->where('tblclients.id', $clientId)
-            ->value('tblcurrencies.code'));
+        $currency = FiscalInvoice::currency($clientId);
         if ($currency === '') {
             return $this->fail('MAP-CURRENCY', Lang::get('map_currency_missing'));
         }
@@ -121,16 +120,10 @@ final class DocumentBuilder
             $paymentMeans = PaymentMeansMapper::forGateway((string) $invoiceRow->paymentmethod, $currency);
         }
 
-        $exchangeRate = null;
-        $taxRon = null;
-        if ($currency !== 'RON') {
-            $exchangeRate = $this->exchangeRate($currency, $issueDate, $original);
-            if ($exchangeRate !== null) {
-                $taxRon = Money::multiply($taxCents, $exchangeRate->rate);
-            }
-        }
+        $exchangeRate = $currency !== 'RON' ? $this->exchangeRate($document, $original, $currency) : null;
+        $vatInRon = $exchangeRate !== null ? VatInRon::of($currency, $taxCents, $exchangeRate) : null;
 
-        $notes = $this->notes($document, $original, $invoiceRow, $subtotals, $exchangeRate, $taxRon, $currency);
+        $notes = $this->notes($document, $original, $invoiceRow, $subtotals, $vatInRon);
         // A storno carries the references of the invoice it corrects.
         $references = $original !== null ? References::frozen($original) : References::resolve((int) $invoiceRow->id, $clientId);
 
@@ -145,7 +138,7 @@ final class DocumentBuilder
             taxTotalCents: $taxCents,
             prepaidCents: $prepaid,
             dueDate: $dueDate,
-            taxTotalRonCents: $taxRon,
+            taxTotalRonCents: $vatInRon?->taxRonCents,
             notes: $notes,
             paymentMeans: $paymentMeans,
             precedingNumber: $original !== null ? (string) $original->number : null,
@@ -351,15 +344,14 @@ final class DocumentBuilder
         return $subtotals;
     }
 
-    private function exchangeRate(string $currency, \DateTimeImmutable $issueDate, ?object $original): ?ExchangeRate
+    /**
+     * The rate of the VAT in RON, the same one the PDF shows (downloaded
+     * from BNR here when missing); without it the document stops.
+     */
+    private function exchangeRate(object $document, ?object $original, string $currency): ?ExchangeRate
     {
-        // A storno converts its VAT at the rate of the invoice it corrects,
-        // so that the VAT in RON cancels exactly.
-        if ($original !== null && $original->exchange_rate !== null) {
-            return new ExchangeRate($currency, Money::trimDecimal((string) $original->exchange_rate), Clock::parse((string) $original->exchange_rate_date), (string) $original->exchange_rate_source);
-        }
         try {
-            return $this->rates->forDocumentDate($currency, $issueDate);
+            return VatInRon::rateFor($document, $original, $currency, $this->rates, true);
         } catch (Throwable $e) {
             $this->issue('MAP-RATE', Lang::get('map_exchange_rate', $currency, $e->getMessage()));
 
@@ -373,7 +365,7 @@ final class DocumentBuilder
      * @param list<TaxSubtotal> $subtotals
      * @return list<string>
      */
-    private function notes(object $document, ?object $original, object $invoice, array $subtotals, ?ExchangeRate $rate, ?int $taxRon, string $currency): array
+    private function notes(object $document, ?object $original, object $invoice, array $subtotals, ?VatInRon $vatInRon): array
     {
         $notes = [];
         if ($original !== null) {
@@ -396,15 +388,8 @@ final class DocumentBuilder
         if (in_array('AE', $categories, true)) {
             $notes[] = 'Taxare inversă';
         }
-        if ($rate !== null && $taxRon !== null) {
-            $notes[] = sprintf(
-                'Curs %s 1 %s = %s RON din %s; TVA: %s RON',
-                $rate->source,
-                $currency,
-                str_replace('.', ',', $rate->rate),
-                $rate->date->format('d.m.Y'),
-                str_replace('.', ',', Money::format($taxRon))
-            );
+        if ($vatInRon !== null) {
+            $notes[] = $vatInRon->note();
         }
 
         $text = implode('; ', Text::lines((string) $invoice->notes));

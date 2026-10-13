@@ -16,10 +16,13 @@ declare(strict_types=1);
 namespace WHMCS\Module\Addon\Efactura\Admin;
 
 use Throwable;
+use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Anaf\OAuth\Connection;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
+use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
+use WHMCS\Module\Addon\Efactura\Whmcs\ExchangeMention;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceSnapshot;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceTitle;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
@@ -59,6 +62,7 @@ final class HealthChecks
             ...$this->whmcsNumbering(),
             $this->invoiceSnapshot(),
             $this->invoiceTitle(),
+            ...$this->exchangeRates(),
             $this->timezone(),
             $this->extensions(),
         ];
@@ -219,10 +223,11 @@ final class HealthChecks
     }
 
     /**
-     * The PDF title of an invoice that has a fiscal invoice and is not paid
-     * comes from a WHMCS hook point missing from the WHMCS hook reference, so
-     * each WHMCS version has to confirm it by rendering one invoice PDF. The
-     * line in invoicepdf.tpl of the theme sets the title without it.
+     * The PDF title of an invoice that has a fiscal invoice and is not paid,
+     * and the BNR exchange rate mention of its notes, come from a WHMCS hook
+     * point missing from the WHMCS hook reference, so each WHMCS version has
+     * to confirm it by rendering one invoice PDF. The line in invoicepdf.tpl
+     * of the theme sets both without it.
      *
      * @return array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}
      */
@@ -239,6 +244,43 @@ final class HealthChecks
         return self::check('check_invoice_title', self::WARNING, Lang::get('check_invoice_title_unconfirmed', InvoiceTitle::whmcsVersion()), [
             ['text' => Lang::get('check_invoice_title_step', $template), 'code' => InvoiceTitle::TEMPLATE_LINE],
         ]);
+    }
+
+    /**
+     * The BNR exchange rates the PDF of a fiscal invoice in another currency
+     * than RON shows: downloaded every day by the cron. A PDF that went out
+     * without them is listed for a few days. Nothing when WHMCS bills only
+     * in RON.
+     *
+     * @return list<array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}>
+     */
+    private function exchangeRates(): array
+    {
+        if (!ExchangeMention::needed()) {
+            return [];
+        }
+        $status = Addon::bnrRates()->status();
+        $problems = [];
+        $missing = ExchangeMention::missing();
+        if ($missing !== []) {
+            $items = array_map(static fn (array $entry): string => Lang::get('check_rates_missing_item', (string) $entry['number'], Clock::parse((string) $entry['at'])->format('d.m.Y H:i')), $missing);
+            $problems[] = Lang::get('check_rates_missing', ExchangeMention::MISSING_DAYS, implode(', ', $items));
+        }
+        $through = $status['through'];
+        $yesterday = Clock::today()->modify('-1 day')->format('Y-m-d');
+        if (Settings::bool('enabled') && ($through === null || $through < $yesterday)) {
+            $problems[] = $through === null ? Lang::get('check_rates_never') : Lang::get('check_rates_stale', Clock::parse($through)->format('d.m.Y'));
+            if ($status['error'] !== null && $status['at'] !== null) {
+                $problems[] = Lang::get('check_rates_error', Clock::parse($status['at'])->format('d.m.Y H:i'), $status['error']);
+            }
+        }
+        if ($problems !== []) {
+            return [self::check('check_rates', self::WARNING, implode(' ', $problems))];
+        }
+
+        return [$through === null
+            ? self::check('check_rates', self::OK, Lang::get('check_rates_off'))
+            : self::check('check_rates', self::OK, Lang::get('check_rates_ok', Clock::parse($through)->format('d.m.Y')))];
     }
 
     /**

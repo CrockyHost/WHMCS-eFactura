@@ -22,6 +22,7 @@ use WHMCS\Module\Addon\Efactura\Numbering\NumberingLock;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\AdminNotifier;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
+use WHMCS\Module\Addon\Efactura\Whmcs\ExchangeMention;
 
 /**
  * Hooks run by the WHMCS cron. A failure is logged and never interrupts
@@ -35,8 +36,8 @@ final class CronHooks
     private const INBOX_BUDGET_SECONDS = 30;
 
     /**
-     * After every cron run: uploads, status checks, downloads, reconciliation
-     * and deadline alerts.
+     * After every cron run: the BNR exchange rates, uploads, status checks,
+     * downloads, reconciliation and deadline alerts.
      */
     public static function afterCron(): void
     {
@@ -46,6 +47,15 @@ final class CronHooks
             logActivity(Addon::NAME . ': the database migrations failed: ' . $e->getMessage());
 
             return;
+        }
+        try {
+            // The BNR exchange rates of the day, for the PDFs and the XML of
+            // invoices in another currency than RON.
+            if (Settings::bool('enabled') && ExchangeMention::needed()) {
+                Addon::bnrRates()->refreshIfDue();
+            }
+        } catch (Throwable $e) {
+            logActivity(Addon::NAME . ': the BNR exchange rates download failed: ' . $e->getMessage());
         }
         try {
             Lang::boot(Settings::string('ui_language'));

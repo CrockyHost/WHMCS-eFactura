@@ -190,7 +190,12 @@ final class Addon
 
     public static function documentBuilder(): DocumentBuilder
     {
-        return new DocumentBuilder(new BnrRates(new CurlTransport()));
+        return new DocumentBuilder(self::bnrRates());
+    }
+
+    public static function bnrRates(): BnrRates
+    {
+        return new BnrRates(new CurlTransport());
     }
 
     /**

@@ -16,6 +16,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/UblScenarios.php';
 
 use WHMCS\Module\Addon\Efactura\Exchange\ExchangeRate;
+use WHMCS\Module\Addon\Efactura\Exchange\VatInRon;
 use WHMCS\Module\Addon\Efactura\Fiscal\References;
 use WHMCS\Module\Addon\Efactura\Romania\Cnp;
 use WHMCS\Module\Addon\Efactura\Romania\Counties;
@@ -118,6 +119,14 @@ return [
     'exchange rate per unit with a multiplier' => static function (): void {
         Assert::same('5.0812', ExchangeRate::perUnit('5.0812', 1));
         Assert::same('0.012345', ExchangeRate::perUnit('1.2345', 100));
+    },
+    'the VAT in RON and its mention, for the XML and the PDF' => static function (): void {
+        $rate = new ExchangeRate('EUR', '5.0801', new DateTimeImmutable('2026-10-12'), 'BNR');
+        $vat = VatInRon::of('eur', 2100, $rate);
+        Assert::same(10668, $vat->taxRonCents);
+        Assert::same('Curs BNR 1 EUR = 5,0801 RON din 12.10.2026; TVA: 106,68 RON', $vat->note());
+        // A storno: the VAT of the invoice it corrects, negative.
+        Assert::same('Curs BNR 1 EUR = 5,0801 RON din 12.10.2026; TVA: -106,68 RON', VatInRon::of('EUR', -2100, $rate)->note());
     },
     'every scenario passes the local validator' => static function () use ($rules): void {
         foreach (UblScenarios::all() as $name => $invoice) {

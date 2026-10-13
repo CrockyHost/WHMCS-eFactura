@@ -34,6 +34,9 @@ final class Lang
     /** @var array<string, string> */
     private static array $fallback = [];
 
+    /** @var array<string, array<string, string>> the strings of each language read by in() */
+    private static array $languages = [];
+
     /**
      * @param string $setting "auto", "romanian" or "english"
      */
@@ -60,6 +63,21 @@ final class Lang
             self::boot('english');
         }
         $text = self::$strings[$key] ?? self::$fallback[$key] ?? $key;
+
+        return $args === [] ? $text : vsprintf($text, $args);
+    }
+
+    /**
+     * A string in $language, whatever the language of the interface: text
+     * for clients (the PDF of an invoice) follows their language.
+     */
+    public static function in(string $language, string $key, string|int|float ...$args): string
+    {
+        if (!in_array($language, self::LANGUAGES, true)) {
+            $language = 'english';
+        }
+        self::$languages[$language] ??= self::read($language) + ($language === 'english' ? [] : self::read('english'));
+        $text = self::$languages[$language][$key] ?? $key;
 
         return $args === [] ? $text : vsprintf($text, $args);
     }

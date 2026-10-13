@@ -25,12 +25,14 @@ use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\AdminContext;
 use WHMCS\Module\Addon\Efactura\Support\AdminNotifier;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
+use WHMCS\Module\Addon\Efactura\Whmcs\ExchangeMention;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceSnapshot;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceTitle;
 
 /**
  * Invoice hooks. Each one does nothing while processing is disabled (except
- * those of the PDF and the invoice page: the client details and the title),
+ * those of the PDF and the invoice page: the client details, the title and
+ * the BNR exchange rate mention),
  * and an error is logged and reported but never interrupts WHMCS (a payment
  * must always go through).
  */
@@ -150,8 +152,9 @@ final class InvoiceHooks
 
     /**
      * InvoicePdfTemplateVars: the PDF of an invoice that has a fiscal invoice
-     * gets the title of a paid one. Also when the processing is off: the
-     * fiscal invoices stay.
+     * gets the title of a paid one and, in another currency than RON, the
+     * BNR exchange rate mention in its notes. Also when the processing is
+     * off: the fiscal invoices stay.
      *
      * @param array<string, mixed> $vars invoiceid and templatevars
      * @return array<string, mixed> merged by WHMCS into $vars
@@ -159,20 +162,30 @@ final class InvoiceHooks
     public static function pdfTemplateVars(array $vars): array
     {
         $invoiceId = (int) ($vars['invoiceid'] ?? 0);
+        $templateVars = [];
         try {
             InvoiceTitle::confirm();
             $title = InvoiceTitle::fiscal($invoiceId);
-
-            return $title === null ? [] : ['templatevars' => ['pagetitle' => $title]];
+            if ($title !== null) {
+                $templateVars['pagetitle'] = $title;
+            }
         } catch (Throwable $e) {
             logActivity(Addon::NAME . ": the PDF title of invoice #{$invoiceId} failed: " . $e->getMessage());
-
-            return [];
         }
+        try {
+            $mention = ExchangeMention::forInvoice($invoiceId, ExchangeMention::language(), true);
+            if ($mention !== null) {
+                $templateVars['notes'] = ExchangeMention::pdfNotes((string) ($vars['templatevars']['notes'] ?? ''), $mention);
+            }
+        } catch (Throwable $e) {
+            logActivity(Addon::NAME . ": the BNR exchange rate mention of invoice #{$invoiceId} failed: " . $e->getMessage());
+        }
+
+        return $templateVars === [] ? [] : ['templatevars' => $templateVars];
     }
 
     /**
-     * ClientAreaPageViewInvoice: the same title on the invoice page.
+     * ClientAreaPageViewInvoice: the same title and mention on the invoice page.
      *
      * @param array<string, mixed> $vars
      * @return array<string, mixed> template variables
@@ -180,15 +193,25 @@ final class InvoiceHooks
     public static function viewInvoicePage(array $vars): array
     {
         $invoiceId = (int) ($vars['invoiceid'] ?? 0);
+        $pageVars = [];
         try {
             $title = InvoiceTitle::fiscal($invoiceId);
-
-            return $title === null ? [] : ['pagetitle' => $title];
+            if ($title !== null) {
+                $pageVars['pagetitle'] = $title;
+            }
         } catch (Throwable $e) {
             logActivity(Addon::NAME . ": the page title of invoice #{$invoiceId} failed: " . $e->getMessage());
-
-            return [];
         }
+        try {
+            $mention = ExchangeMention::forInvoice($invoiceId, ExchangeMention::language(), false);
+            if ($mention !== null) {
+                $pageVars['notes'] = ExchangeMention::pageNotes((string) ($vars['notes'] ?? ''), $mention);
+            }
+        } catch (Throwable $e) {
+            logActivity(Addon::NAME . ": the BNR exchange rate mention of invoice #{$invoiceId} failed: " . $e->getMessage());
+        }
+
+        return $pageVars;
     }
 
     /**

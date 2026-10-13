@@ -23,11 +23,12 @@ use WHMCS\Module\Addon\Efactura\ClientData\ClientDataHooks;
 use WHMCS\Module\Addon\Efactura\Hooks\AdminHooks;
 use WHMCS\Module\Addon\Efactura\Hooks\CronHooks;
 use WHMCS\Module\Addon\Efactura\Hooks\InvoiceHooks;
+use WHMCS\Module\Addon\Efactura\Whmcs\ExchangeMention;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoiceTitle;
 
-// Hook registration only (and the function a theme may call for the PDF
-// title, at the end). WHMCS loads this file on every page, so each hook is a
-// one-line delegation to a class in lib/Hooks.
+// Hook registration only (and the functions a theme may call for the PDF
+// title and notes, at the end). WHMCS loads this file on every page, so each
+// hook is a one-line delegation to a class in lib/Hooks.
 
 // Fiscal numbering at payment. The early priority makes the addon restore a
 // fiscal number before other hooks read it; InvoicePaid releases the lock
@@ -52,7 +53,8 @@ add_hook('InvoiceCreated', 10, static function (array $vars): void {
 });
 
 // The title of an invoice that has a fiscal invoice (issued before payment,
-// cancelled or refunded), which WHMCS would title as a proforma: in the PDF
+// cancelled or refunded), which WHMCS would title as a proforma, and the BNR
+// exchange rate mention of a fiscal invoice in another currency: in the PDF
 // (a hook point WHMCS calls for every invoice PDF, missing from its hook
 // reference) and on the invoice page of the client area.
 add_hook('InvoicePdfTemplateVars', 10, static function (array $vars): array {
@@ -107,6 +109,20 @@ if (!function_exists('efactura_invoice_title')) {
             return InvoiceTitle::fiscal((int) $invoiceId) ?? (string) $pagetitle;
         } catch (Throwable) {
             return (string) $pagetitle;
+        }
+    }
+
+    /**
+     * The PDF notes with the BNR exchange rate mention, for the same line.
+     */
+    function efactura_invoice_notes(mixed $invoiceId, mixed $notes): string
+    {
+        try {
+            $mention = ExchangeMention::forInvoice((int) $invoiceId, ExchangeMention::language(), true);
+
+            return $mention === null ? (string) $notes : ExchangeMention::pdfNotes((string) $notes, $mention);
+        } catch (Throwable) {
+            return (string) $notes;
         }
     }
 }

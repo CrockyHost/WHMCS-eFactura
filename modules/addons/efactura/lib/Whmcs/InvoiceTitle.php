@@ -16,8 +16,6 @@ declare(strict_types=1);
 namespace WHMCS\Module\Addon\Efactura\Whmcs;
 
 use WHMCS\Config\Setting;
-use WHMCS\Database\Capsule;
-use WHMCS\Module\Addon\Efactura\Fiscal\Document;
 use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
 
 /**
@@ -32,14 +30,15 @@ use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
  * every invoice PDF it renders (download, email attachment, admin area) but
  * does not list in its hook reference. The WHMCS version it last ran under is
  * recorded, so the dashboard can tell when an update has not confirmed it
- * yet; TEMPLATE_LINE in invoicepdf.tpl sets the same title without it.
+ * yet; TEMPLATE_LINE in invoicepdf.tpl sets the same title without it, and
+ * the BNR exchange rate mention of the notes (ExchangeMention).
  */
 final class InvoiceTitle
 {
-    /** The function TEMPLATE_LINE calls; hooks.php defines it while the addon is active. */
-    public const TEMPLATE_FUNCTION = 'efactura_invoice_title';
+    /** The functions TEMPLATE_LINE calls; hooks.php defines them while the addon is active. */
+    public const TEMPLATE_FUNCTIONS = ['efactura_invoice_title', 'efactura_invoice_notes'];
 
-    public const TEMPLATE_LINE = "if (function_exists('efactura_invoice_title')) { \$pagetitle = efactura_invoice_title(\$invoiceid, \$pagetitle); }";
+    public const TEMPLATE_LINE = "if (function_exists('efactura_invoice_title')) { \$pagetitle = efactura_invoice_title(\$invoiceid, \$pagetitle); \$notes = efactura_invoice_notes(\$invoiceid, \$notes); }";
 
     /** RuntimeState: the WHMCS version InvoicePdfTemplateVars last ran under. */
     private const CONFIRMED = 'pdf_title_whmcs';
@@ -50,16 +49,9 @@ final class InvoiceTitle
      */
     public static function fiscal(int $invoiceId): ?string
     {
-        if ($invoiceId <= 0) {
-            return null;
-        }
-        $number = Capsule::table(Document::TABLE . ' as d')
-            ->join('tblinvoices as i', 'i.id', '=', 'd.invoice_id')
-            ->where('d.dedupe_key', Document::invoiceKey($invoiceId))
-            ->whereColumn('i.invoicenum', 'd.number')
-            ->value('d.number');
+        $document = FiscalInvoice::document($invoiceId);
 
-        return $number === null ? null : \Lang::trans('invoicenumber') . $number;
+        return $document === null ? null : \Lang::trans('invoicenumber') . $document->number;
     }
 
     /**
@@ -98,6 +90,15 @@ final class InvoiceTitle
         $path ??= ROOTDIR . '/' . self::templateFile();
         $source = is_file($path) ? file_get_contents($path) : false;
 
-        return $source !== false && str_contains($source, self::TEMPLATE_FUNCTION . '(');
+        if ($source === false) {
+            return false;
+        }
+        foreach (self::TEMPLATE_FUNCTIONS as $function) {
+            if (!str_contains($source, $function . '(')) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
