@@ -247,8 +247,8 @@ final class HealthChecks
     }
 
     /**
-     * The BNR exchange rates the PDF of a fiscal invoice in another currency
-     * than RON shows: downloaded every day by the cron. A PDF that went out
+     * The BNR exchange rates the PDF of a fiscal invoice with VAT in another
+     * currency than RON shows: downloaded every day by the cron. A PDF that went out
      * without them is listed for a few days. Nothing when WHMCS bills only
      * in RON.
      *

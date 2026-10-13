@@ -531,9 +531,9 @@ $_ADDONLANG['check_snapshot'] = 'WHMCS: Store Client Data Snapshot';
 $_ADDONLANG['check_snapshot_on'] = 'Activat: PDF-ul facturii păstrează datele clientului trimise în SPV.';
 $_ADDONLANG['check_snapshot_off'] = 'Oprit: PDF-ul unei facturi deja trimise în SPV se schimbă odată cu profilul clientului. Activați-l din Configuration > System Settings > General Settings (Store Client Data Snapshot).';
 $_ADDONLANG['check_invoice_title'] = 'PDF-ul facturii: titlul și cursul BNR';
-$_ADDONLANG['check_invoice_title_ok'] = 'Confirmat pe WHMCS %s: o factură emisă înainte de plată, anulată sau rambursată are în PDF și pe pagina ei titlul unei facturi plătite, nu al unei proforme; o factură fiscală în altă monedă decât RON arată cursul BNR și TVA-ul în lei.';
+$_ADDONLANG['check_invoice_title_ok'] = 'Confirmat pe WHMCS %s: o factură emisă înainte de plată, anulată sau rambursată are în PDF și pe pagina ei titlul unei facturi plătite, nu al unei proforme; o factură fiscală cu TVA în altă monedă decât RON arată cursul BNR și TVA-ul în lei.';
 $_ADDONLANG['check_invoice_title_template'] = 'Pus de linia din %s.';
-$_ADDONLANG['check_invoice_title_unconfirmed'] = 'Neconfirmat încă pe WHMCS %s. Deschideți PDF-ul oricărei facturi, apoi reîncărcați această pagină. Dacă avertismentul rămâne, WHMCS nu mai permite addonului să modifice PDF-ul: o factură emisă înainte de plată, anulată sau rambursată apare în PDF cu titlul unei proforme, iar o factură fiscală în altă monedă decât RON nu are cursul BNR:';
+$_ADDONLANG['check_invoice_title_unconfirmed'] = 'Neconfirmat încă pe WHMCS %s. Deschideți PDF-ul oricărei facturi, apoi reîncărcați această pagină. Dacă avertismentul rămâne, WHMCS nu mai permite addonului să modifice PDF-ul: o factură emisă înainte de plată, anulată sau rambursată apare în PDF cu titlul unei proforme, iar o factură fiscală cu TVA în altă monedă decât RON nu are cursul BNR:';
 $_ADDONLANG['check_invoice_title_step'] = 'Adăugați această linie la începutul fișierului %s, imediat după <?php. Nu face nimic dacă addonul lipsește sau e dezactivat.';
 
 // Inboxul SPV
@@ -606,10 +606,10 @@ $_ADDONLANG['references_error_length'] = 'Nu s-a salvat nimic: unele referințe 
 $_ADDONLANG['references_too_long'] = '%s: cel mult %d caractere.';
 $_ADDONLANG['event_references_saved'] = 'Referințe e-Factura salvate';
 $_ADDONLANG['check_rates'] = 'Cursuri BNR';
-$_ADDONLANG['check_rates_ok'] = 'Descărcate până la %s. PDF-ul unei facturi fiscale în altă monedă decât RON arată cursul BNR și TVA-ul în lei, ca XML-ul ei.';
+$_ADDONLANG['check_rates_ok'] = 'Descărcate până la %s. PDF-ul unei facturi fiscale cu TVA în altă monedă decât RON arată cursul BNR și TVA-ul în lei, ca XML-ul ei.';
 $_ADDONLANG['check_rates_off'] = 'Cron-ul le descarcă zilnic cât timp procesarea e pornită.';
-$_ADDONLANG['check_rates_stale'] = 'Descărcate doar până la %s, deci PDF-urile facturilor noi în altă monedă decât RON ies fără cursul BNR. Cron-ul le descarcă zilnic: verificați că rulează cron-ul WHMCS.';
-$_ADDONLANG['check_rates_never'] = 'Nedescărcate încă, deci PDF-urile facturilor noi în altă monedă decât RON ies fără cursul BNR. Cron-ul le descarcă zilnic: verificați că rulează cron-ul WHMCS.';
+$_ADDONLANG['check_rates_stale'] = 'Descărcate doar până la %s, deci PDF-urile facturilor noi cu TVA în altă monedă decât RON ies fără cursul BNR. Cron-ul le descarcă zilnic: verificați că rulează cron-ul WHMCS.';
+$_ADDONLANG['check_rates_never'] = 'Nedescărcate încă, deci PDF-urile facturilor noi cu TVA în altă monedă decât RON ies fără cursul BNR. Cron-ul le descarcă zilnic: verificați că rulează cron-ul WHMCS.';
 $_ADDONLANG['check_rates_error'] = 'Ultima încercare (%s): %s';
 $_ADDONLANG['check_rates_missing'] = 'PDF-uri făcute în ultimele %d zile fără cursul BNR, pentru că nu era descărcat încă: %s. Îl arată după ce se descarcă cursurile; dacă un astfel de PDF a ajuns la client (de exemplu atașat la un e-mail), retrimiteți factura.';
 $_ADDONLANG['check_rates_missing_item'] = '%s (%s)';

@@ -60,8 +60,8 @@ $setup = static function (): void {
 /**
  * A fictive company client who reads invoices in $language.
  */
-$client = static function (string $language, int $currency): int {
-    $result = localAPI('AddClient', [
+$client = static function (string $language, int $currency, array $fields = []): int {
+    $result = localAPI('AddClient', $fields + [
         'firstname' => 'Test', 'lastname' => 'Curs', 'companyname' => 'CLIENT VALUTA SRL', 'tax_id' => '87654329', 'language' => $language,
         'email' => 'efactura-rate-' . uniqid() . '@example.invalid', 'address1' => 'Strada Test nr. 1', 'city' => 'Craiova', 'state' => 'Dolj',
         'postcode' => '200000', 'country' => 'RO', 'phonenumber' => '0700000000', 'password2' => bin2hex(random_bytes(8)),
@@ -74,10 +74,10 @@ $client = static function (string $language, int $currency): int {
     return (int) $result['clientid'];
 };
 
-$invoice = static function (int $clientId, string $notes = ''): int {
+$invoice = static function (int $clientId, string $notes = '', bool $taxed = true): int {
     return (int) localAPI('CreateInvoice', ['userid' => $clientId, 'status' => 'Unpaid', 'sendinvoice' => false, 'paymentmethod' => 'banktransfer',
         'date' => date('Y-m-d'), 'duedate' => date('Y-m-d', strtotime('+14 days')), 'notes' => $notes,
-        'itemdescription1' => 'Server dedicat', 'itemamount1' => 100, 'itemtaxed1' => true])['invoiceid'];
+        'itemdescription1' => 'Server dedicat', 'itemamount1' => 100, 'itemtaxed1' => $taxed])['invoiceid'];
 };
 
 $pay = static function (int $invoiceId): void {
@@ -172,6 +172,38 @@ return [
         // The line for invoicepdf.tpl adds the same mention.
         Assert::same("Order 123\n" . $mention . "\n", efactura_invoice_notes($paid, 'Order 123'));
         Assert::same('Order 123', efactura_invoice_notes($proforma, 'Order 123'));
+    }),
+    'an EUR invoice without VAT gets no mention, while its XML still gives the VAT in RON' => static fn () => $clean(static function () use ($setup, $client, $invoice, $pay, $number, $tax, $pdf): void {
+        $setup();
+        // Reported under reverse charge, and excluded for a client outside the EU.
+        Settings::save(['exclude_eu_reverse_charge' => false]);
+        $eur = efactura_eur_currency();
+        $eu = $invoice($client('english', $eur, ['companyname' => 'Beispiel GmbH', 'tax_id' => 'DE123456789', 'country' => 'DE', 'state' => 'Berlin', 'city' => 'Berlin', 'postcode' => '10115']), 'Order 123', false);
+        $nonEu = $invoice($client('english', $eur, ['companyname' => 'Example Corp', 'tax_id' => '12-3456789', 'country' => 'US', 'state' => 'NY', 'city' => 'New York', 'postcode' => '10001']), 'Order 123', false);
+        $pay($eu);
+        $pay($nonEu);
+        Assert::same([0, 0], [$tax($eu), $tax($nonEu)], 'no VAT');
+        Assert::true(Addon::documents()->forInvoice($eu)->state !== Document::STATE_EXCLUDED, 'the reverse charge invoice is reported');
+        Assert::same(Document::STATE_EXCLUDED, Addon::documents()->forInvoice($nonEu)->state);
+
+        // Not even a missing rate before the rates are downloaded.
+        foreach ([$eu, $nonEu] as $id) {
+            Assert::false(str_contains($pdf($id), 'exchange rate'), 'the PDF of ' . $number($id));
+        }
+        Assert::same([], ExchangeMention::missing(), 'nothing missing');
+
+        efactura_bnr_import(efactura_recent_eur_rates());
+        foreach ([$eu, $nonEu] as $id) {
+            Assert::false(str_contains($pdf($id), 'exchange rate'), 'the PDF of ' . $number($id) . ' with the rates');
+            Assert::true(in_array(['pagetitle' => 'Invoice #' . $number($id)], run_hook('ClientAreaPageViewInvoice', ['invoiceid' => $id, 'notes' => 'Order 123']), true), 'the page of ' . $number($id));
+            Assert::same('Order 123', efactura_invoice_notes($id, 'Order 123'));
+
+            // BT-6 and BT-111 are required for every document in another currency than RON.
+            $result = Addon::documentBuilder()->build(Addon::documents()->forInvoice($id));
+            Assert::true($result->ok(), 'not generated: ' . json_encode($result->issues, JSON_UNESCAPED_UNICODE));
+            Assert::true(str_contains((string) $result->xml, '<cbc:TaxCurrencyCode>RON</cbc:TaxCurrencyCode>'), 'BT-6 of ' . $number($id));
+            Assert::true(str_contains((string) $result->xml, '<cbc:TaxAmount currencyID="RON">0.00</cbc:TaxAmount>'), 'BT-111 of ' . $number($id));
+        }
     }),
     'a rate saved on the document is the one of the PDF and of the XML' => static fn () => $clean(static function () use ($setup, $client, $invoice, $pay, $tax, $pdf, $expected): void {
         $setup();

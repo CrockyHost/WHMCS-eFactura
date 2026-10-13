@@ -531,9 +531,9 @@ $_ADDONLANG['check_snapshot'] = 'WHMCS: Store Client Data Snapshot';
 $_ADDONLANG['check_snapshot_on'] = 'On: the PDF of an invoice keeps the client details sent to SPV.';
 $_ADDONLANG['check_snapshot_off'] = 'Off: the PDF of an invoice already sent to SPV changes with the client profile. Turn it on in Configuration > System Settings > General Settings (Store Client Data Snapshot).';
 $_ADDONLANG['check_invoice_title'] = 'Invoice PDF: title and BNR exchange rate';
-$_ADDONLANG['check_invoice_title_ok'] = 'Confirmed on WHMCS %s: an invoice issued before payment, cancelled or refunded has the title of a paid invoice in its PDF and on its page, not that of a proforma; a fiscal invoice in another currency than RON shows the BNR exchange rate and the VAT in RON.';
+$_ADDONLANG['check_invoice_title_ok'] = 'Confirmed on WHMCS %s: an invoice issued before payment, cancelled or refunded has the title of a paid invoice in its PDF and on its page, not that of a proforma; a fiscal invoice with VAT in another currency than RON shows the BNR exchange rate and the VAT in RON.';
 $_ADDONLANG['check_invoice_title_template'] = 'Set by the line in %s.';
-$_ADDONLANG['check_invoice_title_unconfirmed'] = 'Not confirmed yet on WHMCS %s. Open the PDF of any invoice, then reload this page. If this warning stays, WHMCS no longer lets the addon change the PDF, so an invoice issued before payment, cancelled or refunded shows the title of a proforma in its PDF, and a fiscal invoice in another currency than RON lacks the BNR exchange rate:';
+$_ADDONLANG['check_invoice_title_unconfirmed'] = 'Not confirmed yet on WHMCS %s. Open the PDF of any invoice, then reload this page. If this warning stays, WHMCS no longer lets the addon change the PDF, so an invoice issued before payment, cancelled or refunded shows the title of a proforma in its PDF, and a fiscal invoice with VAT in another currency than RON lacks the BNR exchange rate:';
 $_ADDONLANG['check_invoice_title_step'] = 'Add this line at the beginning of %s, right after <?php. It does nothing when the addon is missing or deactivated.';
 
 // SPV inbox
@@ -606,10 +606,10 @@ $_ADDONLANG['references_error_length'] = 'Nothing was saved: some references are
 $_ADDONLANG['references_too_long'] = '%s: at most %d characters.';
 $_ADDONLANG['event_references_saved'] = 'e-Factura references saved';
 $_ADDONLANG['check_rates'] = 'BNR exchange rates';
-$_ADDONLANG['check_rates_ok'] = 'Downloaded through %s. The PDF of a fiscal invoice in another currency than RON shows the BNR exchange rate and the VAT in RON, as its XML.';
+$_ADDONLANG['check_rates_ok'] = 'Downloaded through %s. The PDF of a fiscal invoice with VAT in another currency than RON shows the BNR exchange rate and the VAT in RON, as its XML.';
 $_ADDONLANG['check_rates_off'] = 'The cron downloads them every day while the processing is on.';
-$_ADDONLANG['check_rates_stale'] = 'Downloaded only through %s, so the PDFs of new invoices in another currency than RON go out without the BNR exchange rate. The cron downloads them every day: check that the WHMCS cron runs.';
-$_ADDONLANG['check_rates_never'] = 'Not downloaded yet, so the PDFs of new invoices in another currency than RON go out without the BNR exchange rate. The cron downloads them every day: check that the WHMCS cron runs.';
+$_ADDONLANG['check_rates_stale'] = 'Downloaded only through %s, so the PDFs of new invoices with VAT in another currency than RON go out without the BNR exchange rate. The cron downloads them every day: check that the WHMCS cron runs.';
+$_ADDONLANG['check_rates_never'] = 'Not downloaded yet, so the PDFs of new invoices with VAT in another currency than RON go out without the BNR exchange rate. The cron downloads them every day: check that the WHMCS cron runs.';
 $_ADDONLANG['check_rates_error'] = 'Last attempt (%s): %s';
 $_ADDONLANG['check_rates_missing'] = 'PDFs made in the last %d days without the BNR exchange rate, because it was not downloaded yet: %s. They show it once the rates are downloaded; if such a PDF reached the client (for example attached to an email), send the invoice again.';
 $_ADDONLANG['check_rates_missing_item'] = '%s (%s)';

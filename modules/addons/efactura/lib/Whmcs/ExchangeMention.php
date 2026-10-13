@@ -27,7 +27,8 @@ use WHMCS\Module\Addon\Efactura\Support\RuntimeState;
  * The BNR exchange rate and the VAT in RON of a fiscal invoice in another
  * currency (art. 319 alin. (23) Fiscal Code), added to the notes of its PDF
  * and of its page in the client area: the mention of its XML, in the
- * language of the client. Proformas and invoices in RON get nothing.
+ * language of the client. Proformas, invoices in RON and invoices without
+ * VAT get nothing.
  *
  * The rate is the one saved when the XML was built, otherwise the one the
  * XML will use, from the rates the cron downloads every day; the PDF never
@@ -57,6 +58,13 @@ final class ExchangeMention
         if ($currency === '' || $currency === 'RON') {
             return null;
         }
+        // Art. 319 alin. (23) is about the VAT: an invoice without VAT (reverse
+        // charge, a client outside the EU) gets nothing, while its XML still
+        // gives the VAT in RON (BT-6, BT-111).
+        $tax = Money::cents((string) Capsule::table('tblinvoices')->where('id', $invoiceId)->value('tax'));
+        if ($tax === 0) {
+            return null;
+        }
         $rate = VatInRon::rateFor($document, null, $currency, Addon::bnrRates(), false);
         if ($rate === null) {
             if ($pdf) {
@@ -65,7 +73,6 @@ final class ExchangeMention
 
             return null;
         }
-        $tax = Money::cents((string) Capsule::table('tblinvoices')->where('id', $invoiceId)->value('tax'));
 
         return VatInRon::of($currency, $tax, $rate)->text($language);
     }

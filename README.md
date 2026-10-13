@@ -319,10 +319,10 @@ payment, and a fiscal invoice cancelled or refunded later. The addon gives
 such an invoice the title of a paid one ("Invoice #CRK-0096", the
 `invoicenumber` text of the language). Proformas keep their title.
 
-**BNR exchange rate.** A fiscal invoice in another currency than RON gets the
-BNR exchange rate and the VAT in RON (art. 319 alin. (23) of the Fiscal Code)
-in its notes, with the text of its e-Factura XML, in the language of the
-client:
+**BNR exchange rate.** A fiscal invoice with VAT in another currency than RON
+gets the BNR exchange rate and the VAT in RON (art. 319 alin. (23) of the
+Fiscal Code) in its notes, with the text of its e-Factura XML, in the
+language of the client:
 
 ```
 Curs BNR 1 EUR = 5,0801 RON din 12.10.2026; TVA: 106,68 RON
@@ -336,10 +336,13 @@ every day after BNR publishes them (around 13:00); a payment never waits for
 BNR. When the rate of an invoice is not downloaded yet (right after the
 installation, or with a cron that stopped), its PDF goes out without it: the
 WHMCS activity log and the dashboard check "BNR exchange rates" list the
-invoice, so that it can be sent again once the rates are in. Proformas and
-invoices in RON get nothing. WHMCS 9.0 has no PDF for credit notes (their
-Print and Download buttons are "Coming Soon"), so a storno in another
-currency shows the rate only in its XML.
+invoice, so that it can be sent again once the rates are in. Proformas,
+invoices in RON and invoices without VAT (reverse charge, clients outside the
+EU) get nothing; the XML of an invoice without VAT still gives the VAT in RON
+(0.00), as e-Factura requires for every document in another currency than
+RON. WHMCS 9.0 has no PDF for credit notes (their Print and Download buttons
+are "Coming Soon"), so a storno in another currency shows the rate only in
+its XML.
 
 Since the PDF hook point is not documented, the dashboard check "Invoice
 PDF: title and BNR exchange rate" confirms it on each WHMCS version: after an
@@ -360,8 +363,10 @@ fără să schimbe tema. WHMCS dă titlul de proformă oricărei facturi
 neplătite, inclusiv celei emise fiscal înainte de plată și unei facturi
 fiscale anulate sau rambursate; addonul îi dă titlul unei facturi plătite
 („Factura nr. CRK-0096”), iar proformele rămân proforme. O factură fiscală
-în altă monedă decât RON primește în note cursul BNR și TVA-ul în lei (art.
-319 alin. (23) Cod fiscal), cu textul din XML-ul ei, în limba clientului.
+cu TVA în altă monedă decât RON primește în note cursul BNR și TVA-ul în lei
+(art. 319 alin. (23) Cod fiscal), cu textul din XML-ul ei, în limba
+clientului. O factură fără TVA (taxare inversă, client din afara UE) nu
+primește mențiunea, dar XML-ul ei are în continuare TVA-ul în lei (0,00).
 Cursul este ultimul publicat de BNR înainte de data facturii, același ca în
 XML. Cât timp procesarea e pornită, cron-ul WHMCS descarcă zilnic cursurile
 de pe `curs.bnr.ro`, după ce BNR le publică (în jurul orei 13:00), deci
