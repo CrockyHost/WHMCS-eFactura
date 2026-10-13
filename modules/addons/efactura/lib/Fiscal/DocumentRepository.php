@@ -198,7 +198,8 @@ final class DocumentRepository
     /**
      * Records a storno of $original and schedules it. It follows the
      * reporting of the original: the storno of an invoice that is not
-     * reported is not reported either.
+     * reported is not reported either. The storno of an invoice issued
+     * before the addon is reported as a new invoice to its client would be.
      *
      * @param array{dedupe_key: string, number: string, source: string, reason: string, issue_date: DateTimeImmutable,
      *              net_cents: int, tax_cents: int, billing_note_id?: int|null, issued_by?: int|null} $data
@@ -208,7 +209,10 @@ final class DocumentRepository
     {
         $now = Clock::now();
         $issueDate = $data['issue_date']->setTime(0, 0);
-        $excluded = $original->state === Document::STATE_EXCLUDED;
+        $exclusion = $original->state === Document::STATE_EXTERNAL
+            ? ReportingPolicy::exclusionReason((int) $original->invoice_id)
+            : ($original->state === Document::STATE_EXCLUDED ? $original->exclusion_reason : null);
+        $excluded = $original->state === Document::STATE_EXCLUDED || $exclusion !== null;
         $state = $excluded ? Document::STATE_EXCLUDED : Document::STATE_SCHEDULED;
         $net = Money::format($data['net_cents']);
         $tax = Money::format($data['tax_cents']);
@@ -231,7 +235,7 @@ final class DocumentRepository
             'amount_tax' => $tax,
             'state' => $state,
             'state_changed_at' => $now->format('Y-m-d H:i:s'),
-            'exclusion_reason' => $excluded ? $original->exclusion_reason : null,
+            'exclusion_reason' => $exclusion,
             'send_after' => $excluded ? null : self::sendAfter($issueDate, $now)->format('Y-m-d H:i:s'),
             'deadline_date' => $excluded ? null : WorkingDays::legalDeadline($issueDate)->format('Y-m-d'),
             'created_at' => $now->format('Y-m-d H:i:s'),

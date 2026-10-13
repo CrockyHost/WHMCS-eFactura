@@ -25,9 +25,11 @@ use WHMCS\Module\Addon\Efactura\Fiscal\Document;
 final class FiscalInvoice
 {
     /**
-     * The fiscal invoice document of a WHMCS invoice that shows its number
-     * (issued at payment or before it, also when cancelled or refunded later),
-     * otherwise null: a proforma, or an invoice whose number was edited.
+     * The fiscal document of a WHMCS invoice that shows its number: its
+     * fiscal invoice (issued at payment or before it, also when cancelled or
+     * refunded later), or a storno issued before the addon as a WHMCS invoice
+     * of its own. Otherwise null: a proforma, or an invoice whose number was
+     * edited.
      */
     public static function document(int $invoiceId): ?object
     {
@@ -39,7 +41,13 @@ final class FiscalInvoice
             ->join('tblinvoices as i', 'i.id', '=', 'd.invoice_id')
             ->where('d.dedupe_key', Document::invoiceKey($invoiceId))
             ->whereColumn('i.invoicenum', 'd.number')
-            ->first(['d.*']);
+            ->first(['d.*'])
+            ?? Capsule::table(Document::TABLE . ' as d')
+                ->join('tblinvoices as i', 'i.id', '=', 'd.storno_invoice_id')
+                ->where('d.storno_invoice_id', $invoiceId)
+                ->where('d.kind', Document::KIND_STORNO)
+                ->whereColumn('i.invoicenum', 'd.number')
+                ->first(['d.*']);
     }
 
     /**

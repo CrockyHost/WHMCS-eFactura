@@ -363,7 +363,7 @@ final class Worker
 
     private function originalValidated(object $storno): bool
     {
-        return Capsule::table(Document::TABLE)->where('id', $storno->original_document_id)->value('state') === Document::STATE_VALIDATED;
+        return Document::reported((string) Capsule::table(Document::TABLE)->where('id', $storno->original_document_id)->value('state'));
     }
 
     /**

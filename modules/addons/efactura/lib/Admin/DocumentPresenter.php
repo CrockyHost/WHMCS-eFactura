@@ -41,6 +41,7 @@ final class DocumentPresenter
         Document::STATE_REJECTED => 'danger',
         Document::STATE_RETRY => 'warning',
         Document::STATE_EXCLUDED => 'default',
+        Document::STATE_EXTERNAL => 'success',
     ];
 
     public function __construct(private readonly string $modulelink)
@@ -65,7 +66,7 @@ final class DocumentPresenter
             'kindLabel' => Lang::get('kind_' . $document->kind),
             'reasonLabel' => $storno ? Lang::get('storno_reason_' . $document->reason) : '',
             'original' => $original !== null ? ['id' => (int) $original->id, 'number' => (string) $original->number] : null,
-            'waitsForOriginal' => $original !== null && $original->state !== Document::STATE_VALIDATED
+            'waitsForOriginal' => $original !== null && !Document::reported((string) $original->state)
                 && in_array($state, [Document::STATE_SCHEDULED, Document::STATE_HELD, Document::STATE_RETRY, Document::STATE_INVALID], true),
             'state' => $state,
             'stateLabel' => Lang::get('state_' . $state),
@@ -81,7 +82,7 @@ final class DocumentPresenter
             'validatedAt' => self::dateTime((string) $document->validated_at),
             'attempts' => (int) $document->attempts,
             'nextAttempt' => in_array($state, [Document::STATE_RETRY, Document::STATE_UNKNOWN, Document::STATE_INVALID, Document::STATE_PROCESSING], true) ? self::dateTime((string) $document->next_attempt_at) : '',
-            'lastError' => in_array($state, [Document::STATE_VALIDATED, Document::STATE_EXCLUDED], true) ? '' : (string) ($document->last_error ?? ''),
+            'lastError' => in_array($state, [Document::STATE_VALIDATED, Document::STATE_EXCLUDED, Document::STATE_EXTERNAL], true) ? '' : (string) ($document->last_error ?? ''),
             'errors' => self::errors((string) ($document->errors ?? '')),
             'waiting' => $state === Document::STATE_UNKNOWN ? (string) ($document->wait_reason ?? '') : '',
             'review' => $state === Document::STATE_HELD && $document->review_reason !== null ? Lang::get('review_' . $document->review_reason) : '',
@@ -124,7 +125,7 @@ final class DocumentPresenter
 
     private function deadline(object $document): string
     {
-        if ($document->deadline_date === null || in_array($document->state, [Document::STATE_VALIDATED, Document::STATE_EXCLUDED], true)) {
+        if ($document->deadline_date === null || in_array($document->state, [Document::STATE_VALIDATED, Document::STATE_EXCLUDED, Document::STATE_EXTERNAL], true)) {
             return '';
         }
         $deadline = Clock::parse((string) $document->deadline_date);

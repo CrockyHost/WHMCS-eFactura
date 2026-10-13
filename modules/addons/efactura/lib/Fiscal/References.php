@@ -103,12 +103,13 @@ final class References
      * Whether the references of an invoice can still change: a proforma, or
      * a fiscal invoice whose XML is not built yet. A document rejected by
      * ANAF counts as not built: its XML is built again when it is sent again.
-     * Never for an invoice that is not reported to RO e-Factura.
+     * Never for an invoice that is not reported to RO e-Factura, nor for one
+     * reported before the addon.
      */
     public static function editable(int $invoiceId, ?object $document): bool
     {
         if ($document !== null) {
-            if ($document->kind !== Document::KIND_INVOICE || $document->state === Document::STATE_EXCLUDED) {
+            if ($document->kind !== Document::KIND_INVOICE || in_array($document->state, [Document::STATE_EXCLUDED, Document::STATE_EXTERNAL], true)) {
                 return false;
             }
 

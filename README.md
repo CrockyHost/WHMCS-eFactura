@@ -95,7 +95,9 @@ MultiPHP INI Editor), care singur acoperă doar paginile web.
    sent to production automatically, and the SPV inbox starts over with the
    last 59 days of production messages.
 10. **Turn on the processing** in Settings once the dashboard shows no
-    blocking problem.
+    blocking problem. If WHMCS has fiscal invoices issued before the addon
+    by another system, register them first (see
+    [Invoices issued before the addon](#invoices-issued-before-the-addon)).
 
 **Română:** copiați folderul `modules` din arhivă în folderul principal
 WHMCS, activați addonul (Configuration > System Settings > Addon Modules),
@@ -112,6 +114,49 @@ persoane cu drepturi SPV. Încercați totul pe o copie WHMCS, cu mediul de
 test ANAF și clienți fictivi; pe WHMCS-ul real alegeți „ANAF producție”
 înainte să porniți procesarea, fiindcă fiecare număr emis acolo e o factură
 fiscală reală.
+
+## Invoices issued before the addon
+
+When another system (a billing addon, an invoicing service) issued fiscal
+invoices for WHMCS invoices before the addon, register them before turning
+on the processing. A registered invoice is never sent to ANAF, and:
+
+- an unpaid one keeps its number and date when it is paid; otherwise WHMCS
+  would give it a new number from the fiscal series, a second invoice for
+  the same sale;
+- its PDF and page get the title of an invoice, not of a proforma;
+- a later cancellation or refund issues a storno that points to it and is
+  sent to ANAF; a storno issued before counts, so nothing is reversed twice.
+
+The rows come from a CSV file with a header row. `invoice_id` is the WHMCS
+invoice (for a storno, the invoice it reverses), `number` and `issue_date`
+as issued. A storno also gives its amounts: `storno_invoice_id`, when the
+other system created it as a WHMCS invoice of its own with negative amounts
+(that invoice then gets the title of an invoice too), or `net` and `tax`.
+
+```
+kind,invoice_id,number,issue_date,storno_invoice_id,net,tax
+invoice,277,CRK-0094,2026-10-10,,,
+storno,141,CRK-0096,2026-10-13,290,,
+```
+
+```
+php modules/addons/efactura/cron/import-external.php invoices.csv
+php modules/addons/efactura/cron/import-external.php invoices.csv --apply
+```
+
+The first command only checks the file and lists what it would register;
+the second registers all the rows, or none when one has an error. Run it
+with the WHMCS cron paused, so that no invoice is paid meanwhile. The
+documents list shows them as "Reported before the addon"; for an invoice
+in another currency than RON, the BNR rate of its date is saved with it.
+
+**Română:** facturile fiscale emise înainte de addon de alt sistem se
+înregistrează dintr-un fișier CSV, cu comanda de mai sus (fără `--apply` doar
+verifică). O factură înregistrată nu se trimite niciodată la ANAF; la plată
+își păstrează numărul și data, primește titlul de factură, iar o anulare sau
+o rambursare ulterioară emite o stornare care o referă. Stornările emise
+înainte se înregistrează și ele, ca nimic să nu fie stornat de două ori.
 
 ## Client data
 

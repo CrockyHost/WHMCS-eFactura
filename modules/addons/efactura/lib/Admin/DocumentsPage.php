@@ -109,7 +109,7 @@ final class DocumentsPage
 
         $states = [['value' => '', 'label' => Lang::get('filter_all')], ['value' => 'attention', 'label' => Lang::get('filter_attention')]];
         foreach ([Document::STATE_SCHEDULED, Document::STATE_HELD, Document::STATE_INVALID, Document::STATE_SENDING, Document::STATE_UNKNOWN,
-            Document::STATE_PROCESSING, Document::STATE_VALIDATED, Document::STATE_REJECTED, Document::STATE_RETRY, Document::STATE_EXCLUDED] as $value) {
+            Document::STATE_PROCESSING, Document::STATE_VALIDATED, Document::STATE_REJECTED, Document::STATE_RETRY, Document::STATE_EXCLUDED, Document::STATE_EXTERNAL] as $value) {
             $states[] = ['value' => $value, 'label' => Lang::get('state_' . $value)];
         }
         $base = $this->modulelink . '&view=documents&state=' . rawurlencode($state) . '&kind=' . rawurlencode($kind) . '&q=' . rawurlencode($search);

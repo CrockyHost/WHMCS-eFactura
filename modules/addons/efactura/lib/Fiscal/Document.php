@@ -31,6 +31,8 @@ final class Document
     public const SOURCE_REFUND = 'refund';
     public const SOURCE_CANCEL = 'cancel';
     public const SOURCE_MANUAL = 'manual';
+    // Issued before the addon, by another system (ExternalDocuments).
+    public const SOURCE_IMPORT = 'import';
 
     // Waiting for its send time.
     public const STATE_SCHEDULED = 'scheduled';
@@ -50,6 +52,8 @@ final class Document
     public const STATE_RETRY = 'retry';
     // A fiscal invoice that is not reported to RO e-Factura.
     public const STATE_EXCLUDED = 'excluded';
+    // Issued and reported before the addon, outside it: never sent.
+    public const STATE_EXTERNAL = 'external';
 
     public const EXCLUDED_EU_REVERSE_CHARGE = 'eu_reverse_charge';
     public const EXCLUDED_EU_OSS = 'eu_oss';
@@ -62,5 +66,14 @@ final class Document
     public static function invoiceKey(int $invoiceId): string
     {
         return 'invoice:' . $invoiceId;
+    }
+
+    /**
+     * Whether a document in $state is in SPV: validated there, or reported
+     * before the addon. A storno is sent only after its invoice is.
+     */
+    public static function reported(string $state): bool
+    {
+        return $state === self::STATE_VALIDATED || $state === self::STATE_EXTERNAL;
     }
 }

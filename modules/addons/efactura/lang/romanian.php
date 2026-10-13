@@ -81,6 +81,7 @@ $_ADDONLANG['state_validated'] = 'Validată';
 $_ADDONLANG['state_rejected'] = 'Respinsă';
 $_ADDONLANG['state_retry'] = 'Eroare tehnică, se reîncearcă';
 $_ADDONLANG['state_excluded'] = 'Neraportată';
+$_ADDONLANG['state_external'] = 'Raportată înainte de addon';
 
 // Setări
 $_ADDONLANG['settings_saved'] = 'Setările au fost salvate.';
@@ -403,6 +404,7 @@ $_ADDONLANG['storno_reason_refund_partial'] = 'rambursare parțială';
 $_ADDONLANG['storno_reason_cancel'] = 'factură anulată';
 $_ADDONLANG['storno_reason_cancel_rest'] = 'anulată după rambursări parțiale';
 $_ADDONLANG['storno_reason_manual'] = 'emisă de un administrator';
+$_ADDONLANG['storno_reason_import'] = 'emisă înainte de addon';
 $_ADDONLANG['panel_issue_date'] = 'Data emiterii';
 $_ADDONLANG['panel_total'] = 'Total';
 $_ADDONLANG['panel_corrects'] = 'Corectează';
@@ -503,6 +505,7 @@ $_ADDONLANG['queue_near_deadline'] = 'Netrimise, cu termenul în cel mult 1 zi l
 $_ADDONLANG['queue_attention'] = 'Documente care necesită atenție';
 $_ADDONLANG['event_document_created'] = 'Document creat';
 $_ADDONLANG['event_storno_created'] = 'Stornare emisă';
+$_ADDONLANG['event_document_imported'] = 'Înregistrată: emisă și raportată înainte de addon';
 $_ADDONLANG['event_issued_early'] = 'Emisă înainte de plată';
 $_ADDONLANG['event_document_review'] = 'Necesită verificare manuală';
 $_ADDONLANG['event_upload_started'] = 'Încărcare începută';

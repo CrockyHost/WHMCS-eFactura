@@ -81,6 +81,7 @@ $_ADDONLANG['state_validated'] = 'Validated';
 $_ADDONLANG['state_rejected'] = 'Rejected';
 $_ADDONLANG['state_retry'] = 'Technical error, will retry';
 $_ADDONLANG['state_excluded'] = 'Not reported';
+$_ADDONLANG['state_external'] = 'Reported before the addon';
 
 // Settings page
 $_ADDONLANG['settings_saved'] = 'Settings saved.';
@@ -403,6 +404,7 @@ $_ADDONLANG['storno_reason_refund_partial'] = 'partial refund';
 $_ADDONLANG['storno_reason_cancel'] = 'invoice cancelled';
 $_ADDONLANG['storno_reason_cancel_rest'] = 'cancelled after partial refunds';
 $_ADDONLANG['storno_reason_manual'] = 'issued by an admin';
+$_ADDONLANG['storno_reason_import'] = 'issued before the addon';
 $_ADDONLANG['panel_issue_date'] = 'Issue date';
 $_ADDONLANG['panel_total'] = 'Total';
 $_ADDONLANG['panel_corrects'] = 'Corrects';
@@ -503,6 +505,7 @@ $_ADDONLANG['queue_near_deadline'] = 'Not sent, deadline within 1 working day';
 $_ADDONLANG['queue_attention'] = 'Documents that need attention';
 $_ADDONLANG['event_document_created'] = 'Document created';
 $_ADDONLANG['event_storno_created'] = 'Storno issued';
+$_ADDONLANG['event_document_imported'] = 'Registered: issued and reported before the addon';
 $_ADDONLANG['event_issued_early'] = 'Issued before payment';
 $_ADDONLANG['event_document_review'] = 'Manual check needed';
 $_ADDONLANG['event_upload_started'] = 'Upload started';
