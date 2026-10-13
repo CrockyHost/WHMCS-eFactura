@@ -112,6 +112,7 @@ final class SettingsPage
             ]),
             $this->section('section_exclusions', [
                 $this->checkbox('exclude_eu_reverse_charge'),
+                $this->checkbox('exclude_eu_oss'),
                 $this->checkbox('exclude_non_eu'),
                 $this->checkbox('exclude_zero_total'),
                 $this->checkbox('exclude_add_funds'),

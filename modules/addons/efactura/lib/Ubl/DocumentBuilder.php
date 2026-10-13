@@ -88,6 +88,7 @@ final class DocumentBuilder
 
         $untaxedCategory = $this->untaxedCategory($buyer['party'], $invoiceRow);
         $rate = Money::trimDecimal((string) $invoiceRow->taxrate);
+        $this->checkEuConsumerRate($buyer['party'], $invoiceRow, $rate);
 
         if ($storno && $document->reason === self::REASON_REFUND_PARTIAL) {
             [$lines, $taxCents] = $this->partialStornoLines($document, $original, $rate, $untaxedCategory);
@@ -284,6 +285,23 @@ final class DocumentBuilder
         $this->issue('MAP-VAT', Lang::get('map_untaxed_line', Text::cut(Text::clean($description), 60)[0]));
 
         return ['S', $rate];
+    }
+
+    /**
+     * An EU consumer charged VAT is reported only without the Union OSS
+     * scheme, when the place of supply is Romania: the VAT must then be the
+     * Romanian rate, not the one of the country of the client.
+     */
+    private function checkEuConsumerRate(Party $buyer, object $invoice, string $rate): void
+    {
+        if ($buyer->country === 'RO' || !in_array($buyer->country, ReportingPolicy::EU_COUNTRIES, true)
+            || Money::cents((string) $invoice->tax) === 0 || Settings::bool('exclude_eu_oss')) {
+            return;
+        }
+        $romanian = ReportingPolicy::romanianRate();
+        if ($romanian !== null && $rate !== $romanian) {
+            $this->issue('MAP-VAT-EU', Lang::get('map_eu_consumer_rate', $buyer->country, $rate, $romanian));
+        }
     }
 
     /**

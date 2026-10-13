@@ -20,6 +20,7 @@ use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Anaf\OAuth\Connection;
 use WHMCS\Module\Addon\Efactura\ClientData\ClientFields;
 use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
+use WHMCS\Module\Addon\Efactura\Fiscal\ReportingPolicy;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Whmcs\ExchangeMention;
@@ -61,6 +62,7 @@ final class HealthChecks
             $this->clientFields(),
             ...$this->whmcsNumbering(),
             $this->invoiceSnapshot(),
+            ...$this->euVat(),
             $this->invoiceTitle(),
             ...$this->exchangeRates(),
             $this->timezone(),
@@ -220,6 +222,28 @@ final class HealthChecks
         return InvoiceSnapshot::enabled()
             ? self::check('check_snapshot', self::OK, Lang::get('check_snapshot_on'))
             : self::check('check_snapshot', self::WARNING, Lang::get('check_snapshot_off'));
+    }
+
+    /**
+     * WHMCS tax rules that charge clients from other EU countries their own
+     * VAT rate: right only under the Union OSS scheme. Without it the place
+     * of supply is Romania, and their invoices stop before they are sent.
+     * Nothing when no such rule exists.
+     *
+     * @return list<array{label: string, status: string, detail: string, steps: list<array{text: string, code: string}>}>
+     */
+    private function euVat(): array
+    {
+        $rates = ReportingPolicy::foreignEuRates();
+        if ($rates === []) {
+            return [];
+        }
+        if (Settings::bool('exclude_eu_oss')) {
+            return [self::check('check_eu_vat', self::OK, Lang::get('check_eu_vat_oss'))];
+        }
+        $list = implode(', ', array_map(static fn (string $country, string $rate): string => $country . ' ' . $rate . '%', array_keys($rates), $rates));
+
+        return [self::check('check_eu_vat', self::WARNING, Lang::get('check_eu_vat_rates', count($rates), $list, (string) ReportingPolicy::romanianRate()))];
     }
 
     /**

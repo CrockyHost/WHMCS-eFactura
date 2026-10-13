@@ -88,6 +88,8 @@ final class Settings
 
         // Invoices that are not reported to SPV
         'exclude_eu_reverse_charge' => ['bool', true],
+        // Only for a company registered in the Union OSS scheme
+        'exclude_eu_oss' => ['bool', false],
         'exclude_non_eu' => ['bool', true],
         'exclude_zero_total' => ['bool', true],
         'exclude_add_funds' => ['bool', true],

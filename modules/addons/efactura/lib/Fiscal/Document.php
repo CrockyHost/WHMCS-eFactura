@@ -52,6 +52,7 @@ final class Document
     public const STATE_EXCLUDED = 'excluded';
 
     public const EXCLUDED_EU_REVERSE_CHARGE = 'eu_reverse_charge';
+    public const EXCLUDED_EU_OSS = 'eu_oss';
     public const EXCLUDED_NON_EU = 'non_eu';
 
     public const REVIEW_LOCK_TIMEOUT = 'lock_timeout';

@@ -35,6 +35,7 @@ final class SettingsForm
         'company_vat_payer',
         'company_vat_on_collection',
         'exclude_eu_reverse_charge',
+        'exclude_eu_oss',
         'exclude_non_eu',
         'exclude_zero_total',
         'exclude_add_funds',

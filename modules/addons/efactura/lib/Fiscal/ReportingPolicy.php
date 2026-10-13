@@ -17,6 +17,7 @@ namespace WHMCS\Module\Addon\Efactura\Fiscal;
 
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
+use WHMCS\Module\Addon\Efactura\Support\Money;
 
 /**
  * Which paid WHMCS invoices are fiscal invoices, and which fiscal invoices
@@ -26,9 +27,9 @@ use WHMCS\Module\Addon\Efactura\Settings\Settings;
  * containers, which only group other invoices; Add Funds and zero-total
  * invoices when the settings exclude them.
  *
- * Fiscal but not reported: invoices to EU companies under reverse charge and
- * to clients outside the EU, when the settings exclude them. They keep their
- * fiscal number.
+ * Fiscal but not reported: invoices to EU companies under reverse charge, to
+ * EU consumers under the Union OSS scheme and to clients outside the EU, when
+ * the settings exclude them. They keep their fiscal number.
  */
 final class ReportingPolicy
 {
@@ -85,7 +86,49 @@ final class ReportingPolicy
         if ($tax === 0.0 && Settings::bool('exclude_eu_reverse_charge')) {
             return Document::EXCLUDED_EU_REVERSE_CHARGE;
         }
+        // An EU client charged VAT is a consumer. Under the Union OSS scheme
+        // the place of supply is the country of the client, declared through
+        // OSS; without it, the place is Romania and the invoice is reported.
+        if ($tax !== 0.0 && Settings::bool('exclude_eu_oss')) {
+            return Document::EXCLUDED_EU_OSS;
+        }
 
         return null;
+    }
+
+    /**
+     * The VAT rate WHMCS charges clients in Romania (its level 1 tax rule),
+     * or null without one.
+     */
+    public static function romanianRate(): ?string
+    {
+        $rate = Capsule::table('tbltax')->where('level', 1)->where('country', 'RO')->where('state', '')->value('taxrate');
+
+        return $rate === null ? null : Money::trimDecimal((string) $rate);
+    }
+
+    /**
+     * The other EU countries for which WHMCS charges a VAT rate that is not
+     * the Romanian one: right only under the Union OSS scheme.
+     *
+     * @return array<string, string> rate by country code
+     */
+    public static function foreignEuRates(): array
+    {
+        $romanian = self::romanianRate();
+        if ($romanian === null) {
+            return [];
+        }
+        $rates = [];
+        $rules = Capsule::table('tbltax')->where('level', 1)->whereIn('country', self::EU_COUNTRIES)->where('country', '!=', 'RO')
+            ->orderBy('country')->get(['country', 'taxrate']);
+        foreach ($rules as $rule) {
+            $rate = Money::trimDecimal((string) $rule->taxrate);
+            if ($rate !== $romanian && $rate !== '0') {
+                $rates[(string) $rule->country] = $rate;
+            }
+        }
+
+        return $rates;
     }
 }

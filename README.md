@@ -227,6 +227,15 @@ of the invoice then says why it waits. A ZIP that cannot be read is not one
 of the addon's (ANAF returns the bytes sent) and is downloaded once; a
 download refused for the daily limit of ANAF is tried again the next day.
 
+Invoices to clients outside Romania follow Settings > Invoices not reported.
+By default, EU companies invoiced without VAT (reverse charge) and clients
+outside the EU are not sent. An EU consumer charged VAT is sent with the
+Romanian VAT: without the Union OSS scheme the place of supply is Romania.
+An invoice with the VAT rate of the country of the client stops with an
+explanation, and the dashboard warns about WHMCS tax rules that charge such
+rates. A company registered in OSS turns on "EU consumers (OSS)": these
+invoices are then declared through OSS and not sent.
+
 Cancelling or refunding a fiscal invoice issues a storno, a new invoice in
 the same fiscal series with negative quantities that points to the original
 (BT-25/26):
@@ -259,7 +268,11 @@ arhivarea răspunsului semnat, reconcilierea încărcărilor fără răspuns și
 alertele de termen). O încărcare fără răspuns se retrimite doar după ce
 lista facturilor trimise a fost citită toată și fiecare factură necunoscută
 a fost descărcată și comparată; până atunci, panoul e-Factura al facturii
-arată de ce așteaptă. Anularea sau rambursarea unei facturi fiscale emite o
+arată de ce așteaptă. Facturile către persoane fizice din alte țări UE se
+trimit cu TVA-ul românesc; una cu cota țării clientului se oprește, iar
+panoul avertizează despre regulile de TVA din WHMCS care aplică astfel de
+cote. Pentru o firmă înregistrată în OSS, setarea „Persoane fizice din UE
+(OSS)” le exclude. Anularea sau rambursarea unei facturi fiscale emite o
 stornare în aceeași serie (totală, a restului sau parțială, după nota de
 credit WHMCS); anularea unei proforme nu emite nimic. Opțional,
 `cron/worker.php` poate rula separat, de exemplu la fiecare minut.

@@ -19,6 +19,7 @@ use WHMCS\Module\Addon\Efactura\Addon;
 use WHMCS\Module\Addon\Efactura\Exchange\BnrRates;
 use WHMCS\Module\Addon\Efactura\Fiscal\Clock;
 use WHMCS\Module\Addon\Efactura\Fiscal\Document;
+use WHMCS\Module\Addon\Efactura\Fiscal\ReportingPolicy;
 use WHMCS\Module\Addon\Efactura\Http\Response;
 use WHMCS\Module\Addon\Efactura\Numbering\NumberingLock;
 use WHMCS\Module\Addon\Efactura\Settings\Settings;
@@ -252,6 +253,44 @@ return [
         $id = $invoice($client(), [['Găzduire', 100.00]]);
         $pay($id);
         Assert::true(in_array('BR-61', $rules($build($id)), true));
+    },
+    'an EU consumer: excluded under OSS, otherwise reported, and only at the Romanian VAT rate' => static function () use ($setup, $client, $invoice, $pay, $build, $sameAmounts, $rules, &$generated): void {
+        $setup();
+        $romanian = ReportingPolicy::romanianRate() ?? throw new SkipTest('no WHMCS tax rule for Romania');
+        $consumer = static fn (string $country, string $state, string $city, string $postcode): int => $client([
+            'firstname' => 'Erika', 'lastname' => 'Muster', 'country' => $country, 'state' => $state, 'city' => $city, 'postcode' => $postcode, 'address1' => 'Teststraße 1']);
+        // The VAT WHMCS charged: the rate of the country of the client, or the Romanian one.
+        $taxed = static function (int $clientId, string $rate) use ($invoice): int {
+            $id = $invoice($clientId, [['Webhosting', 100.00]]);
+            Capsule::table('tblinvoices')->where('id', $id)->update(['taxrate' => $rate, 'tax' => (float) $rate, 'tax2' => 0, 'total' => 100 + (float) $rate]);
+
+            return $id;
+        };
+
+        // Without OSS the place of supply is Romania: reported, at the Romanian rate only.
+        Settings::save(['exclude_eu_oss' => false]);
+        $germany = $taxed($consumer('DE', 'Berlin', 'Berlin', '10115'), '19');
+        $pay($germany);
+        Assert::same(null, Addon::documents()->forInvoice($germany)?->exclusion_reason, 'reported without OSS');
+        Assert::true(in_array('MAP-VAT-EU', $rules($build($germany)), true), 'the VAT of Germany stops the document');
+        $belgium = $taxed($consumer('BE', 'Bruxelles', 'Bruxelles', '1000'), $romanian);
+        $pay($belgium);
+        $result = $build($belgium);
+        $sameAmounts($result, $belgium);
+        Assert::same('b2c', $result->buyerType);
+        $generated['whmcs-b2c-eu-consumer'] = (string) $result->xml;
+
+        // Under OSS the invoice is declared through OSS, not in RO e-Factura.
+        Settings::save(['exclude_eu_oss' => true]);
+        $oss = $taxed($consumer('DE', 'Berlin', 'Berlin', '10115'), '19');
+        $pay($oss);
+        Assert::same(Document::STATE_EXCLUDED, Addon::documents()->forInvoice($oss)?->state);
+        Assert::same(Document::EXCLUDED_EU_OSS, Addon::documents()->forInvoice($oss)?->exclusion_reason);
+        Assert::false(in_array('MAP-VAT-EU', $rules($build($oss)), true), 'no Romanian rate under OSS');
+        // An EU company invoiced without VAT stays under reverse charge.
+        $company = $invoice($client(['companyname' => 'Beispiel GmbH', 'tax_id' => 'DE123456789', 'country' => 'DE', 'state' => 'Berlin', 'city' => 'Berlin', 'postcode' => '10115']), [['Webhosting', 100.00, false]]);
+        $pay($company);
+        Assert::same(Document::EXCLUDED_EU_REVERSE_CHARGE, Addon::documents()->forInvoice($company)?->exclusion_reason);
     },
     'BNR rates are imported and the rate published before the document date is used' => static function (): void {
         $xml = '<?xml version="1.0" encoding="utf-8"?><DataSet xmlns="https://www.bnr.ro/xsd"><Body><OrigCurrency>RON</OrigCurrency>'

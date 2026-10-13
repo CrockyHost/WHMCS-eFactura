@@ -16,6 +16,7 @@ declare(strict_types=1);
 use WHMCS\Config\Setting;
 use WHMCS\Database\Capsule;
 use WHMCS\Module\Addon\Efactura\Admin\HealthChecks;
+use WHMCS\Module\Addon\Efactura\Settings\Settings;
 use WHMCS\Module\Addon\Efactura\Support\Lang;
 use WHMCS\Module\Addon\Efactura\Whmcs\InvoicingConfig;
 
@@ -100,6 +101,36 @@ $tests = [
     'proforma mode switched off blocks processing' => static function () use ($configure): void {
         $configure(['EnableProformaInvoicing' => '0']);
         Assert::false((new HealthChecks(new InvoicingConfig()))->systemReady());
+    },
+    'tax rules with the VAT of other EU countries are flagged unless the company uses OSS' => static function (): void {
+        $euCheck = static function (): ?array {
+            foreach ((new HealthChecks(new InvoicingConfig()))->all() as $check) {
+                if ($check['label'] === Lang::get('check_eu_vat')) {
+                    return $check;
+                }
+            }
+
+            return null;
+        };
+        $rule = static fn (string $country, string $rate): bool => Capsule::table('tbltax')->insert(['level' => 1, 'name' => 'VAT', 'state' => '', 'country' => $country, 'taxrate' => $rate]);
+        try {
+            Capsule::table('tbltax')->where('level', 1)->delete();
+            $rule('RO', '21');
+            Assert::same(null, $euCheck(), 'only the Romanian rule');
+
+            // Belgium has the Romanian rate: nothing wrong there.
+            $rule('DE', '19');
+            $rule('BE', '21');
+            Settings::save(['exclude_eu_oss' => false]);
+            $check = $euCheck() ?? throw new RuntimeException('EU VAT check missing');
+            Assert::same('warning', $check['status']);
+            Assert::same(Lang::get('check_eu_vat_rates', 1, 'DE 19%', '21'), $check['detail']);
+
+            Settings::save(['exclude_eu_oss' => true]);
+            Assert::same('ok', $euCheck()['status'] ?? null);
+        } finally {
+            Settings::save(['exclude_eu_oss' => false]);
+        }
     },
 ];
 
